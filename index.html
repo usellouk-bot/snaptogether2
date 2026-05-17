@@ -25,7 +25,7 @@ document.getElementById('pwa-icon').href = iconURL;
 const manifest = {
   name: 'SnapTogether',
   short_name: 'SnapTogether',
-  start_url: 'https://reliable-sprite-7ec1da.netlify.app',
+  start_url: 'https://usellouk-bot.github.io/snaptogether2',
   display: 'standalone',
   background_color: '#1A1A2E',
   theme_color: '#00FF88',
@@ -1654,7 +1654,7 @@ function renderShare(){
   document.getElementById('sh-name').textContent = S.ev.name || '';
   const code = S.ev.code || 'STXXXXX';
   // QR points to root — user enters code manually after scanning
-  const guestURL = 'https://reliable-sprite-7ec1da.netlify.app';
+  const guestURL = 'https://usellouk-bot.github.io/snaptogether2';
   const displayURL = guestURL + ' · קוד: ' + code;
   document.getElementById('sh-link').value = guestURL;
   document.getElementById('sh-code-label').textContent = 'סרוק → פתח → הכנס קוד: ' + code;
@@ -2820,8 +2820,8 @@ function admTab(t,btn){
     <div class="card">
       <div class="card-label">גישה מהמחשב</div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">דשבורד מנהל מלא למחשב:</div>
-      <div style="direction:ltr;font-family:monospace;font-size:12px;color:var(--neon);margin-bottom:10px;padding:10px;background:var(--dark3);border-radius:var(--r1);">reliable-sprite-7ec1da.netlify.app</div>
-      <button class="btn-ghost" style="margin:0;width:100%;" onclick="window.open('https://reliable-sprite-7ec1da.netlify.app','_blank');navigator.clipboard.writeText('https://reliable-sprite-7ec1da.netlify.app').catch(()=>{});toast('✓ נפתח בטאב חדש!')">📋 העתק קישור</button>
+      <div style="direction:ltr;font-family:monospace;font-size:12px;color:var(--neon);margin-bottom:10px;padding:10px;background:var(--dark3);border-radius:var(--r1);">usellouk-bot.github.io/snaptogether2</div>
+      <button class="btn-ghost" style="margin:0;width:100%;" onclick="window.open('https://usellouk-bot.github.io/snaptogether2','_blank');navigator.clipboard.writeText('https://usellouk-bot.github.io/snaptogether2').catch(()=>{});toast('✓ נפתח בטאב חדש!')">📋 העתק קישור</button>
     </div>
     <button class="btn-ghost btn-danger" onclick="admLogout()">התנתק →</button>`;
   }
