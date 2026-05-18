@@ -733,18 +733,6 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       </div>
     </div>
 
-    <!-- FIX: Zoom slider — fixed position, does NOT affect shutter position -->
-    <div class="zoom-bar" id="zoom-bar" style="display:none;">
-      <span style="font-size:14px;">🔍</span>
-      <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1" oninput="applyZoom(this.value)"/>
-      <span class="zoom-lbl" id="zoom-lbl">1×</span>
-    </div>
-
-    <!-- FIX: Watermark overlay for free tier -->
-    <div class="watermark-overlay" id="cam-watermark" style="display:none;">
-      <span>SnapTogether</span>
-    </div>
-
     <div id="flash" style="position:absolute;inset:0;background:white;opacity:0;pointer-events:none;z-index:20;transition:opacity 0.08s;"></div>
   </div>
 
@@ -754,8 +742,6 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div class="cam-setting-chip" id="vid-res-chip" onclick="cycleVidRes()">🎬 <span id="vid-res-val">1080p</span></div>
     <!-- FIX: Real torch/flashlight via track constraints -->
     <div class="cam-setting-chip" id="flash-chip" onclick="toggleFlash()">⚡ פלאש: <span id="flash-val">כבוי</span></div>
-    <!-- FIX: Zoom toggle shows/hides slider -->
-    <div class="cam-setting-chip" id="zoom-chip" onclick="toggleZoomBar()">🔍 זום</div>
     <div class="cam-setting-chip" onclick="toggleChat()">💬 צ'אט</div>
     <div class="cam-setting-chip" id="sig-chip" onclick="toggleSignal()">🟢 קליטה</div>
     <div class="cam-setting-chip" onclick="flipCamera()">🔄 היפוך</div>
@@ -1939,34 +1925,13 @@ function toggleZoomBar(){
 
 function applyZoom(val){
   S.currentZoom = parseFloat(val);
-  const lbl = document.getElementById('zoom-lbl');
-  if(lbl) lbl.textContent = S.currentZoom.toFixed(1)+'×';
-
-  // וידאו — מראה בלבד (ללא scale)
-  const vid = document.getElementById('cam-vid');
-  if(vid) vid.style.transform = camFacingMode==='user' ? 'scaleX(-1)' : '';
 
   if(!S.camStream) return;
   const vt = S.camStream.getVideoTracks()[0];
   if(!vt) return;
 
-  // native zoom בלבד — לא מזיז כלום על המסך
-  vt.applyConstraints({advanced:[{zoom: S.currentZoom}]})
-    .then(()=>{
-      // עבד — בוקה בזום גבוה
-      const bokeh = document.getElementById('bokeh-canvas');
-      if(bokeh) bokeh.style.opacity = S.currentZoom > 1.5 ? Math.min((S.currentZoom-1.5)*0.3, 0.6) : '0';
-    })
-    .catch(()=>{
-      // לא נתמך — אפס ל-1x והודע
-      if(S.currentZoom > 1){
-        const slider = document.getElementById('zoom-slider');
-        if(slider){ slider.value = '1'; }
-        if(lbl) lbl.textContent = '1×';
-        S.currentZoom = 1;
-        toast('⚠ זום אופטי לא נתמך במכשיר זה');
-      }
-    });
+  // native zoom בלבד — לא נוגע ב-CSS
+  vt.applyConstraints({advanced:[{zoom: S.currentZoom}]}).catch(()=>{});
 }
 
 function applyZoomCSS(zoom){ applyZoom(zoom); }
@@ -2287,8 +2252,72 @@ function handleOrientation(){
   warn.style.display=S.cur==='camera'&&isLandscape?'flex':'none';
 }
 
-// Init
-renderHome();
+// ═══════════════════════════════════════════════════════════
+// זום — חסימה מוחלטת של זום דפדפן + native zoom למצלמה
+// ═══════════════════════════════════════════════════════════
+
+// חסימה מוחלטת של gesturestart (Safari)
+document.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
+document.addEventListener('gesturechange', e => e.preventDefault(), {passive:false});
+document.addEventListener('gestureend', e => e.preventDefault(), {passive:false});
+
+// חסימה מוחלטת של כל touchmove עם 2 אצבעות
+document.addEventListener('touchmove', e => {
+  if(e.touches.length >= 2){
+    e.preventDefault(); // חוסם זום דפדפן בכל מצב
+    // במסך מצלמה — מפעיל native zoom
+    if(S.cur === 'camera'){
+      handlePinchZoom(e);
+    }
+  }
+}, {passive: false}); // חייב להיות false כדי ש-preventDefault יעבוד
+
+let _pinchStartDist = 0;
+let _pinchStartZoom = 1;
+
+document.addEventListener('touchstart', e => {
+  if(e.touches.length >= 2 && S.cur === 'camera'){
+    _pinchStartDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    _pinchStartZoom = S.currentZoom || 1;
+  }
+}, {passive: true});
+
+function handlePinchZoom(e){
+  if(_pinchStartDist === 0) return;
+  const dist = Math.hypot(
+    e.touches[0].clientX - e.touches[1].clientX,
+    e.touches[0].clientY - e.touches[1].clientY
+  );
+  const ratio = dist / _pinchStartDist;
+  const newZoom = Math.min(Math.max(_pinchStartZoom * ratio, 1), 5);
+  S.currentZoom = newZoom;
+
+  // הצג מחוון
+  let zi = document.getElementById('zoom-indicator');
+  if(!zi){
+    zi = document.createElement('div');
+    zi.id = 'zoom-indicator';
+    zi.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.65);color:#00FF88;font-family:"Bebas Neue",sans-serif;font-size:32px;letter-spacing:2px;padding:10px 20px;border-radius:20px;z-index:30;pointer-events:none;transition:opacity 0.3s;';
+    document.querySelector('.viewfinder')?.appendChild(zi);
+  }
+  zi.textContent = newZoom.toFixed(1) + '×';
+  zi.style.opacity = '1';
+
+  // native zoom בלבד — לא נוגע ב-CSS
+  applyZoom(newZoom);
+}
+
+document.addEventListener('touchend', e => {
+  if(S.cur !== 'camera') return;
+  _pinchStartDist = 0;
+  setTimeout(() => {
+    const zi = document.getElementById('zoom-indicator');
+    if(zi) zi.style.opacity = '0';
+  }, 800);
+}, {passive: true});
 
 // תיקון: חזרה מלחצן הבית — מפעיל מצלמה מחדש
 document.addEventListener('visibilitychange', async () => {
