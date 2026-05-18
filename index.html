@@ -125,9 +125,10 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 .cam-topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:rgba(0,0,0,0.9);flex-shrink:0;}
 .cam-ev-name{font-size:11px;color:var(--text2);font-weight:500;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .cam-timer{font-family:var(--fd);font-size:16px;letter-spacing:2px;color:var(--neon);padding:4px 12px;border-radius:20px;border:1px solid rgba(0,255,136,0.3);background:rgba(0,255,136,0.08);}
-.viewfinder{flex:1;background:#050507;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;contain:strict;}
-/* וידאו מוגבל בתוך viewfinder — הזום לא גולש החוצה */
+.viewfinder{flex:1;background:#050507;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;}
 .viewfinder video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center center;will-change:transform;}
+/* עטיפה נפרדת לוידאו — הזום חל רק עליה */
+#vid-zoom-wrapper{position:absolute;inset:0;overflow:hidden;}
 .vf-corner{position:absolute;width:24px;height:24px;border-color:var(--neon);border-style:solid;border-width:0;z-index:2;}
 .vf-corner.tl{top:14px;right:14px;border-top-width:2px;border-right-width:2px;}
 .vf-corner.tr{top:14px;left:14px;border-top-width:2px;border-left-width:2px;}
@@ -682,7 +683,9 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   </div>
 
   <div class="viewfinder">
-    <video id="cam-vid" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center center;"></video>
+    <div id="vid-zoom-wrapper">
+      <video id="cam-vid" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center center;"></video>
+    </div>
 
     <!-- FIX: Bokeh blur canvas for zoom background blur -->
     <canvas id="bokeh-canvas"></canvas>
@@ -1939,38 +1942,35 @@ function applyZoom(val){
   const lbl = document.getElementById('zoom-lbl');
   if(lbl) lbl.textContent = S.currentZoom.toFixed(1)+'×';
 
-  // שיטה 1: native zoom דרך camera API (הכי טוב — לא משפיע על מסך)
+  // שיטה 1: native zoom דרך camera API (הכי טוב)
+  let nativeWorked = false;
   if(S.camStream){
     const vt = S.camStream.getVideoTracks()[0];
     if(vt && vt.applyConstraints){
       vt.applyConstraints({advanced:[{zoom: S.currentZoom}]})
-        .then(()=>{
-          // native zoom עבד — לא צריך CSS
-          const vid = document.getElementById('cam-vid');
-          if(vid) vid.style.transform = camFacingMode==='user' ? 'scaleX(-1)' : 'none';
-        })
-        .catch(()=>{
-          // native zoom לא נתמך — fallback ל-CSS בתוך viewfinder בלבד
-          applyZoomCSS(val);
-        });
+        .then(()=>{ nativeWorked = true; })
+        .catch(()=>{ applyZoomCSS(S.currentZoom); });
       return;
     }
   }
-  applyZoomCSS(val);
+  applyZoomCSS(S.currentZoom);
 }
 
-function applyZoomCSS(val){
-  // CSS zoom — חל על הוידאו בלבד בתוך viewfinder (overflow:hidden)
+function applyZoomCSS(zoom){
+  // הזום חל על ה-wrapper בלבד — לא על המסך
+  const wrapper = document.getElementById('vid-zoom-wrapper');
   const vid = document.getElementById('cam-vid');
+  if(wrapper){
+    wrapper.style.transform = 'scale('+zoom+')';
+    wrapper.style.transformOrigin = 'center center';
+  }
+  // מראה מצלמה קדמית
   if(vid){
-    const mirror = camFacingMode==='user' ? 'scaleX(-1) ' : '';
-    // scale עם transform-origin:center — הוידאו גדל פנימה, overflow:hidden חוסם אותו
-    vid.style.transform = mirror + 'scale('+S.currentZoom+')';
-    vid.style.transformOrigin = 'center center';
+    vid.style.transform = camFacingMode==='user' ? 'scaleX(-1)' : '';
   }
   // בוקה ברקע בזום גבוה
   const bokeh = document.getElementById('bokeh-canvas');
-  if(bokeh) bokeh.style.opacity = S.currentZoom > 1.5 ? Math.min((S.currentZoom-1.5)*0.3, 0.6) : '0';
+  if(bokeh) bokeh.style.opacity = zoom > 1.5 ? Math.min((zoom-1.5)*0.3, 0.6) : '0';
 }
 
 // ── TAKE PHOTO ──
