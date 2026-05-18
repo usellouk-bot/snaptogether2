@@ -1942,36 +1942,34 @@ function applyZoom(val){
   const lbl = document.getElementById('zoom-lbl');
   if(lbl) lbl.textContent = S.currentZoom.toFixed(1)+'×';
 
-  // שיטה 1: native zoom דרך camera API (הכי טוב)
-  let nativeWorked = false;
-  if(S.camStream){
-    const vt = S.camStream.getVideoTracks()[0];
-    if(vt && vt.applyConstraints){
-      vt.applyConstraints({advanced:[{zoom: S.currentZoom}]})
-        .then(()=>{ nativeWorked = true; })
-        .catch(()=>{ applyZoomCSS(S.currentZoom); });
-      return;
-    }
-  }
-  applyZoomCSS(S.currentZoom);
+  // וידאו — מראה בלבד (ללא scale)
+  const vid = document.getElementById('cam-vid');
+  if(vid) vid.style.transform = camFacingMode==='user' ? 'scaleX(-1)' : '';
+
+  if(!S.camStream) return;
+  const vt = S.camStream.getVideoTracks()[0];
+  if(!vt) return;
+
+  // native zoom בלבד — לא מזיז כלום על המסך
+  vt.applyConstraints({advanced:[{zoom: S.currentZoom}]})
+    .then(()=>{
+      // עבד — בוקה בזום גבוה
+      const bokeh = document.getElementById('bokeh-canvas');
+      if(bokeh) bokeh.style.opacity = S.currentZoom > 1.5 ? Math.min((S.currentZoom-1.5)*0.3, 0.6) : '0';
+    })
+    .catch(()=>{
+      // לא נתמך — אפס ל-1x והודע
+      if(S.currentZoom > 1){
+        const slider = document.getElementById('zoom-slider');
+        if(slider){ slider.value = '1'; }
+        if(lbl) lbl.textContent = '1×';
+        S.currentZoom = 1;
+        toast('⚠ זום אופטי לא נתמך במכשיר זה');
+      }
+    });
 }
 
-function applyZoomCSS(zoom){
-  // הזום חל על ה-wrapper בלבד — לא על המסך
-  const wrapper = document.getElementById('vid-zoom-wrapper');
-  const vid = document.getElementById('cam-vid');
-  if(wrapper){
-    wrapper.style.transform = 'scale('+zoom+')';
-    wrapper.style.transformOrigin = 'center center';
-  }
-  // מראה מצלמה קדמית
-  if(vid){
-    vid.style.transform = camFacingMode==='user' ? 'scaleX(-1)' : '';
-  }
-  // בוקה ברקע בזום גבוה
-  const bokeh = document.getElementById('bokeh-canvas');
-  if(bokeh) bokeh.style.opacity = zoom > 1.5 ? Math.min((zoom-1.5)*0.3, 0.6) : '0';
-}
+function applyZoomCSS(zoom){ applyZoom(zoom); }
 
 // ── TAKE PHOTO ──
 function takePhoto(){
