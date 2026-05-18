@@ -1423,13 +1423,15 @@ function deleteScenario(i){if(confirm('למחוק?')){S.scList.splice(i,1);rende
 const CLOUD_NAME = 'dufzgvkzi';
 const UPLOAD_PRESET = 'snaptogether';
 
-async function uploadToCloudinary(dataURL, eventCode){
+async function uploadToCloudinary(dataURL, eventCode, uploaderName){
   try{
     const res=await fetch(dataURL);const blob=await res.blob();
     const formData=new FormData();
     formData.append('file',blob);
     formData.append('upload_preset',UPLOAD_PRESET);
-    formData.append('folder','events/'+(eventCode||'general'));
+    // תיקייה לפי קוד אירוע + שם מצלם
+    const folderName = 'events/'+(eventCode||'general')+'/'+(uploaderName||'אורח').replace(/[^a-zA-Zא-ת0-9]/g,'_');
+    formData.append('folder', folderName);
     const response=await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,{method:'POST',body:formData});
     if(response.ok){const data=await response.json();return data.secure_url;}
     return null;
@@ -1829,36 +1831,71 @@ async function startCam(){
 async function openCameraStream(){
   try{
     if(S.camStream)S.camStream.getTracks().forEach(t=>t.stop());
-    const constraints={
-      video:{facingMode:camFacingMode,width:{ideal:1920},height:{ideal:1080}},
-      audio:true
-    };
-    const stream=await navigator.mediaDevices.getUserMedia(constraints);
-    S.camStream=stream;
-    const vid=document.getElementById('cam-vid');
-    vid.srcObject=stream;
-    // FIX: Mirror front camera only
-    vid.style.transform=camFacingMode==='user'?'scaleX(-1)':'scaleX(1)';
-    vid.style.width='100%';
-    vid.style.height='100%';
-    vid.style.objectFit='cover';
-    document.getElementById('cam-ico').style.display='none';
-    torchTrack=null;
-    // FIX: Check torch support
-    const vtrack=stream.getVideoTracks()[0];
-    if(vtrack&&vtrack.getCapabilities){
-      const caps=vtrack.getCapabilities();
-      if(caps.torch){torchTrack=vtrack;document.getElementById('flash-chip').style.opacity='1';}
-      else{document.getElementById('flash-chip').style.opacity='0.5';}
+
+    // Safari/iOS: constraints פשוטים בלבד
+    let stream;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:{ ideal: camFacingMode } },
+        audio: false
+      });
+    } catch(e1){
+      stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
     }
-    // FIX: Reset zoom
-    S.currentZoom=1;
+
+    S.camStream = stream;
+    const vid = document.getElementById('cam-vid');
+    vid.srcObject = stream;
+    vid.setAttribute('autoplay','');
+    vid.setAttribute('playsinline',''); // קריטי לiOS
+    vid.setAttribute('muted','');
+    vid.muted = true;
+    vid.style.transform = camFacingMode==='user' ? 'scaleX(-1)' : 'scaleX(1)';
+    vid.style.width = '100%';
+    vid.style.height = '100%';
+    vid.style.objectFit = 'cover';
+    try{ await vid.play(); } catch(pe){}
+
+    document.getElementById('cam-ico').style.display = 'none';
+    torchTrack = null;
+
+    const vtrack = stream.getVideoTracks()[0];
+    if(vtrack){
+      // תיקון פליקר ממנורות LED/פלואורסנט —
+      // מנורות בישראל פועלות ב-50Hz, נועל shutter ל-1/50 שניה
+      try{
+        await vtrack.applyConstraints({
+          advanced:[{ exposureMode:'manual', exposureTime:20000 }]
+        });
+      } catch(fe){
+        // מכשיר לא תומך ב-manual — נסה רק continuous
+        try{ await vtrack.applyConstraints({advanced:[{exposureMode:'continuous'}]}); }catch(e2){}
+      }
+
+      // בדיקת תמיכה בפנס
+      if(vtrack.getCapabilities){
+        try{
+          const caps = vtrack.getCapabilities();
+          if(caps.torch){ torchTrack = vtrack; }
+          document.getElementById('flash-chip').style.opacity = caps.torch ? '1' : '0.5';
+        } catch(ce){}
+      }
+    }
+
+    S.currentZoom = 1;
     applyZoom(1);
-    document.getElementById('shutterEl').style.opacity='1';
-    document.getElementById('shutterEl').style.pointerEvents='auto';
+    document.getElementById('shutterEl').style.opacity = '1';
+    document.getElementById('shutterEl').style.pointerEvents = 'auto';
+
   } catch(e){
-    document.getElementById('cam-ico').style.display='flex';
-    toast('⚠ אין גישה למצלמה — בדוק הרשאות');
+    const ico = document.getElementById('cam-ico');
+    ico.style.display = 'flex';
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const msg = isIOS
+      ? 'הרשה גישה למצלמה:\nהגדרות ← Safari ← מצלמה ← אפשר'
+      : 'אין גישה למצלמה — בדוק הרשאות';
+    ico.innerHTML = `<span style="font-size:36px;margin-bottom:8px;">📷</span><span style="font-size:11px;color:rgba(255,255,255,0.6);text-align:center;padding:0 24px;line-height:1.7;white-space:pre-line;">${msg}</span>`;
+    toast('⚠ ' + (isIOS ? 'אפשר גישה למצלמה ב-הגדרות Safari' : 'אין גישה למצלמה'));
   }
 }
 
@@ -1974,40 +2011,73 @@ function approvePhotoNow(){
 
 function hidePhotoPreview(){const p=document.getElementById('photo-preview');if(p)p.style.display='none';}
 
+// ── תור אמיתי לתמונות ממתינות ──
+// כל תמונה שנצטלמה ללא קליטה נכנסת לתור
+// כשחוזרת קליטה — מעלה אחת אחת עם אישור
+let uploadQueue = [];
+let isUploading = false;
+
 async function uploadPhoto(dataURL){
   S.photos++;
-  const ts=new Date().toISOString();
+  const ts = new Date().toISOString();
+  const uploaderName = S.guestName || (DB.currentUser && DB.currentUser.name) || 'אורח';
 
-  // FIX: Update last thumb immediately
-  const thumb=document.getElementById('last-thumb');
-  if(thumb)thumb.innerHTML=`<img src="${dataURL}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/>`;
+  // עדכון תמונה אחרונה מיידית
+  const thumb = document.getElementById('last-thumb');
+  if(thumb) thumb.innerHTML = `<img src="${dataURL}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/>`;
+
+  // שמור מקומית תמיד — קודם כל
+  const photoObj = {url: dataURL, ts, type:'image', pending: true, uploaderName};
+  addPhotoToEvent(photoObj);
+  updCamUI();
+
+  // הוסף לתור
+  uploadQueue.push({dataURL, ts, uploaderName});
 
   if(S.noSignal){
     S.pending++;
-    // FIX: Save to localStorage even offline
-    addPhotoToEvent({url:dataURL,ts,type:'image',pending:true});
-    updCamUI();return;
+    updCamUI();
+    return;
   }
 
-  const upl=document.getElementById('cam-upl');
-  if(upl)upl.style.display='block';
+  // הפעל תור אם לא פעיל
+  processUploadQueue();
+}
 
-  // FIX: Save locally first (FIFO guard)
-  addPhotoToEvent({url:dataURL,ts,type:'image',uploading:true});
-  updCamUI();
+async function processUploadQueue(){
+  if(isUploading || uploadQueue.length === 0) return;
+  isUploading = true;
 
-  const cloudURL=await uploadToCloudinary(dataURL,S.ev.code||'test');
-  if(cloudURL){
-    // FIX: Update record with cloud URL
-    updatePhotoCloudUrl(S.ev.code,ts,cloudURL);
-    if(upl)upl.style.display='none';
-    toast('✓ עלתה לענן ☁');
-  } else {
-    // Already saved locally — just mark cloud failed
-    if(upl)upl.style.display='none';
+  const upl = document.getElementById('cam-upl');
+
+  while(uploadQueue.length > 0){
+    const item = uploadQueue[0];
+    if(upl) upl.style.display = 'block';
+
+    // נסה להעלות — עד 3 פעמים
+    let cloudURL = null;
+    for(let attempt = 0; attempt < 3; attempt++){
+      cloudURL = await uploadToCloudinary(item.dataURL, S.ev.code||'test', item.uploaderName);
+      if(cloudURL) break;
+      await new Promise(r => setTimeout(r, 1500)); // המתן לפני ניסיון חוזר
+    }
+
+    if(cloudURL){
+      // אישור שהגיע לענן — עדכן ב-localStorage
+      updatePhotoCloudUrl(S.ev.code, item.ts, cloudURL);
+      uploadQueue.shift(); // הסר מהתור רק אחרי אישור
+      if(S.pending > 0){ S.pending--; }
+    } else {
+      // נכשל — עצור ונסה שוב מאוחר יותר
+      break;
+    }
+    updCamUI();
   }
-  S.ev.usedGB=parseFloat(((S.ev.usedGB||0)+0.007).toFixed(3));
-  saveEvent();updCamUI();
+
+  if(upl) upl.style.display = 'none';
+  S.ev.usedGB = parseFloat(((S.ev.usedGB||0) + 0.007).toFixed(3));
+  saveEvent();
+  isUploading = false;
 }
 
 function openLastPhoto(){
@@ -2085,7 +2155,13 @@ function toggleSignal(){
   S.noSignal=!S.noSignal;
   const btn=document.getElementById('sig-chip');
   if(btn){btn.innerHTML=S.noSignal?'🔴 אין קליטה':'🟢 קליטה';btn.classList.toggle('active',!S.noSignal);}
-  if(!S.noSignal&&S.pending>0){const p=S.pending;S.pending=0;toast('✓ '+p+' תמונות הועלו לענן!');updCamUI();}
+  if(!S.noSignal && uploadQueue.length > 0){
+    toast('📡 קליטה חזרה — מעלה '+uploadQueue.length+' תמונות...');
+    processUploadQueue(); // מעלה את התור האמיתי
+  } else if(!S.noSignal && S.pending > 0){
+    S.pending = 0;
+    updCamUI();
+  }
 }
 
 function toggleChat(){document.getElementById('cam-chat').classList.toggle('open');if(document.getElementById('cam-chat').classList.contains('open'))renderChatLog();}
@@ -2114,10 +2190,13 @@ function stopCamera(){
   if(S.camStream)S.camStream.getTracks().forEach(t=>t.stop());S.camStream=null;
   if(S.tmrInt){clearInterval(S.tmrInt);S.tmrInt=null;}
   stopRec();
-  // FIX: Turn off torch when leaving camera
   if(torchTrack&&flashOn){torchTrack.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});flashOn=false;}
   torchTrack=null;
-  // FIX: Goes to gallery, keeps event context (no re-login)
+  // אפס zoom
+  S.currentZoom=1;
+  S.zoomBarVisible=false;
+  const zb=document.getElementById('zoom-bar');if(zb)zb.style.display='none';
+  // חזור לגלריה
   nav('gallery');
 }
 
@@ -2191,6 +2270,22 @@ function handleOrientation(){
 
 // Init
 renderHome();
+
+// תיקון: חזרה מלחצן הבית — מפעיל מצלמה מחדש
+document.addEventListener('visibilitychange', async () => {
+  if(document.visibilityState === 'visible' && S.cur === 'camera'){
+    // המצלמה נתקעה — הפעל מחדש
+    const vid = document.getElementById('cam-vid');
+    if(vid && (!S.camStream || S.camStream.getTracks().some(t => t.readyState === 'ended'))){
+      toast('🔄 מפעיל מצלמה מחדש...');
+      await openCameraStream();
+    }
+    // נסה להעלות תמונות ממתינות
+    if(!S.noSignal && uploadQueue.length > 0){
+      processUploadQueue();
+    }
+  }
+});
 
 // FIX: Handle deep link with ?code=STXXXXX
 function handleDeepLink(){
