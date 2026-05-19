@@ -265,17 +265,40 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 .watermark-overlay{position:absolute;bottom:8px;right:8px;z-index:6;pointer-events:none;}
 .watermark-overlay span{font-family:var(--fd);font-size:11px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-shadow:0 1px 3px rgba(0,0,0,0.5);}
 
-@media (orientation: landscape) and (max-height: 500px) {
-  .app{max-width:100vw !important;width:100vw !important;height:100vh !important;}
-  #s-camera{width:100vw !important;height:100vh !important;}
-  #s-camera .cam-settings{display:none !important;}
-  #s-camera .cam-mode-tabs{display:none !important;}
-  #s-camera .cam-up-bar{display:none !important;}
-  #s-camera .cam-topbar{padding:4px 16px !important;flex-shrink:0 !important;}
-  #s-camera .viewfinder{flex:1 !important;width:100vw !important;min-height:0 !important;}
-  #s-camera .cam-info-bar{padding:2px 14px !important;flex-shrink:0 !important;}
-  #s-camera .cam-controls{padding:6px 32px !important;flex-shrink:0 !important;display:flex !important;}
-  #landscape-warn{display:none !important;}
+@media (orientation: landscape) {
+  /* מצלמה — מלאה את כל המסך לרוחב */
+  #s-camera {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    height: 100vh !important;
+  }
+  #s-camera .cam-settings { display: none !important; }
+  #s-camera .cam-mode-tabs { display: none !important; }
+  #s-camera .cam-up-bar { display: none !important; }
+  #s-camera #cam-stor-bar { display: none !important; }
+  #s-camera .cam-topbar {
+    padding: 4px 16px !important;
+    flex-shrink: 0 !important;
+  }
+  #s-camera .viewfinder {
+    flex: 1 !important;
+    width: 100vw !important;
+    min-height: 0 !important;
+  }
+  #s-camera .cam-info-bar {
+    padding: 2px 14px !important;
+    flex-shrink: 0 !important;
+  }
+  #s-camera .cam-controls {
+    padding: 6px 32px !important;
+    flex-shrink: 0 !important;
+  }
+  /* הסתר אזהרת לרוחב — תמיד מותר לרוחב */
+  #landscape-warn { display: none !important; }
+  /* שאר המסכים — גם לרוחב */
+  .app {
+    max-width: 100vw !important;
+  }
 }
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.25;}}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -683,7 +706,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   </div>
 
   <div class="viewfinder">
-    <div id="vid-zoom-wrapper">
+    <div id="vid-zoom-wrapper" style="position:absolute;inset:0;overflow:hidden;z-index:0;">
       <video id="cam-vid" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center center;"></video>
     </div>
 
@@ -785,7 +808,6 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">כניסה לאירוע</div></div>
   <div class="scroll" style="padding:20px 0 80px;">
     <div style="padding:0 18px;">
-      <!-- FIX: QR scan — uses jsQR for real scanning; Safari fallback to manual code -->
       <div class="qr-scan-area" id="qr-scan-area">
         <div class="scan-line"></div>
         <video id="qr-vid" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" playsinline autoplay muted></video>
@@ -797,13 +819,34 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
         </div>
       </div>
       <div class="divider-line"><div class="div-l"></div><span>או הכנס קוד ידנית</span><div class="div-l"></div></div>
-      <!-- FIX: Code remembered between sessions — show last used code -->
       <input class="code-inp" id="g-code" placeholder="ST·····" onkeydown="if(event.key==='Enter')enterEvent()" oninput="this.value=this.value.toUpperCase()"/>
       <div id="g-err" class="note note-warn" style="display:none;margin-bottom:10px;"></div>
     </div>
     <button class="btn-primary" onclick="enterEvent()">כניסה לאירוע →</button>
+    <div id="ios-hint" style="display:none;margin:0 18px 10px;">
+      <div class="note note-amber"><div class="note-dot"></div><div style="font-size:11px;line-height:1.7;"><strong>משתמשי iPhone:</strong> אם המצלמה לא נפתחת —<br/>הגדרות ← Safari ← מצלמה ← אפשר</div></div>
+    </div>
     <button class="btn-ghost" onclick="back()">‹ חזרה</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
+  </div>
+</div>
+
+<!-- GUEST REGISTER — מסך רישום אורח אחרי קישור ישיר -->
+<div class="screen" id="s-guest_register">
+  <div class="topbar"><div class="topbar-title">ברוכים הבאים</div></div>
+  <div class="scroll" style="padding:20px 0 80px;">
+    <div style="padding:30px 18px 20px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">📸</div>
+      <div style="font-family:var(--fd);font-size:28px;color:var(--neon);" id="gr-event-name"></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px;">כדי להיכנס לצלם, נדרשים פרטים קצרים</div>
+    </div>
+    <div class="card">
+      <div class="card-label">פרטי המצלם</div>
+      <div class="field"><label>שם מלא *</label><input id="gr-name" placeholder="ישראל ישראלי"/></div>
+      <div class="field"><label>טלפון *</label><input type="tel" id="gr-phone" placeholder="05X-XXXXXXX"/></div>
+      <div id="gr-err" class="note note-warn" style="display:none;margin-top:8px;">⚠ נא למלא שם וטלפון</div>
+    </div>
+    <button class="btn-primary" onclick="submitGuestRegister()">כניסה לאירוע →</button>
   </div>
 </div>
 
@@ -970,7 +1013,16 @@ function enter(s){
     storage:renderStor,download:renderDL,scenarios:renderScenarios,
     welcome:renderWlc,camera:startCam,admin:()=>{},
     payment:renderPay,cloud:renderCloud,edit_event:renderEditEvent,
-    register:()=>{},login:()=>{},guest:enterGuest}[s]||function(){})();
+    register:()=>{},login:()=>{},guest:enterGuest,
+    guest_register:renderGuestRegister}[s]||function(){})();
+}
+
+function renderGuestRegister(){
+  const nameEl=document.getElementById('gr-event-name');
+  if(nameEl) nameEl.textContent=S.ev.name||'האירוע';
+  // בדוק אם כבר נרשם
+  const saved=localStorage.getItem('st_guest_name_'+(S.ev.code||''));
+  if(saved){ S.guestName=saved; nav('welcome'); }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1117,8 +1169,18 @@ function submitCreate(){
     owner1:{name:o1n,phone:o1p},
     owner2:o2Open?{name:document.getElementById('c-o2n').value,phone:document.getElementById('c-o2p').value}:null,
     welcomeText:document.getElementById('c-welcome').value,
-    cameras:S.selCam,storageGB:S.selStor,camPrice:S.camP,storPrice:S.storP,
+    cameras:15,storageGB:25,camPrice:0,storPrice:0,
     paid:false,free:false,usedGB:0,guests:[],createdAt:new Date().toISOString()};
+
+  // מנהל מערכת — עוקף תשלום לחלוטין
+  if(S.ev.adminCreated || (DB.currentUser && DB.currentUser.role==='admin')){
+    S.ev.adminCreated=true;
+    S.ev.paid=true; // מאפשר גישה מלאה
+    saveEvent();
+    toast('✓ אירוע נוצר בהצלחה!');
+    nav('share');
+    return;
+  }
   nav('package');
 }
 function toggleOtherType(sel){
@@ -1704,12 +1766,31 @@ function renderWlc(){
 let qrScanStream=null;let qrScanInt=null;
 
 function enterGuest(){
-  // FIX: Load last used code from localStorage
   const lastCode=localStorage.getItem('st_last_code');
   if(lastCode){
     const el=document.getElementById('g-code');
     if(el&&!el.value) el.value=lastCode;
   }
+  const hint=document.getElementById('ios-hint');
+  if(hint) hint.style.display=/iPad|iPhone|iPod/.test(navigator.userAgent)?'block':'none';
+}
+
+function submitGuestRegister(){
+  const name=document.getElementById('gr-name')?.value.trim();
+  const phone=document.getElementById('gr-phone')?.value.trim();
+  const err=document.getElementById('gr-err');
+  if(!name||!phone){if(err)err.style.display='flex';return;}
+  if(err)err.style.display='none';
+  S.guestName=name;
+  S.guestPhone=phone;
+  localStorage.setItem('st_guest_name_'+(S.ev.code||''),name);
+  localStorage.setItem('st_guest_phone_'+(S.ev.code||''),phone);
+  if(!S.ev.guests) S.ev.guests=[];
+  if(!S.ev.guests.find(g=>g.phone===phone)){
+    S.ev.guests.push({name,phone,joinedAt:new Date().toISOString()});
+    saveEvent();
+  }
+  nav('welcome');
 }
 
 function startQRScan(){
@@ -2202,35 +2283,290 @@ function admTab(t,btn){
   if(btn)btn.classList.add('active');
   const evs=DB.events.filter(e=>!e.deleted);
   const users=DB.users;
-  const totalUsedGB=evs.reduce((sum,e)=>sum+(e.usedGB||0),0).toFixed(3);
+  const totalUsedGB=evs.reduce((sum,e)=>sum+(e.usedGB||0),0).toFixed(2);
   const totalRev=evs.filter(e=>e.paid).reduce((sum,e)=>sum+(299+(e.camPrice||0)+(e.storPrice||0)),0);
+  const activeEvs=evs.filter(e=>e.paid||e.adminCreated);
+  const now=new Date();
+
+  // כרטיסי סטטיסטיקה — כולם לחיצים
   let h=`<div class="stat-grid">
-    <div class="stat-card"><div class="stat-card-n">${evs.filter(e=>e.paid).length}</div><div class="stat-card-l">אירועים פעילים</div></div>
-    <div class="stat-card"><div class="stat-card-n">${users.length}</div><div class="stat-card-l">לקוחות רשומים</div></div>
-    <div class="stat-card"><div class="stat-card-n">₪${totalRev.toLocaleString()}</div><div class="stat-card-l">הכנסות</div></div>
-    <div class="stat-card"><div class="stat-card-n">${totalUsedGB}GB</div><div class="stat-card-l">אחסון</div></div>
+    <div class="stat-card" style="cursor:pointer;" onclick="admTab('events',document.querySelector('.admin-tab'))">
+      <div class="stat-card-n">${activeEvs.length}</div><div class="stat-card-l">אירועים פעילים</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer;" onclick="admTab('clients',document.querySelectorAll('.admin-tab')[1])">
+      <div class="stat-card-n">${users.length}</div><div class="stat-card-l">לקוחות רשומים</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer;" onclick="admTab('revenue',document.querySelectorAll('.admin-tab')[2])">
+      <div class="stat-card-n">₪${totalRev.toLocaleString()}</div><div class="stat-card-l">הכנסות</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer;" onclick="admTab('storage',document.querySelectorAll('.admin-tab')[3])">
+      <div class="stat-card-n">${totalUsedGB}GB</div><div class="stat-card-l">אחסון בשימוש</div>
+    </div>
   </div>`;
+
   if(t==='events'){
-    if(evs.length===0){h+=`<div class="card"><div style="text-align:center;padding:30px;color:var(--text3);"><div style="font-size:32px;">📅</div><div>אין אירועים עדיין</div></div></div>`;}
-    else{h+=`<div class="card"><div class="card-label">כל האירועים (${evs.length})</div>${evs.map(e=>`<div class="table-row"><div><div style="font-size:13px;font-weight:600;color:var(--text1);">${e.name||'ללא שם'}</div><div style="font-size:10px;color:var(--text3);">${e.date||''} · ${e.code||''}</div></div><div style="display:flex;gap:8px;"><span class="pill ${e.paid?'pill-live':'pill-upcoming'}">${e.paid?'● פעיל':'טרם שולם'}</span><button onclick="deleteAdminEvent('${e.code}')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;">🗑</button></div></div>`).join('')}</div>`;}
+    // כפתור יצירת אירוע ללא תשלום
+    h+=`<button class="btn-primary" onclick="admCreateEvent()" style="margin-bottom:10px;">+ צור אירוע (ללא תשלום)</button>`;
+
+    if(evs.length===0){
+      h+=`<div class="card"><div style="text-align:center;padding:30px;color:var(--text3);"><div style="font-size:32px;">📅</div><div>אין אירועים עדיין</div></div></div>`;
+    } else {
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin:0 18px 6px;">
+        <div style="font-size:10px;color:var(--text3);">כל האירועים (${evs.length})</div>
+        <button onclick="exportAllEvents()" style="background:none;border:1px solid var(--border2);border-radius:var(--r1);padding:4px 10px;color:var(--text2);font-size:10px;cursor:pointer;">📥 ייצוא CSV</button>
+      </div>`;
+      h+=evs.map(e=>{
+        const daysLeft=e.date?Math.max(0,Math.ceil((new Date(e.date).setDate(new Date(e.date).getDate()+30)-now)/86400000)):30;
+        const photos=getStoredPhotos(e.code);
+        const usedGB=(e.usedGB||0).toFixed(2);
+        const alertColor=daysLeft<=3?'var(--red)':daysLeft<=7?'var(--amber)':'var(--neon)';
+        return `<div class="card" style="cursor:pointer;margin-bottom:8px;" onclick="admShowEvent('${e.code}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text1);">${e.name||'ללא שם'}</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px;">${e.date||''} · ${e.code||''} · ${e.owner1?.name||''}</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="pill ${e.paid||e.adminCreated?'pill-live':'pill-upcoming'}">${e.adminCreated?'מנהל':e.paid?'● פעיל':'טרם שולם'}</span>
+              <button onclick="event.stopPropagation();deleteAdminEvent('${e.code}')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;">🗑</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:10px;">
+            <div style="text-align:center;background:var(--dark3);border-radius:6px;padding:6px;">
+              <div style="color:var(--neon);font-family:var(--fd);font-size:16px;">${photos.length}</div>
+              <div style="color:var(--text3);">תמונות</div>
+            </div>
+            <div style="text-align:center;background:var(--dark3);border-radius:6px;padding:6px;">
+              <div style="color:var(--neon);font-family:var(--fd);font-size:16px;">${usedGB}GB</div>
+              <div style="color:var(--text3);">אחסון</div>
+            </div>
+            <div style="text-align:center;background:var(--dark3);border-radius:6px;padding:6px;">
+              <div style="color:${alertColor};font-family:var(--fd);font-size:16px;">${daysLeft}</div>
+              <div style="color:var(--text3);">ימים</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
   } else if(t==='clients'){
-    h+=`<div class="card"><div class="card-label">לקוחות (${users.length})</div>${users.map(u=>`<div class="table-row"><div style="font-size:13px;color:var(--text1);">${u.name}<div style="font-size:10px;color:var(--text3);">${u.email}</div></div><button onclick="deleteUser('${u.email}')" style="background:none;border:none;color:var(--red);cursor:pointer;">🗑</button></div>`).join('')}</div>`;
+    h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin:0 18px 6px;">
+      <div style="font-size:10px;color:var(--text3);">לקוחות (${users.length})</div>
+      <button onclick="exportAllClients()" style="background:none;border:1px solid var(--border2);border-radius:var(--r1);padding:4px 10px;color:var(--text2);font-size:10px;cursor:pointer;">📥 ייצוא CSV</button>
+    </div>`;
+    if(users.length===0){h+=`<div class="card"><div style="text-align:center;padding:30px;color:var(--text3);">אין לקוחות עדיין</div></div>`;}
+    else{
+      h+=users.map(u=>`
+        <div class="card" style="cursor:pointer;margin-bottom:8px;" onclick="admShowClient('${u.email}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text1);">${u.name}</div>
+              <div style="font-size:10px;color:var(--text3);">${u.email} · ${new Date(u.createdAt||Date.now()).toLocaleDateString('he-IL')}</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button onclick="event.stopPropagation();sendMsgTo('${u.email}')" style="background:none;border:1px solid var(--border2);border-radius:var(--r1);padding:3px 8px;color:var(--text2);font-size:9px;cursor:pointer;">✉ שלח</button>
+              <button onclick="event.stopPropagation();deleteUser('${u.email}')" style="background:none;border:none;color:var(--red);cursor:pointer;">🗑</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
   } else if(t==='revenue'){
-    h+=`<div class="card"><div class="card-label">הכנסות</div><div class="sum-total"><span>סה״כ</span><span>₪${totalRev.toLocaleString()}</span></div></div>`;
+    h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin:0 18px 6px;">
+      <div style="font-size:10px;color:var(--text3);">הכנסות מפורטות</div>
+      <button onclick="exportRevenue()" style="background:none;border:1px solid var(--border2);border-radius:var(--r1);padding:4px 10px;color:var(--text2);font-size:10px;cursor:pointer;">📥 ייצוא</button>
+    </div>`;
+    h+=`<div class="card">
+      <div class="sum-row"><span>הכנסות סה״כ</span><span style="color:var(--neon);font-family:var(--fd);font-size:20px;">₪${totalRev.toLocaleString()}</span></div>
+      <div class="sum-row"><span>מע"מ 17%</span><span>₪${Math.round(totalRev*0.17).toLocaleString()}</span></div>
+      <div class="sum-row"><span>רווח נקי (est)</span><span>₪${Math.round(totalRev*0.75).toLocaleString()}</span></div>
+    </div>`;
+    if(evs.filter(e=>e.paid).length>0){
+      h+=`<div class="card"><div class="card-label">לפי אירוע</div>`;
+      h+=evs.filter(e=>e.paid).map(e=>{
+        const rev=299+(e.camPrice||0)+(e.storPrice||0);
+        return `<div class="table-row" style="cursor:pointer;" onclick="admShowEvent('${e.code}')">
+          <div><div style="font-size:13px;color:var(--text1);">${e.name||e.code}</div><div style="font-size:10px;color:var(--text3);">${e.date||''}</div></div>
+          <div style="font-family:var(--fd);font-size:18px;color:var(--neon);">₪${rev.toLocaleString()}</div>
+        </div>`;
+      }).join('');
+      h+=`</div>`;
+    }
+
   } else if(t==='storage'){
-    h+=`<div class="card"><div class="card-label">אחסון</div>${evs.map(e=>{const gb=e.usedGB||0,pct=Math.min(Math.round(gb/(e.storageGB||5)*100),100);return `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px;"><span>${e.name||e.code}</span><span>${Number(gb).toFixed?Number(gb).toFixed(3):gb}GB</span></div><div class="rev-bar-bg"><div class="rev-bar-fill" style="width:${pct}%;"></div></div></div>`;}).join('')}</div>`;
+    h+=`<div class="card">
+      <div class="card-label">אחסון כולל</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:8px;">
+        <span>בשימוש: ${totalUsedGB}GB</span>
+        <span>ענן זמין: 25GB</span>
+      </div>
+      <div class="stor-bar"><div class="stor-fill" style="width:${Math.min(parseFloat(totalUsedGB)/25*100,100)}%;background:${parseFloat(totalUsedGB)>20?'var(--red)':'var(--neon)'};"></div></div>
+    </div>`;
+    h+=evs.map(e=>{
+      const gb=e.usedGB||0;
+      const pct=Math.min(Math.round(gb/25*100),100);
+      const photos=getStoredPhotos(e.code);
+      return `<div class="card" style="cursor:pointer;margin-bottom:8px;" onclick="admShowEvent('${e.code}')">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text1);">${e.name||e.code}</div>
+          <div style="font-size:11px;color:var(--neon);">${Number(gb).toFixed(2)}GB</div>
+        </div>
+        <div class="rev-bar-bg"><div class="rev-bar-fill" style="width:${pct}%;background:${pct>80?'var(--red)':'var(--neon)'};"></div></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px;">${photos.length} תמונות · ${e.date||''}</div>
+      </div>`;
+    }).join('');
+
   } else if(t==='alerts'){
-    h+=`<div class="card"><div class="card-label">התראות</div>${DB.notifications.length?DB.notifications.map(n=>`<div class="table-row"><div style="font-size:12px;color:var(--text1);">${n.type} · ${n.event}</div></div>`).join(''):'<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px;">אין התראות</div>'}</div>`;
+    // התראות חכמות
+    const alerts=[];
+    evs.forEach(e=>{
+      const daysLeft=e.date?Math.max(0,Math.ceil((new Date(e.date).setDate(new Date(e.date).getDate()+30)-now)/86400000)):30;
+      if(daysLeft<=7&&daysLeft>0) alerts.push({type:'storage',msg:`"${e.name}" — ${daysLeft} ימים למחיקה`,color:'var(--amber)',code:e.code});
+      if(daysLeft===0) alerts.push({type:'expired',msg:`"${e.name}" — פג תוקף, מחיקה צפויה`,color:'var(--red)',code:e.code});
+      if((e.usedGB||0)>20) alerts.push({type:'quota',msg:`"${e.name}" — אחסון גבוה: ${(e.usedGB||0).toFixed(1)}GB`,color:'var(--red)',code:e.code});
+    });
+    DB.notifications.forEach(n=>{
+      if(n.type==='postpone') alerts.push({type:'postpone',msg:`בקשת דחייה: ${n.event} → ${n.newDate}`,color:'var(--amber)'});
+    });
+    h+=`<div class="card"><div class="card-label">התראות (${alerts.length})</div>`;
+    if(alerts.length===0) h+=`<div style="text-align:center;padding:20px;color:var(--text3);">אין התראות</div>`;
+    else h+=alerts.map(a=>`
+      <div class="table-row" style="${a.code?'cursor:pointer;':''}" onclick="${a.code?`admShowEvent('${a.code}')`:''}">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${a.color};flex-shrink:0;"></div>
+          <div style="font-size:12px;color:var(--text1);">${a.msg}</div>
+        </div>
+      </div>`).join('');
+    h+=`</div>`;
+
   } else if(t==='reports'){
-    h+=`<div class="card"><div class="card-label">דוחות</div><button class="btn-ghost" style="margin:0 0 6px;width:100%;" onclick="exportReport('הכנסות')">💰 דוח הכנסות</button><button class="btn-ghost" style="margin:0;width:100%;" onclick="exportReport('לקוחות')">👥 דוח לקוחות</button></div>`;
+    h+=`<div class="card"><div class="card-label">דוחות וייצוא</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button class="btn-ghost" style="margin:0;" onclick="exportAllEvents()">📅 אירועים CSV</button>
+        <button class="btn-ghost" style="margin:0;" onclick="exportAllClients()">👥 לקוחות CSV</button>
+        <button class="btn-ghost" style="margin:0;" onclick="exportRevenue()">💰 הכנסות CSV</button>
+        <button class="btn-ghost" style="margin:0;" onclick="exportStorage()">☁️ אחסון CSV</button>
+      </div>
+    </div>`;
+
   } else if(t==='settings'){
-    h+=`<div class="card"><div class="card-label">הגדרות</div><div class="field"><label>שינוי סיסמה</label><input type="password" id="new-pass" placeholder="סיסמה חדשה"/></div><button class="btn-primary" style="margin:8px 0 0;width:100%;" onclick="toast('✓ סיסמה עודכנה!')">שמור →</button></div>
+    h+=`<div class="card"><div class="card-label">הגדרות מנהל</div>
+      <div class="field"><label>שינוי סיסמה</label><input type="password" id="new-pass" placeholder="סיסמה חדשה"/></div>
+      <div class="field"><label>אימות</label><input type="password" id="new-pass2" placeholder="חזור"/></div>
+      <button class="btn-primary" style="margin:8px 0 0;width:100%;" onclick="changeAdmPass()">שמור →</button>
+    </div>
+    <div class="card"><div class="card-label">מייל עסקי</div>
+      <div style="font-size:13px;color:var(--neon);">info@momenpix.com</div>
+    </div>
     <button class="btn-ghost btn-danger" onclick="admLogout()">התנתק →</button>`;
   }
-  h+=`<div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>`;
+
+  h+=`<div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
   document.getElementById('adm-body').innerHTML=h;
 }
-function deleteAdminEvent(code){if(confirm('מחק?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
+
+// יצירת אירוע כמנהל — ללא תשלום
+function admCreateEvent(){
+  DB.currentUser={name:'מנהל',email:'admin@snap.com',role:'admin'};
+  S.ev={code:makeCode(),paid:false,free:false,usedGB:0,adminCreated:true};
+  S.selCam=15;S.selStor=5;S.camP=0;S.storP=0;S.freePlan=false;
+  // עקוף את מסך התשלום — שמור ישר
+  nav('create');
+}
+
+// הצגת פרטי אירוע מלאים
+function admShowEvent(code){
+  const e=DB.events.find(ev=>ev.code===code);
+  if(!e)return;
+  const photos=getStoredPhotos(code);
+  const daysLeft=e.date?Math.max(0,Math.ceil((new Date(e.date).setDate(new Date(e.date).getDate()+30)-Date.now())/86400000)):30;
+  document.getElementById('adm-body').innerHTML=`
+    <div style="padding:10px 18px 0;">
+      <button onclick="admTab('events',document.querySelector('.admin-tab'))" style="background:none;border:none;color:var(--neon);font-size:13px;cursor:pointer;font-family:var(--fb);">‹ חזרה לרשימה</button>
+    </div>
+    <div class="card card-neon">
+      <div class="card-label neon">${e.name||'ללא שם'}</div>
+      <div class="sum-row"><span>קוד</span><span style="font-family:var(--fd);letter-spacing:2px;">${e.code}</span></div>
+      <div class="sum-row"><span>תאריך</span><span>${e.date||'—'}</span></div>
+      <div class="sum-row"><span>שעות</span><span>${e.startTime||'—'} – ${e.endTime||'—'}</span></div>
+      <div class="sum-row"><span>בעל אירוע</span><span>${e.owner1?.name||'—'} · ${e.owner1?.phone||''}</span></div>
+      <div class="sum-row"><span>סטטוס</span><span>${e.adminCreated?'נוצר ע"י מנהל':e.paid?'שולם':'טרם שולם'}</span></div>
+      <div class="sum-row"><span>תמונות</span><span style="color:var(--neon);">${photos.length}</span></div>
+      <div class="sum-row"><span>אחסון</span><span>${(e.usedGB||0).toFixed(2)}GB</span></div>
+      <div class="sum-row"><span>ימים לפני מחיקה</span><span style="color:${daysLeft<=7?'var(--red)':'var(--neon)'};">${daysLeft}</span></div>
+      <div class="sum-row"><span>אורחים מחוברים</span><span>${(e.guests||[]).length}</span></div>
+    </div>
+    ${(e.guests||[]).length>0?`<div class="card"><div class="card-label">אורחים מחוברים</div>
+      ${e.guests.map(g=>`<div class="sum-row"><span>${g.name}</span><span style="color:var(--text3);">${g.phone}</span></div>`).join('')}
+    </div>`:''}
+    <div style="display:flex;gap:8px;margin:0 18px;">
+      <button class="btn-ghost" style="margin:0;flex:1;" onclick="admExportEvent('${code}')">📥 ייצוא</button>
+      <button class="btn-ghost" style="margin:0;flex:1;" onclick="loadEv('${code}');home()">✏️ ערוך</button>
+      <button class="btn-ghost btn-danger" style="margin:0;flex:1;" onclick="deleteAdminEvent('${code}')">🗑 מחק</button>
+    </div>`;
+}
+
+// הצגת פרטי לקוח
+function admShowClient(email){
+  const u=DB.users.find(x=>x.email===email);
+  if(!u)return;
+  const userEvs=DB.events.filter(e=>e.owner1?.email===email||e.createdBy===email);
+  document.getElementById('adm-body').innerHTML=`
+    <div style="padding:10px 18px 0;">
+      <button onclick="admTab('clients',document.querySelectorAll('.admin-tab')[1])" style="background:none;border:none;color:var(--neon);font-size:13px;cursor:pointer;font-family:var(--fb);">‹ חזרה</button>
+    </div>
+    <div class="card card-neon">
+      <div class="card-label neon">${u.name}</div>
+      <div class="sum-row"><span>אימייל</span><span>${u.email}</span></div>
+      <div class="sum-row"><span>נרשם</span><span>${new Date(u.createdAt||Date.now()).toLocaleDateString('he-IL')}</span></div>
+      <div class="sum-row"><span>אירועים</span><span>${userEvs.length}</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin:0 18px;">
+      <button class="btn-ghost" style="margin:0;flex:1;" onclick="sendMsgTo('${email}')">✉ שלח מייל</button>
+      <button class="btn-ghost btn-danger" style="margin:0;flex:1;" onclick="deleteUser('${email}')">🗑 מחק</button>
+    </div>`;
+}
+
+// ייצוא CSV
+function exportAllEvents(){
+  const evs=DB.events.filter(e=>!e.deleted);
+  const rows=[['קוד','שם','תאריך','בעל אירוע','סטטוס','תמונות','אחסון GB']];
+  evs.forEach(e=>rows.push([e.code,e.name||'',e.date||'',e.owner1?.name||'',e.paid?'שולם':'לא שולם',getStoredPhotos(e.code).length,(e.usedGB||0).toFixed(2)]));
+  downloadCSV(rows,'momenpix_events.csv');
+}
+function exportAllClients(){
+  const rows=[['שם','אימייל','תאריך הרשמה']];
+  DB.users.forEach(u=>rows.push([u.name,u.email,new Date(u.createdAt||Date.now()).toLocaleDateString('he-IL')]));
+  downloadCSV(rows,'momenpix_clients.csv');
+}
+function exportRevenue(){
+  const evs=DB.events.filter(e=>!e.deleted&&e.paid);
+  const rows=[['קוד','שם','תאריך','הכנסה']];
+  evs.forEach(e=>rows.push([e.code,e.name||'',e.date||'',299+(e.camPrice||0)+(e.storPrice||0)]));
+  downloadCSV(rows,'momenpix_revenue.csv');
+}
+function exportStorage(){
+  const evs=DB.events.filter(e=>!e.deleted);
+  const rows=[['קוד','שם','אחסון GB','תמונות']];
+  evs.forEach(e=>rows.push([e.code,e.name||'',(e.usedGB||0).toFixed(2),getStoredPhotos(e.code).length]));
+  downloadCSV(rows,'momenpix_storage.csv');
+}
+function admExportEvent(code){
+  const e=DB.events.find(ev=>ev.code===code);
+  if(!e)return;
+  const rows=[['שדה','ערך'],['קוד',e.code],['שם',e.name||''],['תאריך',e.date||''],['בעל אירוע',e.owner1?.name||''],['טלפון',e.owner1?.phone||''],['אחסון',e.usedGB||0],['תמונות',getStoredPhotos(code).length]];
+  downloadCSV(rows,'event_'+code+'.csv');
+}
+function downloadCSV(rows,filename){
+  const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+  toast('✓ קובץ הורד: '+filename);
+}
+function sendMsgTo(email){window.location.href=`mailto:${email}?subject=${encodeURIComponent('הודעה מ-Momenpix')}`;}
+function changeAdmPass(){const p=document.getElementById('new-pass')?.value,p2=document.getElementById('new-pass2')?.value;if(!p||p!==p2){toast('⚠ הסיסמאות אינן זהות');return;}toast('✓ סיסמה עודכנה!');}
+
+function deleteAdminEvent(code){if(confirm('מחק אירוע '+code+'?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
 function deleteUser(email){if(confirm('מחק משתמש?')){DB.users=DB.users.filter(u=>u.email!==email);saveDB();admTab('clients',null);toast('✓ נמחק');}}
 function exportReport(name){toast('📊 מייצר דוח '+name+'...');setTimeout(()=>{toast('✓ דוח הורד!');},2000);}
 function admLogout(){document.getElementById('adm-login-view').style.display='flex';document.getElementById('adm-dash').style.display='none';home();}
@@ -2244,12 +2580,12 @@ if('serviceWorker'in navigator){
   navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
 }
 
-window.addEventListener('orientationchange',handleOrientation);
-window.addEventListener('resize',handleOrientation);
+window.addEventListener('orientationchange', handleOrientation);
+window.addEventListener('resize', handleOrientation);
 function handleOrientation(){
-  const warn=document.getElementById('landscape-warn');if(!warn)return;
-  const isLandscape=window.innerWidth>window.innerHeight;
-  warn.style.display=S.cur==='camera'&&isLandscape?'flex':'none';
+  // לרוחב — מותר תמיד, אין אזהרה
+  const warn = document.getElementById('landscape-warn');
+  if(warn) warn.style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2337,17 +2673,38 @@ document.addEventListener('visibilitychange', async () => {
 
 // FIX: Handle deep link with ?code=STXXXXX
 function handleDeepLink(){
-  const params=new URLSearchParams(window.location.search);
-  const code=params.get('code');
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
   if(code){
-    const found=DB.events.find(e=>e.code===code.toUpperCase()&&!e.deleted);
-    if(found){S.ev=found;}else{S.ev={...S.ev,name:'אירוע',code:code.toUpperCase()};}
-    // FIX: Pre-fill code and navigate directly to welcome
-    nav('guest');
-    setTimeout(()=>{
-      const gEl=document.getElementById('g-code');if(gEl)gEl.value=code.toUpperCase();
-    },200);
+    const upperCode = code.toUpperCase();
+    const found = DB.events.find(e => e.code===upperCode && !e.deleted);
+    if(found){
+      S.ev = found;
+      // כניסה ישירה לאירוע — ללא הקלדת קוד
+      localStorage.setItem('st_last_code', upperCode);
+      // הצג חלון שם+טלפון לפני הכניסה
+      showGuestRegistration(upperCode);
+    } else {
+      // קוד לא קיים — עבור לדף כניסה עם קוד מלא
+      nav('guest');
+      setTimeout(()=>{
+        const gEl = document.getElementById('g-code');
+        if(gEl) gEl.value = upperCode;
+      }, 200);
+    }
   }
+}
+
+function showGuestRegistration(code){
+  // בדוק אם כבר נרשם בעבר
+  const savedName = localStorage.getItem('st_guest_name_'+code);
+  if(savedName){
+    S.guestName = savedName;
+    nav('welcome');
+    return;
+  }
+  // הצג חלון רישום
+  nav('guest_register');
 }
 handleDeepLink();
 </script>
