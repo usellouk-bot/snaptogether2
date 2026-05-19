@@ -11,11 +11,9 @@
 <link rel="manifest" id="pwa-manifest"/>
 <link rel="apple-touch-icon" id="pwa-icon"/>
 <script>
-const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#1A1A2E"/><circle cx="256" cy="220" r="90" fill="none" stroke="#00FF88" stroke-width="20"/><circle cx="256" cy="220" r="45" fill="#00FF88"/><rect x="156" y="140" width="200" height="150" rx="20" fill="none" stroke="#00FF88" stroke-width="16"/><rect x="210" y="115" width="92" height="30" rx="10" fill="#00FF88"/><text x="256" y="390" font-family="Arial Black" font-size="72" font-weight="900" fill="#00FF88" text-anchor="middle">ST</text></svg>`;
-const iconBlob = new Blob([svgIcon], {type:'image/svg+xml'});
-const iconURL = URL.createObjectURL(iconBlob);
+const iconURL = 'https://usellouk-bot.github.io/snaptogether2/icon.png';
 document.getElementById('pwa-icon').href = iconURL;
-const manifest = {name:'Momenpix',short_name:'Momenpix',start_url:'.',display:'standalone',background_color:'#1A1A2E',theme_color:'#00FF88',icons:[{src:iconURL,sizes:'512x512',type:'image/svg+xml'}]};
+const manifest = {name:'Momenpix',short_name:'Momenpix',start_url:'.',display:'standalone',background_color:'#0F0F1E',theme_color:'#00FF88',icons:[{src:iconURL,sizes:'512x512',type:'image/png'},{src:iconURL,sizes:'192x192',type:'image/png'}]};
 const manifestBlob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
 document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
 </script>
