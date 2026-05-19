@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#1A1A2E"/>
-<title>SnapTogether</title>
+<title>Momenpix</title>
 <link rel="manifest" id="pwa-manifest"/>
 <link rel="apple-touch-icon" id="pwa-icon"/>
 <script>
@@ -15,7 +15,7 @@ const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><
 const iconBlob = new Blob([svgIcon], {type:'image/svg+xml'});
 const iconURL = URL.createObjectURL(iconBlob);
 document.getElementById('pwa-icon').href = iconURL;
-const manifest = {name:'SnapTogether',short_name:'SnapTogether',start_url:'.',display:'standalone',background_color:'#1A1A2E',theme_color:'#00FF88',icons:[{src:iconURL,sizes:'512x512',type:'image/svg+xml'}]};
+const manifest = {name:'Momenpix',short_name:'Momenpix',start_url:'.',display:'standalone',background_color:'#1A1A2E',theme_color:'#00FF88',icons:[{src:iconURL,sizes:'512x512',type:'image/svg+xml'}]};
 const manifestBlob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
 document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
 </script>
@@ -268,9 +268,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 @media (orientation: landscape) and (max-height: 500px) {
   .app{max-width:100vw !important;width:100vw !important;height:100vh !important;}
   #s-camera{width:100vw !important;height:100vh !important;position:relative !important;}
-  /* viewfinder מלא את כל המסך */
   #s-camera .viewfinder{position:fixed !important;inset:0 !important;width:100vw !important;height:100vh !important;z-index:0 !important;}
-  /* כפתורים צפים מעל הוידאו */
   #s-camera .cam-topbar{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:10 !important;padding:4px 16px !important;background:rgba(0,0,0,0.55) !important;}
   #s-camera .cam-controls{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;z-index:10 !important;padding:6px 32px !important;background:rgba(0,0,0,0.55) !important;}
   #s-camera .cam-info-bar{position:fixed !important;bottom:64px !important;left:0 !important;right:0 !important;z-index:10 !important;padding:2px 14px !important;background:rgba(0,0,0,0.4) !important;}
@@ -278,6 +276,22 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   #s-camera .cam-settings{position:fixed !important;bottom:140px !important;left:0 !important;right:0 !important;z-index:10 !important;background:rgba(0,0,0,0.4) !important;}
   #s-camera .cam-up-bar{display:none !important;}
   #s-camera #cam-stor-bar{display:none !important;}
+  #landscape-warn{display:none !important;}
+}
+
+/* לרוחב בכל גובה — מצלמה מסך מלא */
+@media (orientation: landscape) {
+  .app{max-width:100vw !important;}
+  #s-camera{max-width:100vw !important;width:100vw !important;height:100vh !important;position:relative !important;}
+  #s-camera .viewfinder{position:fixed !important;inset:0 !important;width:100vw !important;height:100vh !important;z-index:0 !important;}
+  #s-camera .cam-topbar{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:10 !important;padding:4px 16px !important;background:rgba(0,0,0,0.6) !important;backdrop-filter:blur(8px);}
+  #s-camera .cam-controls{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;z-index:10 !important;padding:6px 32px 10px !important;background:rgba(0,0,0,0.6) !important;backdrop-filter:blur(8px);}
+  #s-camera .cam-info-bar{position:fixed !important;bottom:68px !important;left:0 !important;right:0 !important;z-index:10 !important;background:rgba(0,0,0,0.45) !important;}
+  #s-camera .cam-mode-tabs{position:fixed !important;bottom:115px !important;left:50% !important;transform:translateX(-50%) !important;z-index:10 !important;background:rgba(0,0,0,0.5) !important;border-radius:20px !important;padding:4px 16px !important;}
+  #s-camera .cam-settings{position:fixed !important;bottom:148px !important;left:0 !important;right:0 !important;z-index:10 !important;background:rgba(0,0,0,0.45) !important;}
+  #s-camera .cam-up-bar{display:none !important;}
+  #s-camera #cam-stor-bar{display:none !important;}
+  #s-camera #cam-sig{position:fixed !important;top:44px !important;left:0 !important;right:0 !important;z-index:10 !important;}
   #landscape-warn{display:none !important;}
 }
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.25;}}
@@ -300,7 +314,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div class="home-hero">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
-          <div class="home-logo">Snap<span>Together</span></div>
+          <div class="home-logo">Momen<span>pix</span></div>
           <div class="home-tagline">צילום שיתופי · כל אירוע · כל מקום</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
@@ -326,7 +340,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <div class="stat-box"><div class="stat-n">QR</div><div class="stat-l">שיתוף</div></div>
     </div>
     <button class="admin-link-btn" onclick="nav('admin')">⚙ כניסת מנהל מערכת</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות<br/>Powered by AI · Made with ♥ in Israel</div>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות<br/>Powered by AI · Made with ♥ in Israel</div>
   </div>
 </div>
 
@@ -343,7 +357,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <button class="btn-primary" onclick="doLogin()">כניסה ←</button>
     <button class="btn-ghost" onclick="nav('register')">אין לך חשבון? הירשם</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
 </div>
 
@@ -361,7 +375,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <button class="btn-primary" onclick="doRegister()">צור חשבון ←</button>
     <button class="btn-ghost" onclick="nav('login')">יש לך חשבון? כנס</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
 </div>
 
@@ -644,7 +658,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 
 <!-- WELCOME GUEST -->
 <div class="screen" id="s-welcome">
-  <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">SnapTogether</div></div>
+  <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">Momenpix</div></div>
   <div class="scroll" style="padding:16px 0 80px;">
     <div style="height:130px;overflow:hidden;margin:0 18px 10px;border-radius:var(--r3);background:linear-gradient(135deg,#0a0a14,#141428,#0a140a);display:flex;align-items:center;justify-content:center;font-size:64px;border:1px solid var(--border);">📷</div>
     <div class="card card-neon">
@@ -697,7 +711,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div id="photo-preview" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.82);z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;">
       <canvas id="preview-canvas" style="max-width:100%;max-height:55%;border-radius:10px;border:2px solid var(--neon);box-shadow:0 0 30px rgba(0,255,136,0.3);object-fit:contain;"></canvas>
       <!-- FIX: Watermark on preview for free tier -->
-      <div id="preview-watermark" style="position:absolute;bottom:130px;right:30px;font-family:var(--fd);font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;">SnapTogether</div>
+      <div id="preview-watermark" style="position:absolute;bottom:130px;right:30px;font-family:var(--fd);font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;">Momenpix</div>
       <div style="display:flex;align-items:center;gap:16px;">
         <div style="text-align:center;">
           <div id="preview-countdown" style="font-family:var(--fd);font-size:52px;color:var(--neon);line-height:1;text-shadow:0 0 20px var(--neon);">15</div>
@@ -806,7 +820,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <button class="btn-primary" onclick="enterEvent()">כניסה לאירוע →</button>
     <button class="btn-ghost" onclick="back()">‹ חזרה</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
 </div>
 
@@ -822,7 +836,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <button class="btn-primary" style="margin:10px 0 0;width:100%;" onclick="doAdmLogin()">כניסה →</button>
       <button class="btn-ghost" style="margin:6px 0 0;width:100%;font-size:11px;" onclick="admBioLogin()">🔐 כניסה עם טביעת אצבע</button>
     </div>
-    <div class="footer" style="border:none;">© 2026 SnapTogether · כל הזכויות שמורות</div>
+    <div class="footer" style="border:none;">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
   <div id="adm-dash" style="display:none;flex-direction:column;height:100vh;overflow:hidden;">
     <div class="admin-topbar">
@@ -1125,8 +1139,19 @@ function submitCreate(){
     owner1:{name:o1n,phone:o1p},
     owner2:o2Open?{name:document.getElementById('c-o2n').value,phone:document.getElementById('c-o2p').value}:null,
     welcomeText:document.getElementById('c-welcome').value,
-    cameras:S.selCam,storageGB:S.selStor,camPrice:S.camP,storPrice:S.storP,
-    paid:false,free:false,usedGB:0,guests:[],createdAt:new Date().toISOString()};
+    cameras:S.selCam||15,storageGB:S.selStor||25,camPrice:S.camP||0,storPrice:S.storP||0,
+    free:false,usedGB:0,guests:[],createdAt:new Date().toISOString()};
+
+  // מנהל — עוקף תשלום לחלוטין
+  if(S.ev.adminCreated||(DB.currentUser&&DB.currentUser.role==='admin')){
+    S.ev.adminCreated=true;
+    S.ev.paid=true;
+    saveEvent();
+    renderHome();
+    toast('✓ אירוע נוצר!');
+    nav('share');
+    return;
+  }
   nav('package');
 }
 function toggleOtherType(sel){
@@ -1194,7 +1219,7 @@ function renderPay(){
       <div class="note note-neon" style="margin-top:10px;"><div class="note-dot"></div>חבילה חינמית — 5GB לענן האישי שלך</div>
       <div class="sum-box"><div style="font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">סיכום</div><div class="sum-row"><span>חבילה חינמית</span><span>₪0</span></div><div class="sum-total"><span>לתשלום</span><span>₪0</span></div></div>
       <button class="btn-primary" onclick="nav('cloud')">בחר ענן אישי →</button>
-      <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>`;
+      <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
     return;
   }
   const B=299,cp=S.camP,sp=S.storP,ai=(S.aiAlb?49:0)+(S.aiClip?CP[S.aiClip]:0);
@@ -1228,7 +1253,7 @@ function renderPay(){
       <div class="link-row" style="margin:0;"><input class="link-inp" style="color:var(--text1);" id="cpn" placeholder="הכנס קוד..."/><button class="copy-btn" id="cpn-btn" onclick="applyC()">החל</button></div>
     </div>
     <button class="btn-primary" id="pay-btn" onclick="doPay(${tot})">שלם ₪${tot} →</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>`;
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
   S.payMethod='card';
 }
 function fmtExp(el){let v=el.value.replace(/\D/g,'').slice(0,4);if(v.length>=3)v=v.slice(0,2)+'/'+v.slice(2);el.value=v;}
@@ -1827,7 +1852,7 @@ function isEventActive(){
 
 async function startCam(){
   // FIX: Event name shown in camera bar
-  document.getElementById('cam-nm').textContent=S.ev.name||'SnapTogether';
+  document.getElementById('cam-nm').textContent=S.ev.name||'Momenpix';
 
   // FIX: Show watermark for free tier
   const wm=document.getElementById('cam-watermark');
@@ -1995,7 +2020,7 @@ function takePhoto(){
     if(S.ev.free){
       ctx.font='bold 14px "Bebas Neue",sans-serif';ctx.fillStyle='rgba(255,255,255,0.4)';
       ctx.textAlign='right';ctx.textBaseline='bottom';
-      ctx.fillText('SnapTogether',canvas.width-10,canvas.height-8);
+      ctx.fillText('Momenpix',canvas.width-10,canvas.height-8);
     }
   } else {
     ctx.fillStyle='#1A1A2E';ctx.fillRect(0,0,640,480);
@@ -2234,6 +2259,17 @@ function doAdmLogin(){
   } else {document.getElementById('adm-err').style.display='flex';}
 }
 function admBioLogin(){if(window.PublicKeyCredential){toast('🔐 מנסה...');setTimeout(()=>{document.getElementById('adm-pass').value='admin123';doAdmLogin();},1000);}else toast('⚠ לא נתמך');}
+
+// יצירת אירוע כמנהל — ללא תשלום
+function admCreateEvent(){
+  if(!DB.currentUser||DB.currentUser.role!=='admin'){
+    DB.currentUser={name:'מנהל',email:'admin@snap.com',role:'admin'};
+    saveDB();
+  }
+  S.ev={code:makeCode(),paid:true,free:false,usedGB:0,adminCreated:true};
+  S.selCam=15;S.selStor=25;S.camP=0;S.storP=0;S.freePlan=false;
+  nav('create');
+}
 function admTab(t,btn){
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
@@ -2264,7 +2300,7 @@ function admTab(t,btn){
     h+=`<div class="card"><div class="card-label">הגדרות</div><div class="field"><label>שינוי סיסמה</label><input type="password" id="new-pass" placeholder="סיסמה חדשה"/></div><button class="btn-primary" style="margin:8px 0 0;width:100%;" onclick="toast('✓ סיסמה עודכנה!')">שמור →</button></div>
     <button class="btn-ghost btn-danger" onclick="admLogout()">התנתק →</button>`;
   }
-  h+=`<div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>`;
+  h+=`<div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
   document.getElementById('adm-body').innerHTML=h;
 }
 function deleteAdminEvent(code){if(confirm('מחק?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
@@ -2338,7 +2374,7 @@ function handlePinchZoom(e){
     e.touches[0].clientY - e.touches[1].clientY
   );
   const ratio = dist / _pinchStartDist;
-  const newZoom = Math.min(Math.max(_pinchStartZoom * ratio, 1), 5);
+  const newZoom = Math.min(Math.max(_pinchStartZoom * ratio, 1), 10);
   S.currentZoom = newZoom;
 
   // הצג מחוון
