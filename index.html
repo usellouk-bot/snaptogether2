@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#1A1A2E"/>
-<title>SnapTogether</title>
+<title>Momenpix</title>
 <link rel="manifest" id="pwa-manifest"/>
 <link rel="apple-touch-icon" id="pwa-icon"/>
 <script>
@@ -15,7 +15,7 @@ const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><
 const iconBlob = new Blob([svgIcon], {type:'image/svg+xml'});
 const iconURL = URL.createObjectURL(iconBlob);
 document.getElementById('pwa-icon').href = iconURL;
-const manifest = {name:'SnapTogether',short_name:'SnapTogether',start_url:'.',display:'standalone',background_color:'#1A1A2E',theme_color:'#00FF88',icons:[{src:iconURL,sizes:'512x512',type:'image/svg+xml'}]};
+const manifest = {name:'Momenpix',short_name:'Momenpix',start_url:'.',display:'standalone',background_color:'#1A1A2E',theme_color:'#00FF88',icons:[{src:iconURL,sizes:'512x512',type:'image/svg+xml'}]};
 const manifestBlob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
 document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
 </script>
@@ -103,7 +103,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 .home-logo span{color:var(--neon);text-shadow:var(--glow2);}
 .home-tagline{font-size:11px;color:var(--text3);letter-spacing:4px;text-transform:uppercase;margin-top:8px;}
 .mosaic{display:grid;grid-template-columns:1.8fr 1fr;grid-template-rows:140px 100px;gap:3px;margin:0 18px 20px;border-radius:var(--r3);overflow:hidden;border:1px solid var(--border);position:relative;}
-.mosaic::after{content:'SNAP';font-family:var(--fd);font-size:11px;letter-spacing:4px;position:absolute;bottom:12px;left:12px;color:rgba(255,255,255,0.5);z-index:2;}
+.mosaic::after{content:'MOMEN';font-family:var(--fd);font-size:11px;letter-spacing:4px;position:absolute;bottom:12px;left:12px;color:rgba(255,255,255,0.5);z-index:2;}
 .mc{background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:44px;position:relative;overflow:hidden;}
 .mc:first-child{grid-row:1/3;}
 .ev-card{margin:0 18px 8px;background:var(--dark2);border:1px solid rgba(0,255,136,0.2);border-radius:var(--r3);padding:16px;cursor:pointer;transition:all 0.18s;display:flex;align-items:center;gap:14px;}
@@ -320,8 +320,8 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div class="home-hero">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
-          <div class="home-logo">Snap<span>Together</span></div>
-          <div class="home-tagline">צילום שיתופי · כל אירוע · כל מקום</div>
+          <div class="home-logo">Momen<span>pix</span></div>
+          <div class="home-tagline" style="letter-spacing:2px;">צילום שיתופי · כל אירוע · כל מקום</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
           <button onclick="nav('login')" style="background:var(--dark3);border:1px solid var(--border2);border-radius:var(--r1);padding:8px 14px;color:var(--text2);font-size:10px;cursor:pointer;font-family:var(--fb);font-weight:600;letter-spacing:1px;text-transform:uppercase;">כניסה</button>
@@ -346,7 +346,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <div class="stat-box"><div class="stat-n">QR</div><div class="stat-l">שיתוף</div></div>
     </div>
     <button class="admin-link-btn" onclick="nav('admin')">⚙ כניסת מנהל מערכת</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות<br/>Powered by AI · Made with ♥ in Israel</div>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות<br/>Powered by AI · Made with ♥ in Israel</div>
   </div>
 </div>
 
@@ -354,7 +354,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 <div class="screen" id="s-login">
   <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">כניסה</div></div>
   <div class="scroll" style="padding:20px 0 80px;">
-    <div style="padding:30px 18px 20px;text-align:center;"><div class="home-logo" style="font-size:36px;">Snap<span>Together</span></div></div>
+    <div style="padding:30px 18px 20px;text-align:center;"><div class="home-logo" style="font-size:36px;">Momen<span>pix</span></div></div>
     <div class="card">
       <div class="card-label">כניסה לחשבון</div>
       <div class="field"><label>אימייל</label><input type="email" id="l-email" placeholder="your@email.com"/></div>
@@ -363,7 +363,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <button class="btn-primary" onclick="doLogin()">כניסה ←</button>
     <button class="btn-ghost" onclick="nav('register')">אין לך חשבון? הירשם</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
 </div>
 
@@ -381,7 +381,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <button class="btn-primary" onclick="doRegister()">צור חשבון ←</button>
     <button class="btn-ghost" onclick="nav('login')">יש לך חשבון? כנס</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
 </div>
 
@@ -619,7 +619,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div class="live-preview">
       <div class="live-grid layout-3x2" id="live-g"></div>
       <div class="live-overlay"></div>
-      <div class="live-bottom"><div class="live-event-nm" id="live-nm"></div><div class="live-logo">SNAP<span style="color:var(--neon);">T</span></div></div>
+      <div class="live-bottom"><div class="live-event-nm" id="live-nm"></div><div class="live-logo">MOMEN<span style="color:var(--neon);">PIX</span></div></div>
     </div>
     <div class="card">
       <div class="card-label">פריסת תמונות</div>
@@ -664,7 +664,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 
 <!-- WELCOME GUEST -->
 <div class="screen" id="s-welcome">
-  <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">SnapTogether</div></div>
+  <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">Momenpix</div></div>
   <div class="scroll" style="padding:16px 0 80px;">
     <div style="height:130px;overflow:hidden;margin:0 18px 10px;border-radius:var(--r3);background:linear-gradient(135deg,#0a0a14,#141428,#0a140a);display:flex;align-items:center;justify-content:center;font-size:64px;border:1px solid var(--border);">📷</div>
     <div class="card card-neon">
@@ -717,7 +717,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div id="photo-preview" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.82);z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;">
       <canvas id="preview-canvas" style="max-width:100%;max-height:55%;border-radius:10px;border:2px solid var(--neon);box-shadow:0 0 30px rgba(0,255,136,0.3);object-fit:contain;"></canvas>
       <!-- FIX: Watermark on preview for free tier -->
-      <div id="preview-watermark" style="position:absolute;bottom:130px;right:30px;font-family:var(--fd);font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;">SnapTogether</div>
+      <div id="preview-watermark" style="position:absolute;bottom:130px;right:30px;font-family:var(--fd);font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;">Momenpix</div>
       <div style="display:flex;align-items:center;gap:16px;">
         <div style="text-align:center;">
           <div id="preview-countdown" style="font-family:var(--fd);font-size:52px;color:var(--neon);line-height:1;text-shadow:0 0 20px var(--neon);">15</div>
@@ -853,7 +853,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 <!-- ADMIN -->
 <div class="screen" id="s-admin">
   <div id="adm-login-view" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:2rem;min-height:100vh;">
-    <div style="font-family:var(--fd);font-size:32px;letter-spacing:2px;color:var(--text1);">SNAP<span style="color:var(--neon);">TOGETHER</span></div>
+    <div style="font-family:var(--fd);font-size:32px;letter-spacing:2px;color:var(--text1);">MOMEN<span style="color:var(--neon);">PIX</span></div>
     <div style="font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;">מנהל מערכת</div>
     <div class="card" style="width:100%;max-width:360px;margin:0;">
       <div class="card-label">כניסה מאובטחת</div>
@@ -862,12 +862,12 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <button class="btn-primary" style="margin:10px 0 0;width:100%;" onclick="doAdmLogin()">כניסה →</button>
       <button class="btn-ghost" style="margin:6px 0 0;width:100%;font-size:11px;" onclick="admBioLogin()">🔐 כניסה עם טביעת אצבע</button>
     </div>
-    <div class="footer" style="border:none;">© 2026 SnapTogether · כל הזכויות שמורות</div>
+    <div class="footer" style="border:none;">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
   <div id="adm-dash" style="display:none;flex-direction:column;height:100vh;overflow:hidden;">
     <div class="admin-topbar">
       <button class="back-btn" onclick="admLogout()" style="margin-left:10px;">‹</button>
-      <div class="admin-logo">SNAP<span>T</span></div>
+      <div class="admin-logo">MOMEN<span>PIX</span></div>
       <div class="admin-badge">ADMIN</div>
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="font-size:10px;color:var(--text3);">עוזי סלוק</div>
@@ -1248,7 +1248,7 @@ function renderPay(){
       <div class="note note-neon" style="margin-top:10px;"><div class="note-dot"></div>חבילה חינמית — 5GB לענן האישי שלך</div>
       <div class="sum-box"><div style="font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">סיכום</div><div class="sum-row"><span>חבילה חינמית</span><span>₪0</span></div><div class="sum-total"><span>לתשלום</span><span>₪0</span></div></div>
       <button class="btn-primary" onclick="nav('cloud')">בחר ענן אישי →</button>
-      <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>`;
+      <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
     return;
   }
   const B=299,cp=S.camP,sp=S.storP,ai=(S.aiAlb?49:0)+(S.aiClip?CP[S.aiClip]:0);
@@ -1282,7 +1282,7 @@ function renderPay(){
       <div class="link-row" style="margin:0;"><input class="link-inp" style="color:var(--text1);" id="cpn" placeholder="הכנס קוד..."/><button class="copy-btn" id="cpn-btn" onclick="applyC()">החל</button></div>
     </div>
     <button class="btn-primary" id="pay-btn" onclick="doPay(${tot})">שלם ₪${tot} →</button>
-    <div class="footer">© 2026 SnapTogether · כל הזכויות שמורות</div>`;
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
   S.payMethod='card';
 }
 function fmtExp(el){let v=el.value.replace(/\D/g,'').slice(0,4);if(v.length>=3)v=v.slice(0,2)+'/'+v.slice(2);el.value=v;}
@@ -1869,7 +1869,7 @@ function isEventActive(){
 
 async function startCam(){
   // FIX: Event name shown in camera bar
-  document.getElementById('cam-nm').textContent=S.ev.name||'SnapTogether';
+  document.getElementById('cam-nm').textContent=S.ev.name||'Momenpix';
 
   // FIX: Show watermark for free tier
   const wm=document.getElementById('cam-watermark');
@@ -2037,7 +2037,7 @@ function takePhoto(){
     if(S.ev.free){
       ctx.font='bold 14px "Bebas Neue",sans-serif';ctx.fillStyle='rgba(255,255,255,0.4)';
       ctx.textAlign='right';ctx.textBaseline='bottom';
-      ctx.fillText('SnapTogether',canvas.width-10,canvas.height-8);
+      ctx.fillText('Momenpix',canvas.width-10,canvas.height-8);
     }
   } else {
     ctx.fillStyle='#1A1A2E';ctx.fillRect(0,0,640,480);
