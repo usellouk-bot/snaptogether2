@@ -13,9 +13,8 @@
 <script>
 const iconURL = 'https://usellouk-bot.github.io/snaptogether2/icon.png';
 document.getElementById('pwa-icon').href = iconURL;
-const manifest = {name:'Momenpix',short_name:'Momenpix',start_url:'https://usellouk-bot.github.io/snaptogether2/',scope:'https://usellouk-bot.github.io/snaptogether2/',display:'standalone',background_color:'#0F0F1E',theme_color:'#00FF88',icons:[{src:iconURL,sizes:'192x192',type:'image/png'},{src:iconURL,sizes:'512x512',type:'image/png'}]};
-const manifestBlob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
-document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+// manifest סטטי — לא Blob דינמי (יציבות PWA)
+document.getElementById('pwa-manifest').href = 'https://usellouk-bot.github.io/snaptogether2/manifest.json';
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -34,7 +33,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob)
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;}
 body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-font-smoothing:antialiased;}
-.app{max-width:430px;margin:0 auto;height:100vh;background:var(--black);position:relative;overflow:hidden;display:flex;flex-direction:column;}
+.app{max-width:430px;margin:0 auto;height:100dvh;background:var(--black);position:relative;overflow:hidden;display:flex;flex-direction:column;}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity 0.22s ease,transform 0.22s ease;transform:translateX(30px);overflow:hidden;}
 .screen.active{opacity:1;pointer-events:all;transform:translateX(0);}
 .screen.leaving{opacity:0;transform:translateX(-30px);}
@@ -265,8 +264,8 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 
 @media (orientation: landscape) {
   .app{max-width:100vw !important;}
-  #s-camera{max-width:100vw !important;width:100vw !important;height:100vh !important;position:relative !important;}
-  #s-camera .viewfinder{position:fixed !important;inset:0 !important;width:100vw !important;height:100vh !important;z-index:0 !important;}
+  #s-camera{max-width:100vw !important;width:100vw !important;height:100dvh !important;position:relative !important;}
+  #s-camera .viewfinder{position:fixed !important;inset:0 !important;width:100vw !important;height:100dvh !important;z-index:0 !important;}
   /* topbar — שקוף בראש */
   #s-camera .cam-topbar{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:10 !important;padding:4px 16px !important;background:rgba(0,0,0,0.35) !important;backdrop-filter:blur(4px);}
   /* פקדים — בתחתית שקוף, לא חוסמים */
@@ -851,7 +850,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 
 <!-- ADMIN -->
 <div class="screen" id="s-admin">
-  <div id="adm-login-view" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:2rem;min-height:100vh;">
+  <div id="adm-login-view" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:2rem;min-height:100dvh;">
     <div style="font-family:var(--fd);font-size:32px;letter-spacing:2px;color:var(--text1);">SNAP<span style="color:var(--neon);">TOGETHER</span></div>
     <div style="font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;">מנהל מערכת</div>
     <div class="card" style="width:100%;max-width:360px;margin:0;">
@@ -863,7 +862,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <div class="footer" style="border:none;">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
-  <div id="adm-dash" style="display:none;flex-direction:column;height:100vh;overflow:hidden;">
+  <div id="adm-dash" style="display:none;flex-direction:column;height:100dvh;overflow:hidden;">
     <div class="admin-topbar">
       <button class="back-btn" onclick="admBack()" style="margin-left:10px;">‹</button>
       <div class="admin-logo">MOMEN<span>PIX</span></div>
@@ -1871,11 +1870,14 @@ function enterEvent(){
   const err=document.getElementById('g-err');
   if(!code){err.textContent='⚠ נא להזין קוד';err.style.display='flex';return;}
   err.style.display='none';
-  const found=DB.events.find(e=>e.code===code&&!e.deleted);
-  if(found){S.ev=found;}
-  else if(code.length>=4){S.ev={...S.ev,name:'אירוע',code,welcomeText:'ברוכים הבאים!'};}
-  else{err.textContent='⚠ קוד לא נמצא';err.style.display='flex';return;}
-  // FIX: Remember code for next session
+  // בדיקה קפדנית — קוד חייב להיות קיים
+  const found=DB.events.find(e=>e.code===code&&!e.deleted&&(e.paid||e.adminCreated));
+  if(!found){
+    err.textContent='⚠ קוד אירוע לא נמצא. בדוק שהקלדת נכון.';
+    err.style.display='flex';
+    return;
+  }
+  S.ev=found;
   localStorage.setItem('st_last_code',code);
   stopQRScan();
   nav('welcome');
@@ -2141,6 +2143,22 @@ function hidePhotoPreview(){const p=document.getElementById('photo-preview');if(
 let uploadQueue = [];
 let isUploading = false;
 
+// טעינת תור ממתינות מ-localStorage בטעינה
+function loadUploadQueue(){
+  try{
+    const saved=localStorage.getItem('mp_upload_queue');
+    if(saved) uploadQueue=JSON.parse(saved);
+  }catch(e){uploadQueue=[];}
+}
+function saveUploadQueue(){
+  try{
+    // שמור ללא dataURL (גדול מדי) — רק metadata
+    const lite=uploadQueue.map(({ts,uploaderName,eventCode})=>({ts,uploaderName,eventCode}));
+    localStorage.setItem('mp_upload_queue_meta',JSON.stringify(lite));
+  }catch(e){}
+}
+loadUploadQueue();
+
 async function uploadPhoto(dataURL,meta){
   S.photos++;
   const ts=(meta&&meta.ts)||new Date().toISOString();
@@ -2397,19 +2415,10 @@ async function applyCameraFallbacks(vtrack){
   try{await vtrack.applyConstraints({advanced:[{whiteBalanceMode:'continuous'}]});}catch(e){}
 }
 
-// ── כניסת מנהל סודית ──
+// כניסת מנהל — רק דרך סיסמה, לא דרך URL
 function checkAdminURL(){
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('admin')==='UZ2026MP'){
-    DB.currentUser={name:'מנהל',email:'admin@snap.com',role:'admin'};
-    saveDB();
-    nav('admin');
-    setTimeout(()=>{
-      document.getElementById('adm-login-view').style.display='none';
-      document.getElementById('adm-dash').style.display='flex';
-      admTab('events',document.querySelector('.admin-tab'));
-    },150);
-  }
+  // לא מאפשרים admin access דרך URL params מטעמי אבטחה
+  // הכניסה היחידה היא דרך admin.html עם סיסמה
 }
 
 // ── admBack ──
@@ -2462,10 +2471,31 @@ function updCamUI(){
   const cnt=document.getElementById('cam-cnt');if(cnt)cnt.textContent=S.photos;
   const prog=document.getElementById('cam-prog');if(prog){prog.style.width=pct+'%';prog.style.background=pct>80?'var(--red)':'var(--neon)';}
   const mb=document.getElementById('cam-mb');if(mb)mb.textContent=Math.round(S.photos*7.5);
-  // FIX: Storage bar
-  const storUsed=Math.round(S.photos*7.5);
-  const storFill=document.getElementById('cam-stor-fill');if(storFill)storFill.style.width=Math.min(storUsed/500*100,100)+'%';
-  const storUsedEl=document.getElementById('cam-stor-used');if(storUsedEl)storUsedEl.textContent=storUsed;
+
+  // חישוב אחסון לפי חבילה שנרכשה (לא קבוע)
+  const storLimitMB=(S.ev.storageGB||5)*1024;
+  const storUsedMB=Math.round(S.photos*7.5);
+  const storPct=Math.min(storUsedMB/storLimitMB*100,100);
+
+  // אזהרות אחסון
+  if(storPct>=100){
+    toast('🚫 האחסון מלא! לא ניתן להעלות תמונות נוספות.');
+    document.getElementById('shutterEl').style.opacity='0.3';
+    document.getElementById('shutterEl').style.pointerEvents='none';
+  } else if(storPct>=95){
+    toast('⚠ נותר פחות מ-5% אחסון!');
+  } else if(storPct>=80){
+    toast('⚠ 80% מהאחסון בשימוש');
+  }
+
+  const storFill=document.getElementById('cam-stor-fill');
+  if(storFill){
+    storFill.style.width=storPct+'%';
+    storFill.style.background=storPct>=95?'var(--red)':storPct>=80?'var(--amber)':'var(--neon)';
+  }
+  const storUsedEl=document.getElementById('cam-stor-used');if(storUsedEl)storUsedEl.textContent=storUsedMB;
+  const storTotalEl=document.getElementById('cam-stor-total');if(storTotalEl)storTotalEl.textContent=storLimitMB;
+
   const sig=document.getElementById('cam-sig');if(sig)sig.style.display=S.pending>0?'block':'none';
   const pend=document.getElementById('cam-pend');if(pend)pend.textContent=S.pending;
   const status=document.getElementById('cam-status');
@@ -2505,29 +2535,90 @@ function admTab(t,btn){
   if(btn)btn.classList.add('active');
   const evs=DB.events.filter(e=>!e.deleted);
   const users=DB.users;
-  const totalUsedGB=evs.reduce((sum,e)=>sum+(e.usedGB||0),0).toFixed(3);
-  const totalRev=evs.filter(e=>e.paid).reduce((sum,e)=>sum+(299+(e.camPrice||0)+(e.storPrice||0)),0);
+  const totalUsedGB=evs.reduce((sum,e)=>sum+(e.usedGB||0),0).toFixed(2);
+  const totalRev=evs.filter(e=>e.paid&&!e.adminCreated).reduce((sum,e)=>sum+(299+(e.camPrice||0)+(e.storPrice||0)),0);
   let h=`<div class="stat-grid">
-    <div class="stat-card"><div class="stat-card-n">${evs.filter(e=>e.paid).length}</div><div class="stat-card-l">אירועים פעילים</div></div>
+    <div class="stat-card"><div class="stat-card-n">${evs.filter(e=>e.paid||e.adminCreated).length}</div><div class="stat-card-l">אירועים פעילים</div></div>
     <div class="stat-card"><div class="stat-card-n">${users.length}</div><div class="stat-card-l">לקוחות רשומים</div></div>
     <div class="stat-card"><div class="stat-card-n">₪${totalRev.toLocaleString()}</div><div class="stat-card-l">הכנסות</div></div>
     <div class="stat-card"><div class="stat-card-n">${totalUsedGB}GB</div><div class="stat-card-l">אחסון</div></div>
   </div>`;
   if(t==='events'){
-    if(evs.length===0){h+=`<div class="card"><div style="text-align:center;padding:30px;color:var(--text3);"><div style="font-size:32px;">📅</div><div>אין אירועים עדיין</div></div></div>`;}
-    else{h+=`<div class="card"><div class="card-label">כל האירועים (${evs.length})</div>${evs.map(e=>`<div class="table-row"><div><div style="font-size:13px;font-weight:600;color:var(--text1);">${e.name||'ללא שם'}</div><div style="font-size:10px;color:var(--text3);">${e.date||''} · ${e.code||''}</div></div><div style="display:flex;gap:8px;"><span class="pill ${e.paid?'pill-live':'pill-upcoming'}">${e.paid?'● פעיל':'טרם שולם'}</span><button onclick="deleteAdminEvent('${e.code}')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;">🗑</button></div></div>`).join('')}</div>`;}
+    h+=`<button class="btn-primary" onclick="admCreateEvent()" style="margin-bottom:10px;">+ צור אירוע (ללא תשלום)</button>`;
+    if(evs.length===0){
+      h+=`<div class="card"><div style="text-align:center;padding:30px;color:var(--text3);"><div style="font-size:32px;">📅</div><div>אין אירועים עדיין</div></div></div>`;
+    } else {
+      h+=evs.map(e=>`
+        <div class="card" style="cursor:pointer;margin-bottom:8px;" onclick="admShowEvent('${e.code}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text1);">${e.name||'ללא שם'}</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px;">${e.date||''} · ${e.code||''}</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="pill ${e.adminCreated?'pill-upcoming':e.paid?'pill-live':'pill-done'}">${e.adminCreated?'מנהל':e.paid?'● פעיל':'ממתין'}</span>
+              <button onclick="event.stopPropagation();deleteAdminEvent('${e.code}')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;">🗑</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
   } else if(t==='clients'){
-    h+=`<div class="card"><div class="card-label">לקוחות (${users.length})</div>${users.map(u=>`<div class="table-row"><div style="font-size:13px;color:var(--text1);">${u.name}<div style="font-size:10px;color:var(--text3);">${u.email}</div></div><button onclick="deleteUser('${u.email}')" style="background:none;border:none;color:var(--red);cursor:pointer;">🗑</button></div>`).join('')}</div>`;
+    h+=`<div class="card"><div class="card-label">לקוחות (${users.length})</div>
+      ${users.length===0?'<div style="text-align:center;padding:20px;color:var(--text3);">אין לקוחות עדיין</div>':
+      users.map(u=>`<div class="table-row" style="cursor:pointer;" onclick="admShowClient('${u.email}')">
+        <div><div style="font-size:13px;color:var(--text1);">${u.name}</div><div style="font-size:10px;color:var(--text3);">${u.email}</div></div>
+        <button onclick="event.stopPropagation();deleteUser('${u.email}')" style="background:none;border:none;color:var(--red);cursor:pointer;">🗑</button>
+      </div>`).join('')}
+    </div>`;
   } else if(t==='revenue'){
-    h+=`<div class="card"><div class="card-label">הכנסות</div><div class="sum-total"><span>סה״כ</span><span>₪${totalRev.toLocaleString()}</span></div></div>`;
+    h+=`<div class="card">
+      <div class="sum-row"><span>הכנסות סה״כ</span><span style="color:var(--neon);font-family:var(--fd);font-size:20px;">₪${totalRev.toLocaleString()}</span></div>
+      <div class="sum-row"><span>מע"מ 17%</span><span>₪${Math.round(totalRev*0.17).toLocaleString()}</span></div>
+    </div>`;
   } else if(t==='storage'){
-    h+=`<div class="card"><div class="card-label">אחסון</div>${evs.map(e=>{const gb=e.usedGB||0,pct=Math.min(Math.round(gb/(e.storageGB||5)*100),100);return `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px;"><span>${e.name||e.code}</span><span>${Number(gb).toFixed?Number(gb).toFixed(3):gb}GB</span></div><div class="rev-bar-bg"><div class="rev-bar-fill" style="width:${pct}%;"></div></div></div>`;}).join('')}</div>`;
+    h+=`<div class="card"><div class="card-label">אחסון כולל</div>
+      <div class="stor-bar" style="margin-bottom:8px;"><div class="stor-fill" style="width:${Math.min(parseFloat(totalUsedGB)/25*100,100)}%;background:var(--neon);"></div></div>
+      <div style="font-size:11px;color:var(--text3);">${totalUsedGB}GB בשימוש</div>
+    </div>`;
+    h+=evs.map(e=>`<div class="card" style="cursor:pointer;" onclick="admShowEvent('${e.code}')">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:13px;color:var(--text1);">${e.name||e.code}</div>
+        <div style="font-size:11px;color:var(--neon);">${(e.usedGB||0).toFixed(2)}GB</div>
+      </div>
+      <div class="rev-bar-bg"><div class="rev-bar-fill" style="width:${Math.min((e.usedGB||0)/(e.storageGB||5)*100,100)}%;"></div></div>
+    </div>`).join('');
   } else if(t==='alerts'){
-    h+=`<div class="card"><div class="card-label">התראות</div>${DB.notifications.length?DB.notifications.map(n=>`<div class="table-row"><div style="font-size:12px;color:var(--text1);">${n.type} · ${n.event}</div></div>`).join(''):'<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px;">אין התראות</div>'}</div>`;
+    const now=new Date();
+    const alerts=[];
+    evs.forEach(e=>{
+      const dl=e.date?Math.max(0,Math.ceil((new Date(e.date).setDate(new Date(e.date).getDate()+30)-now)/86400000)):30;
+      if(dl<=7&&dl>0)alerts.push({msg:`"${e.name}" — ${dl} ימים למחיקה`,color:'var(--amber)',code:e.code});
+      if((e.usedGB||0)/(e.storageGB||5)>0.8)alerts.push({msg:`"${e.name}" — אחסון גבוה`,color:'var(--red)',code:e.code});
+    });
+    h+=`<div class="card"><div class="card-label">התראות (${alerts.length})</div>
+      ${alerts.length===0?'<div style="text-align:center;padding:20px;color:var(--text3);">אין התראות</div>':
+      alerts.map(a=>`<div class="table-row" style="cursor:pointer;" onclick="admShowEvent('${a.code}')">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${a.color};flex-shrink:0;"></div>
+          <div style="font-size:12px;color:var(--text1);">${a.msg}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
   } else if(t==='reports'){
-    h+=`<div class="card"><div class="card-label">דוחות</div><button class="btn-ghost" style="margin:0 0 6px;width:100%;" onclick="exportReport('הכנסות')">💰 דוח הכנסות</button><button class="btn-ghost" style="margin:0;width:100%;" onclick="exportReport('לקוחות')">👥 דוח לקוחות</button></div>`;
+    h+=`<div class="card"><div class="card-label">ייצוא דוחות</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button class="btn-ghost" style="margin:0;" onclick="exportAllEvents()">📅 אירועים</button>
+        <button class="btn-ghost" style="margin:0;" onclick="exportAllClients()">👥 לקוחות</button>
+        <button class="btn-ghost" style="margin:0;" onclick="exportRevenue()">💰 הכנסות</button>
+        <button class="btn-ghost" style="margin:0;" onclick="exportStorage()">☁️ אחסון</button>
+      </div>
+    </div>`;
   } else if(t==='settings'){
-    h+=`<div class="card"><div class="card-label">הגדרות</div><div class="field"><label>שינוי סיסמה</label><input type="password" id="new-pass" placeholder="סיסמה חדשה"/></div><button class="btn-primary" style="margin:8px 0 0;width:100%;" onclick="toast('✓ סיסמה עודכנה!')">שמור →</button></div>
+    h+=`<div class="card"><div class="card-label">הגדרות</div>
+      <div class="field"><label>שינוי סיסמה</label><input type="password" id="new-pass" placeholder="סיסמה חדשה"/></div>
+      <div class="field"><label>אימות</label><input type="password" id="new-pass2" placeholder="חזור"/></div>
+      <button class="btn-primary" style="margin:8px 0 0;width:100%;" onclick="changeAdmPass()">שמור →</button>
+    </div>
     <button class="btn-ghost btn-danger" onclick="admLogout()">התנתק →</button>`;
   }
   h+=`<div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
@@ -2722,12 +2813,14 @@ document.addEventListener('touchend', e => {
 // תיקון: חזרה מלחצן הבית — מפעיל מצלמה מחדש
 document.addEventListener('visibilitychange', async () => {
   if(document.visibilityState === 'visible' && S.cur === 'camera'){
-    // המצלמה נתקעה — הפעל מחדש
-    const vid = document.getElementById('cam-vid');
-    if(vid && (!S.camStream || S.camStream.getTracks().some(t => t.readyState === 'ended'))){
-      toast('🔄 מפעיל מצלמה מחדש...');
-      await openCameraStream();
+    // עצור את הסטרים הישן לחלוטין לפני פתיחה מחדש
+    if(S.camStream){
+      S.camStream.getTracks().forEach(t=>t.stop());
+      S.camStream=null;
     }
+    torchTrack=null;
+    toast('🔄 מפעיל מצלמה מחדש...');
+    await openCameraStream();
     // נסה להעלות תמונות ממתינות
     if(!S.noSignal && uploadQueue.length > 0){
       processUploadQueue();
@@ -2735,18 +2828,26 @@ document.addEventListener('visibilitychange', async () => {
   }
 });
 
-// FIX: Handle deep link with ?code=STXXXXX
 function handleDeepLink(){
   const params=new URLSearchParams(window.location.search);
   const code=params.get('code');
   if(code){
-    const found=DB.events.find(e=>e.code===code.toUpperCase()&&!e.deleted);
-    if(found){S.ev=found;}else{S.ev={...S.ev,name:'אירוע',code:code.toUpperCase()};}
-    // FIX: Pre-fill code and navigate directly to welcome
-    nav('guest');
-    setTimeout(()=>{
-      const gEl=document.getElementById('g-code');if(gEl)gEl.value=code.toUpperCase();
-    },200);
+    const found=DB.events.find(e=>e.code===code.toUpperCase()&&!e.deleted&&(e.paid||e.adminCreated));
+    if(found){
+      // קוד קיים ותקין — עבור לכניסת אורח עם קוד מולא
+      S.ev=found;
+      nav('guest');
+      setTimeout(()=>{
+        const gEl=document.getElementById('g-code');if(gEl)gEl.value=code.toUpperCase();
+      },200);
+    } else {
+      // קוד לא קיים — הצג שגיאה
+      nav('guest');
+      setTimeout(()=>{
+        const err=document.getElementById('g-err');
+        if(err){err.textContent='⚠ קוד אירוע לא נמצא';err.style.display='flex';}
+      },300);
+    }
   }
 }
 handleDeepLink();
