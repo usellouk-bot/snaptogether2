@@ -1487,8 +1487,13 @@ async function uploadToCloudinary(dataURL, eventCode, uploaderName){
     const formData=new FormData();
     formData.append('file',blob);
     formData.append('upload_preset',UPLOAD_PRESET);
-    // תיקייה לפי קוד אירוע + שם מצלם
-    const folderName = 'events/'+(eventCode||'general')+'/'+(uploaderName||'אורח').replace(/[^a-zA-Zא-ת0-9]/g,'_');
+
+    // מבנה תיקיות: שם_אירוע / תאריך / שם_מצלם
+    const eventName = (S.ev.name||eventCode||'אירוע').replace(/[^a-zA-Zא-ת0-9\s]/g,'').replace(/\s+/g,'_').substring(0,30);
+    const eventDate = (S.ev.date||new Date().toISOString().split('T')[0]);
+    const photographer = (uploaderName||'אורח').replace(/[^a-zA-Zא-ת0-9\s]/g,'').replace(/\s+/g,'_').substring(0,20);
+    const folderName = `momenpix/${eventName}/${eventDate}/${photographer}`;
+
     formData.append('folder', folderName);
     const response=await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,{method:'POST',body:formData});
     if(response.ok){const data=await response.json();return data.secure_url;}
@@ -2158,7 +2163,10 @@ function toggleRec(){
   if(!S.recTimer){
     if(S.camStream&&window.MediaRecorder){
       try{
-        S.mediaRecorder=new MediaRecorder(S.camStream);
+        // נסה קצב bitrate גבוה לאיכות טובה יותר
+        const options=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+        const recOpts=options?{mimeType:options,videoBitsPerSecond:4000000}:{};
+        S.mediaRecorder=new MediaRecorder(S.camStream,recOpts);
         S.recordedChunks=[];
         S.mediaRecorder.ondataavailable=e=>{if(e.data.size>0)S.recordedChunks.push(e.data);};
         S.mediaRecorder.onstop=async()=>{
@@ -2168,14 +2176,19 @@ function toggleRec(){
           addPhotoToEvent({url:localUrl,ts,type:'video'});
           S.photos++;updCamUI();
           toast('✓ סרטון נשמר!');
-          // Upload in background
           uploadVideoToCloudinary(blob,S.ev.code||'test').then(cloudURL=>{
             if(cloudURL)updatePhotoCloudUrl(S.ev.code,ts,cloudURL);
           });
         };
-        S.mediaRecorder.start();
+        S.mediaRecorder.start(1000); // chunk כל שניה
       }catch(e){toast('⚠ הקלטת וידאו לא נתמכת');}
     }
+
+    // מסך מלא בזמן הקלטה
+    const camEl=document.getElementById('s-camera');
+    if(camEl.requestFullscreen){camEl.requestFullscreen().catch(()=>{});}
+    else if(camEl.webkitRequestFullscreen){camEl.webkitRequestFullscreen();}
+
     S.recTimer=setInterval(()=>{
       S.recSecs++;const m=Math.floor(S.recSecs/60),sec=S.recSecs%60;
       const el=document.getElementById('cam-rectm');if(el)el.textContent=`${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
@@ -2191,6 +2204,10 @@ function toggleRec(){
 function stopRec(){
   if(S.recTimer)clearInterval(S.recTimer);S.recTimer=null;S.recSecs=0;
   if(S.mediaRecorder&&S.mediaRecorder.state!=='inactive'){S.mediaRecorder.stop();toast('⏹ הקלטה הסתיימה');}
+  // צא ממסך מלא
+  if(document.fullscreenElement||document.webkitFullscreenElement){
+    (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
+  }
   const rec=document.getElementById('cam-rec');if(rec)rec.style.display='none';
   const core=document.getElementById('shutterCore');if(core)core.style.cssText='width:58px;height:58px;border-radius:50%;background:var(--text1);';
   const sh=document.getElementById('shutterEl');if(sh)sh.style.borderColor='var(--neon)';
@@ -2234,21 +2251,47 @@ function runTimerThenShoot(){
 }
 
 // ── BURST MODE ──
-let burstTimer=null;let burstInt=null;
+let burstTimer=null;let burstInt=null;let isBursting=false;
 function startBurst(e){
   if(S.camMode!=='photo')return;
+  // לחיצה קצרה = תמונה אחת, לחיצה ממושכת = רצף
   burstTimer=setTimeout(()=>{
-    toast('📸 מצב רצף');
-    let cnt=0;
+    isBursting=true;
+    toast('📸 רצף — שחרר לעצור');
+    // צלם מיד ואז כל 800ms
+    takePhotoSilent();
     burstInt=setInterval(()=>{
-      if(cnt>=3||S.photos>=50){stopBurst();return;}
-      takePhoto();cnt++;
-    },600);
-  },600);
+      if(S.photos>=50){stopBurst();return;}
+      takePhotoSilent();
+    },800);
+  },500); // 500ms = לחיצה ממושכת
 }
 function stopBurst(){
   if(burstTimer){clearTimeout(burstTimer);burstTimer=null;}
   if(burstInt){clearInterval(burstInt);burstInt=null;}
+  if(isBursting){toast('✓ רצף הסתיים');isBursting=false;}
+}
+
+// צילום שקט — ללא preview countdown לרצף
+function takePhotoSilent(){
+  if(S.photos>=50)return;
+  if(flashOn&&torchTrack){
+    torchTrack.applyConstraints({advanced:[{torch:true}]}).then(()=>{setTimeout(()=>torchTrack.applyConstraints({advanced:[{torch:false}]}),300);}).catch(()=>{});
+  }
+  const vid=document.getElementById('cam-vid');
+  const canvas=document.createElement('canvas');
+  canvas.width=vid.videoWidth||640;canvas.height=vid.videoHeight||480;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(vid,0,0);
+  burnWatermark(ctx,canvas.width,canvas.height);
+  const dataURL=canvas.toDataURL('image/jpeg',0.85);
+  const meta=getPhotoMetadata();
+  capturedDataURLs.push(dataURL);
+  // עדכן thumbnail
+  const thumb=document.getElementById('last-thumb');
+  if(thumb)thumb.innerHTML=`<img src="${dataURL}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/>`;
+  uploadPhoto(dataURL,meta);
+  toast('📸 '+S.photos);
 }
 
 // ── WATERMARK נצרב לתמונה ──
