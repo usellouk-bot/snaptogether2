@@ -1881,8 +1881,11 @@ function isEventActive(){
   const [sh,sm]=S.ev.startTime.split(':').map(Number);
   const [eh,em]=S.ev.endTime.split(':').map(Number);
   const start=new Date(S.ev.date);start.setHours(sh,sm,0,0);
-  const end=new Date(S.ev.date);end.setHours(eh+2,em,0,0);
-  if(S.ev.endTime<S.ev.startTime)end.setDate(end.getDate()+1);
+  const end=new Date(S.ev.date);end.setHours(eh,em,0,0);
+  // אם שעת הסיום קטנה משעת ההתחלה — האירוע עובר חצות
+  if(eh<sh||(eh===sh&&em<sm))end.setDate(end.getDate()+1);
+  // grace period של שעה אחת אחרי הסיום
+  end.setTime(end.getTime()+3600000);
   return now>=start&&now<=end;
 }
 
@@ -2660,7 +2663,8 @@ function admBack(){
     admCurrentView='list';
     admTab('events',document.querySelector('.admin-tab'));
   } else {
-    admLogout();
+    // נשאר בדשבורד — לא יוצא
+    admTab('events',document.querySelector('.admin-tab'));
   }
 }
 function admLogout(){document.getElementById('adm-login-view').style.display='flex';document.getElementById('adm-dash').style.display='none';home();}
