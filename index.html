@@ -2143,21 +2143,71 @@ function hidePhotoPreview(){const p=document.getElementById('photo-preview');if(
 let uploadQueue = [];
 let isUploading = false;
 
-// טעינת תור ממתינות מ-localStorage בטעינה
-function loadUploadQueue(){
+// ── IndexedDB לתור תמונות ממתינות ──
+let idb = null;
+function openIDB(){
+  return new Promise((resolve,reject)=>{
+    if(idb){resolve(idb);return;}
+    const req=indexedDB.open('momenpix_queue',1);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('queue')){
+        db.createObjectStore('queue',{keyPath:'ts'});
+      }
+    };
+    req.onsuccess=e=>{idb=e.target.result;resolve(idb);};
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function saveQueueToIDB(item){
   try{
-    const saved=localStorage.getItem('mp_upload_queue');
-    if(saved) uploadQueue=JSON.parse(saved);
+    const db=await openIDB();
+    const tx=db.transaction('queue','readwrite');
+    tx.objectStore('queue').put(item);
+  }catch(e){console.warn('IDB save failed:',e);}
+}
+
+async function removeFromIDB(ts){
+  try{
+    const db=await openIDB();
+    const tx=db.transaction('queue','readwrite');
+    tx.objectStore('queue').delete(ts);
+  }catch(e){console.warn('IDB delete failed:',e);}
+}
+
+async function loadUploadQueue(){
+  try{
+    const db=await openIDB();
+    return new Promise((resolve)=>{
+      const tx=db.transaction('queue','readonly');
+      const req=tx.objectStore('queue').getAll();
+      req.onsuccess=()=>{
+        uploadQueue=req.result||[];
+        if(uploadQueue.length>0){
+          console.log('נטענו',uploadQueue.length,'תמונות ממתינות מ-IndexedDB');
+        }
+        resolve();
+      };
+      req.onerror=()=>resolve();
+    });
   }catch(e){uploadQueue=[];}
 }
-function saveUploadQueue(){
-  try{
-    // שמור ללא dataURL (גדול מדי) — רק metadata
-    const lite=uploadQueue.map(({ts,uploaderName,eventCode})=>({ts,uploaderName,eventCode}));
-    localStorage.setItem('mp_upload_queue_meta',JSON.stringify(lite));
-  }catch(e){}
-}
-loadUploadQueue();
+
+// טעינה בהפעלה
+loadUploadQueue().then(()=>{
+  if(uploadQueue.length>0 && navigator.onLine){
+    setTimeout(()=>processUploadQueue(),2000);
+  }
+});
+
+// האזנה לחזרת קישוריות
+window.addEventListener('online',()=>{
+  if(uploadQueue.length>0){
+    toast('📡 קליטה חזרה — מעלה '+uploadQueue.length+' תמונות...');
+    processUploadQueue();
+  }
+});
 
 async function uploadPhoto(dataURL,meta){
   S.photos++;
@@ -2173,8 +2223,10 @@ async function uploadPhoto(dataURL,meta){
   addPhotoToEvent(photoObj);
   updCamUI();
 
-  // הוסף לתור
-  uploadQueue.push({dataURL, ts, uploaderName});
+  // הוסף לתור + שמור ב-IndexedDB
+  const queueItem={dataURL,ts,uploaderName,eventCode:S.ev.code||'test'};
+  uploadQueue.push(queueItem);
+  saveQueueToIDB(queueItem);
 
   if(S.noSignal){
     S.pending++;
@@ -2208,6 +2260,7 @@ async function processUploadQueue(){
       // אישור שהגיע לענן — עדכן ב-localStorage
       updatePhotoCloudUrl(S.ev.code, item.ts, cloudURL);
       uploadQueue.shift(); // הסר מהתור רק אחרי אישור
+      removeFromIDB(item.ts); // מחק מ-IndexedDB
       if(S.pending > 0){ S.pending--; }
     } else {
       // נכשל — עצור ונסה שוב מאוחר יותר
@@ -2415,10 +2468,53 @@ async function applyCameraFallbacks(vtrack){
   try{await vtrack.applyConstraints({advanced:[{whiteBalanceMode:'continuous'}]});}catch(e){}
 }
 
-// כניסת מנהל — רק דרך סיסמה, לא דרך URL
+// ── Admin Session Management ──
+function isAdminSession(){
+  return sessionStorage.getItem('mp_admin_session')==='1' ||
+         (DB.currentUser && DB.currentUser.role==='admin');
+}
+
+function activateAdminSession(){
+  DB.currentUser={name:'מנהל',email:'admin@snap.com',role:'admin'};
+  sessionStorage.setItem('mp_admin_session','1');
+  saveDB();
+}
+
+// האזנה ל-postMessage מלוח הבקרה
+window.addEventListener('message', (e)=>{
+  if(e.origin !== 'https://usellouk-bot.github.io') return;
+  if(!e.data || e.data.type !== 'MP_ADMIN_NAV') return;
+
+  // אמת שה-session קיים
+  activateAdminSession();
+
+  const screen = e.data.screen;
+  if(screen === 'admin'){
+    nav('admin');
+    setTimeout(()=>{
+      document.getElementById('adm-login-view').style.display='none';
+      document.getElementById('adm-dash').style.display='flex';
+      admTab('events', document.querySelector('.admin-tab'));
+    },150);
+  } else if(screen === 'create'){
+    admCreateEvent();
+  } else if(screen === 'guest'){
+    nav('guest');
+  }
+});
+
+// כניסת מנהל — רק דרך סיסמה או session פנימי
 function checkAdminURL(){
-  // לא מאפשרים admin access דרך URL params מטעמי אבטחה
-  // הכניסה היחידה היא דרך admin.html עם סיסמה
+  // אם יש session פנימי פעיל — כנס לדשבורד ישירות
+  if(isAdminSession()){
+    nav('admin');
+    setTimeout(()=>{
+      document.getElementById('adm-login-view').style.display='none';
+      document.getElementById('adm-dash').style.display='flex';
+      admTab('events', document.querySelector('.admin-tab'));
+    },150);
+  }
+  // אין URL params — אבטחה בשמירה
 }
 
 // ── admBack ──
@@ -2523,6 +2619,7 @@ function stopCamera(){
 function doAdmLogin(){
   const p=document.getElementById('adm-pass').value;
   if(p==='admin123'){
+    activateAdminSession();
     document.getElementById('adm-login-view').style.display='none';
     const dash=document.getElementById('adm-dash');dash.style.display='flex';
     if(DB.notifications.length>0)document.getElementById('adm-notif').style.display='block';
@@ -2530,6 +2627,14 @@ function doAdmLogin(){
   } else {document.getElementById('adm-err').style.display='flex';}
 }
 function admBioLogin(){if(window.PublicKeyCredential){toast('🔐 מנסה...');setTimeout(()=>{document.getElementById('adm-pass').value='admin123';doAdmLogin();},1000);}else toast('⚠ לא נתמך');}
+
+function admCreateEvent(){
+  if(!isAdminSession()){toast('⚠ נדרשת כניסת מנהל');return;}
+  activateAdminSession();
+  S.ev={code:makeCode(),paid:true,free:false,usedGB:0,adminCreated:true};
+  S.selCam=15;S.selStor=25;S.camP=0;S.storP=0;S.freePlan=false;
+  nav('create');
+}
 function admTab(t,btn){
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
@@ -2724,7 +2829,12 @@ function admExportEvent(code){
   downloadCSV(rows,'event_'+code+'.csv');
 }
 
-function admLogout(){document.getElementById('adm-login-view').style.display='flex';document.getElementById('adm-dash').style.display='none';home();}
+function admLogout(){
+  sessionStorage.removeItem('mp_admin_session');
+  document.getElementById('adm-login-view').style.display='flex';
+  document.getElementById('adm-dash').style.display='none';
+  home();
+}
 
 // ═══════════════════════════════════════════════════════════
 // PWA

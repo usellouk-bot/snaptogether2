@@ -246,7 +246,7 @@ iframe{flex:1;border:none;width:100%;height:100%;}
         <div class="tile-desc">דף הבית של האפליקציה</div>
       </div>
 
-      <div class="tile" onclick="openFrame('מנהל מערכת','https://usellouk-bot.github.io/snaptogether2/?admin=UZ2026MP')">
+      <div class="tile" onclick="openFrame('מנהל מערכת','https://usellouk-bot.github.io/snaptogether2/')">
         <span class="tile-badge admin">ADMIN</span>
         <div class="tile-icon">⚙️</div>
         <div class="tile-name">מנהל מערכת</div>
@@ -260,7 +260,7 @@ iframe{flex:1;border:none;width:100%;height:100%;}
         <div class="tile-desc">מסך כניסה כמו שאורח מצלם רואה</div>
       </div>
 
-      <div class="tile" onclick="openFrameAndNav('צור אירוע','https://usellouk-bot.github.io/snaptogether2/?admin=UZ2026MP','create')">
+      <div class="tile" onclick="openFrameAndNav('צור אירוע','https://usellouk-bot.github.io/snaptogether2/','create')">
         <span class="tile-badge admin">APP</span>
         <div class="tile-icon">✨</div>
         <div class="tile-name">צור אירוע</div>
@@ -325,7 +325,7 @@ iframe{flex:1;border:none;width:100%;height:100%;}
         <div class="tile-desc">העתק קישור ללוח הבקרה לשמירה בטלפון</div>
       </div>
 
-      <div class="tile" onclick="copyText('https://usellouk-bot.github.io/snaptogether2/?admin=UZ2026MP')">
+      <div class="tile" onclick="copyText('https://usellouk-bot.github.io/snaptogether2/')">
         <span class="tile-badge admin">SECRET</span>
         <div class="tile-icon">⚙️</div>
         <div class="tile-name">מנהל ישיר</div>
@@ -390,14 +390,8 @@ iframe{flex:1;border:none;width:100%;height:100%;}
 </div>
 
 <script>
-// ── זיהוי מכשיר ──
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-// ── מובייל: ללא סיסמה ──
-if(isMobile){
-  document.getElementById('lock').classList.add('hidden');
-  showPanel();
-}
+// אין bypass — תמיד דורש סיסמה
+// סיסמה: Uzi2026!
 
 // ── מחשב: עם סיסמה ──
 function unlock(){
@@ -432,16 +426,17 @@ function updateTime(){
 
 // ── פתיחת דף עם ניווט לדף ספציפי אחרי טעינה ──
 function openFrameAndNav(title, url, screen){
+  // שמור session admin ב-sessionStorage כדי שה-iframe יזהה
+  sessionStorage.setItem('mp_admin_session','1');
   openFrame(title, url);
-  // המתן לטעינת ה-iframe ואז נווט
   const iframe=document.getElementById('main-iframe');
   iframe.onload=()=>{
     try{
-      if(screen==='guest'){
-        iframe.contentWindow.nav('guest');
-      } else if(screen==='create'){
-        iframe.contentWindow.admCreateEvent();
-      }
+      // שלח הודעה ל-iframe עם postMessage
+      iframe.contentWindow.postMessage({
+        type:'MP_ADMIN_NAV',
+        screen: screen
+      }, 'https://usellouk-bot.github.io');
     } catch(e){}
     iframe.onload=null;
   };
@@ -449,6 +444,7 @@ function openFrameAndNav(title, url, screen){
 
 // ── פתיחת דף בתוך iframe ──
 function openFrame(title, url){
+  sessionStorage.setItem('mp_admin_session','1');
   document.getElementById('iframe-title').textContent = title;
   document.getElementById('iframe-url').textContent = url;
   document.getElementById('main-iframe').src = url;
