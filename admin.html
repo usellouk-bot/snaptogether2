@@ -8,8 +8,12 @@
 <meta name="apple-mobile-web-app-title" content="MP Control"/>
 <meta name="theme-color" content="#080810"/>
 <title>MP Control</title>
-<link rel="manifest" href="admin-manifest.json"/>
-<link rel="apple-touch-icon" href="admin-icon.png"/>
+<link rel="apple-touch-icon" href="https://usellouk-bot.github.io/snaptogether2/icon.png"/>
+<script>
+const _manifest={name:'MP Control',short_name:'MP Control',start_url:'./admin.html',scope:'https://usellouk-bot.github.io/snaptogether2/',display:'standalone',background_color:'#080810',theme_color:'#00FF88',icons:[{src:'https://usellouk-bot.github.io/snaptogether2/icon.png',sizes:'512x512',type:'image/png'}]};
+const _mb=new Blob([JSON.stringify(_manifest)],{type:'application/json'});
+const _ml=document.createElement('link');_ml.rel='manifest';_ml.href=URL.createObjectURL(_mb);document.head.appendChild(_ml);
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -246,7 +250,7 @@ iframe{flex:1;border:none;width:100%;height:100%;}
         <div class="tile-desc">דף הבית של האפליקציה</div>
       </div>
 
-      <div class="tile" onclick="openFrame('מנהל מערכת','https://usellouk-bot.github.io/snaptogether2/')">
+      <div class="tile" onclick="openFrame('מנהל מערכת','https://usellouk-bot.github.io/snaptogether2/?admin=UZ2026MP')">
         <span class="tile-badge admin">ADMIN</span>
         <div class="tile-icon">⚙️</div>
         <div class="tile-name">מנהל מערכת</div>
@@ -260,7 +264,7 @@ iframe{flex:1;border:none;width:100%;height:100%;}
         <div class="tile-desc">מסך כניסה כמו שאורח מצלם רואה</div>
       </div>
 
-      <div class="tile" onclick="openFrameAndNav('צור אירוע','https://usellouk-bot.github.io/snaptogether2/','create')">
+      <div class="tile" onclick="openFrameAndNav('צור אירוע','https://usellouk-bot.github.io/snaptogether2/?admin=UZ2026MP','create')">
         <span class="tile-badge admin">APP</span>
         <div class="tile-icon">✨</div>
         <div class="tile-name">צור אירוע</div>
@@ -325,7 +329,7 @@ iframe{flex:1;border:none;width:100%;height:100%;}
         <div class="tile-desc">העתק קישור ללוח הבקרה לשמירה בטלפון</div>
       </div>
 
-      <div class="tile" onclick="copyText('https://usellouk-bot.github.io/snaptogether2/')">
+      <div class="tile" onclick="copyText('https://usellouk-bot.github.io/snaptogether2/?admin=UZ2026MP')">
         <span class="tile-badge admin">SECRET</span>
         <div class="tile-icon">⚙️</div>
         <div class="tile-name">מנהל ישיר</div>
@@ -390,8 +394,14 @@ iframe{flex:1;border:none;width:100%;height:100%;}
 </div>
 
 <script>
-// אין bypass — תמיד דורש סיסמה
-// סיסמה: Uzi2026!
+// ── זיהוי מכשיר ──
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+// ── מובייל: ללא סיסמה ──
+if(isMobile){
+  document.getElementById('lock').classList.add('hidden');
+  showPanel();
+}
 
 // ── מחשב: עם סיסמה ──
 function unlock(){
@@ -426,17 +436,16 @@ function updateTime(){
 
 // ── פתיחת דף עם ניווט לדף ספציפי אחרי טעינה ──
 function openFrameAndNav(title, url, screen){
-  // שמור session admin ב-sessionStorage כדי שה-iframe יזהה
-  sessionStorage.setItem('mp_admin_session','1');
   openFrame(title, url);
+  // המתן לטעינת ה-iframe ואז נווט
   const iframe=document.getElementById('main-iframe');
   iframe.onload=()=>{
     try{
-      // שלח הודעה ל-iframe עם postMessage
-      iframe.contentWindow.postMessage({
-        type:'MP_ADMIN_NAV',
-        screen: screen
-      }, 'https://usellouk-bot.github.io');
+      if(screen==='guest'){
+        iframe.contentWindow.nav('guest');
+      } else if(screen==='create'){
+        iframe.contentWindow.admCreateEvent();
+      }
     } catch(e){}
     iframe.onload=null;
   };
@@ -444,7 +453,6 @@ function openFrameAndNav(title, url, screen){
 
 // ── פתיחת דף בתוך iframe ──
 function openFrame(title, url){
-  sessionStorage.setItem('mp_admin_session','1');
   document.getElementById('iframe-title').textContent = title;
   document.getElementById('iframe-url').textContent = url;
   document.getElementById('main-iframe').src = url;
