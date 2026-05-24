@@ -1,0 +1,25 @@
+{
+  "name": "Momenpix",
+  "short_name": "Momenpix",
+  "description": "צילום שיתופי לאירועים",
+  "start_url": "/snaptogether2/",
+  "scope": "/snaptogether2/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0F0F1E",
+  "theme_color": "#00FF88",
+  "icons": [
+    {
+      "src": "/snaptogether2/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/snaptogether2/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
