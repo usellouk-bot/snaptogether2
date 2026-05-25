@@ -682,7 +682,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   <div id="proj-grid" style="display:grid;width:100%;height:100%;"></div>
   <div style="position:absolute;bottom:20px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none;">
     <div id="proj-event-name" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:rgba(255,255,255,0.7);letter-spacing:2px;"></div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:#00FF88;">MOMEN<span style="color:#fff;">PIX</span></div>
+    <div class="proj-logo" style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:#fff;">MOMEN<span style="color:#00FF88;">PIX</span></div>
   </div>
 </div>
 <!-- ALBUM -->
@@ -1844,43 +1844,239 @@ function renderLiveGrid(){
     }
   });
 }
-function setLiveLayout(l,btn){S.liveLayout=l;document.querySelectorAll('.layout-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderLiveGrid();}
+function setLiveLayout(l,btn){
+  S.liveLayout=l;
+  projLayout=l;
+  document.querySelectorAll('.layout-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderLiveGrid();
+  // עדכן גם מסך הקרנה אם פעיל
+  if(projAllPhotos.length>0&&document.getElementById('projection-screen').style.display!=='none'){
+    const theme=getTheme(S.ev&&S.ev.type?S.ev.type:'');
+    const cnt=l==='3x2'?6:l==='2x2'?4:1;
+    const cols=l==='3x2'?3:l==='2x2'?2:1;
+    const rows=l==='3x2'?2:l==='2x2'?2:1;
+    const grid=document.getElementById('proj-grid');
+    if(grid){
+      grid.style.gridTemplateColumns='repeat('+cols+',1fr)';
+      grid.style.gridTemplateRows='repeat('+rows+',1fr)';
+      showProjectionSlice(theme,cnt);
+    }
+  }
+}
+// ── עיצובים לפי סוג אירוע ──
+const EVENT_THEMES = {
+  'חתונה': {
+    bg: 'linear-gradient(135deg,#1a0a00 0%,#2d1500 50%,#1a0a00 100%)',
+    accent: '#D4AF37',
+    accent2: '#F5E6C8',
+    border: 'rgba(212,175,55,0.4)',
+    logo_color: '#D4AF37',
+    overlay: 'linear-gradient(to top, rgba(26,10,0,0.9) 0%, transparent 60%)',
+    frame: 'wedding',
+    emoji: '💍'
+  },
+  'יומולדת': {
+    bg: 'linear-gradient(135deg,#0d001a 0%,#1a0033 50%,#0d001a 100%)',
+    accent: '#FF6B9D',
+    accent2: '#FFD700',
+    border: 'rgba(255,107,157,0.4)',
+    logo_color: '#FF6B9D',
+    overlay: 'linear-gradient(to top, rgba(13,0,26,0.9) 0%, transparent 60%)',
+    frame: 'birthday',
+    emoji: '🎂'
+  },
+  'בר/בת מצווה': {
+    bg: 'linear-gradient(135deg,#000d1a 0%,#001533 50%,#000d1a 100%)',
+    accent: '#4FC3F7',
+    accent2: '#B3E5FC',
+    border: 'rgba(79,195,247,0.4)',
+    logo_color: '#4FC3F7',
+    overlay: 'linear-gradient(to top, rgba(0,13,26,0.9) 0%, transparent 60%)',
+    frame: 'bar',
+    emoji: '✡️'
+  },
+  'גיבוש צבאי': {
+    bg: 'linear-gradient(135deg,#0a0f00 0%,#1a2200 50%,#0a0f00 100%)',
+    accent: '#8BC34A',
+    accent2: '#CDDC39',
+    border: 'rgba(139,195,74,0.4)',
+    logo_color: '#8BC34A',
+    overlay: 'linear-gradient(to top, rgba(10,15,0,0.9) 0%, transparent 60%)',
+    frame: 'military',
+    emoji: '🪖'
+  },
+  'כנס עסקי': {
+    bg: 'linear-gradient(135deg,#050510 0%,#0a0a20 50%,#050510 100%)',
+    accent: '#00BCD4',
+    accent2: '#E0F7FA',
+    border: 'rgba(0,188,212,0.4)',
+    logo_color: '#00BCD4',
+    overlay: 'linear-gradient(to top, rgba(5,5,16,0.9) 0%, transparent 60%)',
+    frame: 'business',
+    emoji: '💼'
+  },
+  'מסיבה': {
+    bg: 'linear-gradient(135deg,#1a0010 0%,#2d0020 50%,#1a0010 100%)',
+    accent: '#E040FB',
+    accent2: '#FF4081',
+    border: 'rgba(224,64,251,0.4)',
+    logo_color: '#E040FB',
+    overlay: 'linear-gradient(to top, rgba(26,0,16,0.9) 0%, transparent 60%)',
+    frame: 'party',
+    emoji: '🎉'
+  }
+};
+
+function getTheme(eventType){
+  return EVENT_THEMES[eventType] || {
+    bg:'#000',accent:'#00FF88',accent2:'#fff',border:'rgba(0,255,136,0.3)',
+    logo_color:'#00FF88',overlay:'linear-gradient(to top,rgba(0,0,0,0.9) 0%,transparent 60%)',
+    frame:'default',emoji:'📷'
+  };
+}
+
+function getFrameSVG(frame, accent, accent2){
+  if(frame==='wedding') return `
+    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="wg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${accent};stop-opacity:0.8"/>
+          <stop offset="100%" style="stop-color:${accent2};stop-opacity:0.4"/>
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="98" height="98" fill="none" stroke="url(#wg)" stroke-width="0.5" rx="0.5"/>
+      <rect x="2.5" y="2.5" width="95" height="95" fill="none" stroke="${accent}" stroke-width="0.2" rx="0.3" stroke-dasharray="2,1"/>
+      <!-- פינות קישוט -->
+      <path d="M1,1 L10,1 M1,1 L1,10" stroke="${accent}" stroke-width="1" fill="none"/>
+      <path d="M99,1 L90,1 M99,1 L99,10" stroke="${accent}" stroke-width="1" fill="none"/>
+      <path d="M1,99 L10,99 M1,99 L1,90" stroke="${accent}" stroke-width="1" fill="none"/>
+      <path d="M99,99 L90,99 M99,99 L99,90" stroke="${accent}" stroke-width="1" fill="none"/>
+      <!-- עיטורים -->
+      <circle cx="5" cy="5" r="1" fill="${accent}" opacity="0.7"/>
+      <circle cx="95" cy="5" r="1" fill="${accent}" opacity="0.7"/>
+      <circle cx="5" cy="95" r="1" fill="${accent}" opacity="0.7"/>
+      <circle cx="95" cy="95" r="1" fill="${accent}" opacity="0.7"/>
+    </svg>`;
+  if(frame==='birthday') return `
+    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <rect x="1" y="1" width="98" height="98" fill="none" stroke="${accent}" stroke-width="0.8" rx="1" stroke-dasharray="3,2"/>
+      <circle cx="5" cy="5" r="2" fill="${accent2}" opacity="0.8"/>
+      <circle cx="95" cy="5" r="2" fill="${accent}" opacity="0.8"/>
+      <circle cx="5" cy="95" r="2" fill="${accent}" opacity="0.8"/>
+      <circle cx="95" cy="95" r="2" fill="${accent2}" opacity="0.8"/>
+      <circle cx="50" cy="2" r="1.5" fill="${accent2}" opacity="0.6"/>
+      <circle cx="50" cy="98" r="1.5" fill="${accent2}" opacity="0.6"/>
+      <circle cx="2" cy="50" r="1.5" fill="${accent}" opacity="0.6"/>
+      <circle cx="98" cy="50" r="1.5" fill="${accent}" opacity="0.6"/>
+    </svg>`;
+  if(frame==='military') return `
+    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <rect x="1" y="1" width="98" height="98" fill="none" stroke="${accent}" stroke-width="1" rx="0"/>
+      <rect x="3" y="3" width="94" height="94" fill="none" stroke="${accent}" stroke-width="0.3" stroke-dasharray="4,2"/>
+      <rect x="1" y="1" width="8" height="8" fill="${accent}" opacity="0.3"/>
+      <rect x="91" y="1" width="8" height="8" fill="${accent}" opacity="0.3"/>
+      <rect x="1" y="91" width="8" height="8" fill="${accent}" opacity="0.3"/>
+      <rect x="91" y="91" width="8" height="8" fill="${accent}" opacity="0.3"/>
+    </svg>`;
+  // default / business / party / bar
+  return `
+    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <rect x="1" y="1" width="98" height="98" fill="none" stroke="${accent}" stroke-width="0.6" rx="1"/>
+      <path d="M1,1 L12,1 M1,1 L1,12" stroke="${accent}" stroke-width="1.2" fill="none"/>
+      <path d="M99,1 L88,1 M99,1 L99,12" stroke="${accent}" stroke-width="1.2" fill="none"/>
+      <path d="M1,99 L12,99 M1,99 L1,88" stroke="${accent}" stroke-width="1.2" fill="none"/>
+      <path d="M99,99 L88,99 M99,99 L99,88" stroke="${accent}" stroke-width="1.2" fill="none"/>
+    </svg>`;
+}
+
 // ── הקרנה נקייה לאולם ──
 let projInterval=null;
-function startCleanProjection(code, eventName){
+let projAllPhotos=[];
+let projCurrentIdx=0;
+let projLayout='3x2';
+
+function startCleanProjection(code, eventName, eventType){
   const ps=document.getElementById('projection-screen');
   const grid=document.getElementById('proj-grid');
   const nameEl=document.getElementById('proj-event-name');
   if(!ps||!grid) return;
-  if(nameEl) nameEl.textContent=eventName||code||'';
+
+  const theme=getTheme(eventType);
+  ps.style.background=theme.bg;
   ps.style.display='block';
   document.body.style.overflow='hidden';
-  // layout 3x2
-  grid.style.gridTemplateColumns='repeat(3,1fr)';
-  grid.style.gridTemplateRows='repeat(2,1fr)';
-  // רענון כל 5 שניות
+
+  // הוסף border לפי theme
+  ps.style.boxShadow='inset 0 0 0 2px '+theme.border;
+
+  if(nameEl){
+    nameEl.textContent=eventName||code||'';
+    nameEl.style.color=theme.accent2;
+  }
+
+  // לוגו צבע
+  const logoEl=ps.querySelector('.proj-logo');
+  if(logoEl){
+    logoEl.innerHTML=`MOMEN<span style="color:${theme.accent};">PIX</span>`;
+  }
+
+  // layout
+  const cnt=projLayout==='3x2'?6:projLayout==='2x2'?4:1;
+  const cols=projLayout==='3x2'?3:projLayout==='2x2'?2:1;
+  const rows=projLayout==='3x2'?2:projLayout==='2x2'?2:1;
+  grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
+
+  const renderPhotos=(photos)=>{
+    if(!photos||photos.length===0){
+      grid.innerHTML=`<div style="grid-column:1/-1;grid-row:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+        <div style="font-size:48px;">${theme.emoji}</div>
+        <div style="color:${theme.accent};font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:4px;">ממתין לתמונות...</div>
+      </div>`;
+      return;
+    }
+    projAllPhotos=photos;
+    showProjectionSlice(theme, cnt);
+  };
+
   const refresh=()=>{
     fbGetPhotos(code).then(photos=>{
-      if(!photos||photos.length===0){
-        grid.innerHTML='<div style="grid-column:1/-1;grid-row:1/-1;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-family:Bebas Neue,sans-serif;font-size:32px;letter-spacing:4px;">ממתין לתמונות...</div>';
-        return;
-      }
-      const cnt=6;
-      const recent=photos.slice(0,cnt);
-      grid.innerHTML=recent.map(p=>{
-        const url=p.cloudUrl||p.url;
-        const name=p.uploaderName||'';
-        const time=p.capturedAt?new Date(p.capturedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):'';
-        return `<div style="overflow:hidden;position:relative;background:#111;">
-          <img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.style.background='#1a1a1a'"/>
-          ${name?`<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.8));padding:8px 10px;font-family:Plus Jakarta Sans,sans-serif;font-size:11px;color:rgba(255,255,255,0.9);font-weight:600;">${name}${time?' · '+time:''}</div>`:''}
-        </div>`;
-      }).join('');
-    }).catch(()=>{});
+      renderPhotos(photos);
+    }).catch(()=>{
+      if(projAllPhotos.length>0) showProjectionSlice(theme,cnt);
+    });
   };
+
   refresh();
   if(projInterval) clearInterval(projInterval);
-  projInterval=setInterval(refresh,5000);
+  projInterval=setInterval(()=>{
+    if(projAllPhotos.length>cnt){
+      projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;
+    }
+    refresh();
+  },5000);
+}
+
+function showProjectionSlice(theme, cnt){
+  const grid=document.getElementById('proj-grid');
+  if(!grid||projAllPhotos.length===0) return;
+  const slice=[];
+  for(let i=0;i<cnt;i++){
+    slice.push(projAllPhotos[(projCurrentIdx+i)%projAllPhotos.length]);
+  }
+  const frame=getFrameSVG(theme.frame, theme.accent, theme.accent2);
+  grid.innerHTML=slice.map(p=>{
+    const url=p.cloudUrl||p.url;
+    const name=p.uploaderName||'';
+    const time=p.capturedAt?new Date(p.capturedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):'';
+    return `<div style="overflow:hidden;position:relative;background:#111;">
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.style.background='#1a1a1a'"/>
+      <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;"></div>
+      ${frame}
+      ${name?`<div style="position:absolute;bottom:0;left:0;right:0;padding:8px 10px;font-family:Plus Jakarta Sans,sans-serif;font-size:11px;color:${theme.accent2};font-weight:600;z-index:11;">${name}${time?' · '+time:''}</div>`:''}
+    </div>`;
+  }).join('');
 }
 
 function toggleLive(){
@@ -3347,7 +3543,7 @@ function handleDeepLink(){
       S.ev=ev||{code:liveCode,name:liveCode};
       // פתח מסך הקרנה נקי לאולם
       setTimeout(()=>{
-        startCleanProjection(liveCode, ev&&ev.name?ev.name:'');
+        startCleanProjection(liveCode, ev&&ev.name?ev.name:'', ev&&ev.type?ev.type:'');
       },300);
     };
     const localEv=DB.events.find(e=>e.code===liveCode&&!e.deleted);
