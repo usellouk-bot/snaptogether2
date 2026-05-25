@@ -453,10 +453,20 @@ async function registerBiometric(){
 
 function offerBiometric(){
   const t = document.createElement('div');
-  t.style.cssText='position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#1E1E36;border:1px solid #00FF88;color:#F0F0FF;padding:14px 20px;border-radius:16px;font-size:13px;z-index:9999;font-family:"Plus Jakarta Sans",sans-serif;display:flex;gap:12px;align-items:center;max-width:90vw;';
-  t.innerHTML='<span>הפעל כניסה ביומטרית?</span><button onclick="registerBiometric();this.closest('div').remove()" style="background:#00FF88;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;color:#080810;cursor:pointer;">כן</button><button onclick="this.closest('div').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;font-size:12px;color:#BBBBDD;cursor:pointer;">לא</button>';
+  t.style.cssText='position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#1E1E36;border:1px solid #00FF88;color:#F0F0FF;padding:14px 20px;border-radius:16px;font-size:13px;z-index:9999;font-family:Plus Jakarta Sans,sans-serif;display:flex;gap:12px;align-items:center;max-width:90vw;';
+  const span = document.createElement('span');
+  span.textContent = 'הפעל כניסה ביומטרית?';
+  const btnYes = document.createElement('button');
+  btnYes.textContent = 'כן';
+  btnYes.style.cssText = 'background:#00FF88;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;color:#080810;cursor:pointer;';
+  btnYes.onclick = function(){ registerBiometric(); t.remove(); };
+  const btnNo = document.createElement('button');
+  btnNo.textContent = 'לא';
+  btnNo.style.cssText = 'background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;font-size:12px;color:#BBBBDD;cursor:pointer;';
+  btnNo.onclick = function(){ t.remove(); };
+  t.appendChild(span); t.appendChild(btnYes); t.appendChild(btnNo);
   document.body.appendChild(t);
-  setTimeout(()=>t.remove(), 8000);
+  setTimeout(()=>{ if(t.parentNode) t.remove(); }, 8000);
 }
 
 // ── כניסה עם סיסמה ──
