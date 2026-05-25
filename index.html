@@ -622,12 +622,12 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
         <button class="layout-btn" onclick="setLiveLayout('1x1',this)">תמונה אחת</button>
       </div>
     </div>
-    <button class="btn-primary" id="live-btn" onclick="activateLive()">📺 הפעל הקרנה לייב</button>
-    <div id="live-link-section" style="display:none;">
-      <div class="link-row"><input class="link-inp" id="live-link-inp" readonly/><button class="copy-btn" onclick="copyLiveLink()">העתק</button></div>
-      <div class="note note-amber" style="margin:0 18px 10px;"><div class="note-dot"></div>הצג קישור זה על הטלוויזיה באולם</div>
+    <button class="btn-primary" id="live-btn" onclick="toggleLive()">📺 הפעל הקרנה לייב</button>
+    <div class="link-row" style="margin:0 18px 10px;">
+      <input class="link-inp" id="live-link-inp" readonly placeholder="לחץ הפעל הקרנה כדי לקבל קישור"/>
+      <button class="copy-btn" onclick="copyLiveLink()">העתק</button>
     </div>
-    <button class="btn-ghost" onclick="copyLiveLink()">📋 העתק קישור לאולם</button>
+    <div class="note note-amber" style="margin:0 18px 10px;display:none;" id="live-link-note"><div class="note-dot"></div>פתח קישור זה על המסך באולם</div>
   </div>
 </div>
 
@@ -1749,19 +1749,42 @@ function renderLiveGrid(){
   }
 }
 function setLiveLayout(l,btn){S.liveLayout=l;document.querySelectorAll('.layout-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderLiveGrid();}
-function activateLive(){
-  S.liveActive=true;
-  const url='https://usellouk-bot.github.io/snaptogether2/?live='+S.ev.code;
-  document.getElementById('live-btn').textContent='● הקרנה פעילה';
-  document.getElementById('live-link-section').style.display='block';
-  document.getElementById('live-link-inp').value=url;
-  document.getElementById('live-status-note').style.display='flex';
-  if(S.liveRotateInt)clearInterval(S.liveRotateInt);
-  S.liveRotateInt=setInterval(renderLiveGrid,5000);
-  navigator.clipboard.writeText(url).catch(()=>{});
-  toast('✓ הקרנה הופעלה!');
+function toggleLive(){
+  if(!S.ev||!S.ev.code){toast('⚠ לא נבחר אירוע');return;}
+  if(!S.liveActive){
+    // הפעלה
+    S.liveActive=true;
+    const url='https://usellouk-bot.github.io/snaptogether2/?live='+S.ev.code;
+    document.getElementById('live-btn').textContent='⏹ עצור הקרנה';
+    document.getElementById('live-btn').style.background='var(--red)';
+    document.getElementById('live-link-inp').value=url;
+    document.getElementById('live-link-note').style.display='flex';
+    document.getElementById('live-status-note').style.display='flex';
+    navigator.clipboard.writeText(url).catch(()=>{});
+    if(S.liveRotateInt)clearInterval(S.liveRotateInt);
+    S.liveRotateInt=setInterval(renderLiveGrid,5000);
+    renderLiveGrid();
+    toast('✓ הקרנה הופעלה! הקישור הועתק');
+  } else {
+    // עצירה
+    S.liveActive=false;
+    document.getElementById('live-btn').textContent='📺 הפעל הקרנה לייב';
+    document.getElementById('live-btn').style.background='';
+    document.getElementById('live-link-inp').value='';
+    document.getElementById('live-link-inp').placeholder='לחץ הפעל הקרנה כדי לקבל קישור';
+    document.getElementById('live-link-note').style.display='none';
+    document.getElementById('live-status-note').style.display='none';
+    if(S.liveRotateInt)clearInterval(S.liveRotateInt);
+    toast('הקרנה הופסקה');
+  }
 }
-function copyLiveLink(){const url=document.getElementById('live-link-inp')?.value||'';navigator.clipboard.writeText(url).catch(()=>{});toast('✓ קישור הועתק!');}
+function activateLive(){toggleLive();}
+function copyLiveLink(){
+  const url=document.getElementById('live-link-inp')?.value||'';
+  if(!url){toast('⚠ הפעל קודם הקרנה');return;}
+  navigator.clipboard.writeText(url).catch(()=>{});
+  toast('✓ קישור הועתק!');
+}
 
 // ═══════════════════════════════════════════════════════════
 // ALBUM
