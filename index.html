@@ -2151,10 +2151,11 @@ function startCleanProjection(code, eventName, eventType){
   const nameEl=document.getElementById('proj-event-name');
   if(nameEl){nameEl.textContent=eventName||code||'';nameEl.style.color=theme.accent2;}
 
-  // בנה רשת תאים
+  // בנה רשת תאים ריקים
   buildProjectionGrid(theme,eventType);
 
   // fetch תמונות כל 8 שניות
+  let firstLoad=true;
   const fetchPhotos=()=>{
     if(!projActive)return;
     fbGetPhotos(code).then(photos=>{
@@ -2166,6 +2167,11 @@ function startCleanProjection(code, eventName, eventType){
       }
       stopScreensaver();
       projAllPhotos=images;
+      // בפעם הראשונה שיש תמונות — בנה רשת מחדש עם timers
+      if(firstLoad){
+        firstLoad=false;
+        buildProjectionGrid(theme,eventType);
+      }
     }).catch(()=>{});
   };
   fetchPhotos();
@@ -2185,14 +2191,18 @@ function buildProjectionGrid(theme,eventType){
 
   // עצור timers ישנים
   stopAllCellTimers();
+  cellIndices=[];
 
   // צור תאים
   grid.innerHTML=Array.from({length:cnt},(_,i)=>`<div id="proj-cell-${i}" style="overflow:hidden;position:relative;background:#111;"></div>`).join('');
 
+  if(projAllPhotos.length===0) return; // אין תמונות עדיין — ننتظر
+
   // הפעל timer עצמאי לכל תא עם השהיה אקראית
   for(let i=0;i<cnt;i++){
-    const delay=i*800+Math.random()*500;
-    const interval=5000+Math.random()*3000; // 5-8 שניות כל תמונה
+    const delay=i*600+Math.random()*400;
+    const interval=4000+Math.random()*3000;
+    // עדכן מיד
     setTimeout(()=>{
       if(!projActive)return;
       updateCell(i,theme,eventType);
