@@ -678,11 +678,20 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 
 
 <!-- PROJECTION — מסך הקרנה נקי לאולם -->
-<div id="projection-screen" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;">
-  <div id="proj-grid" style="display:grid;width:100%;height:100%;"></div>
-  <div style="position:absolute;bottom:20px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none;">
-    <div id="proj-event-name" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:rgba(255,255,255,0.7);letter-spacing:2px;"></div>
-    <div class="proj-logo" style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:#fff;">MOMEN<span style="color:#00FF88;">PIX</span></div>
+<div id="projection-screen" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;overflow:hidden;">
+  <!-- רשת תמונות -->
+  <div id="proj-grid" style="display:grid;width:100%;height:100%;transition:opacity 0.8s ease;"></div>
+  <!-- שומר מסך -->
+  <div id="proj-screensaver" style="display:none;position:absolute;inset:0;background:#000;z-index:20;">
+    <canvas id="proj-ss-canvas" style="width:100%;height:100%;"></canvas>
+    <div id="proj-ss-logo" style="position:absolute;font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:6px;color:#00FF88;text-shadow:0 0 30px rgba(0,255,136,0.6);transition:all 1.5s ease;pointer-events:none;">
+      MOMEN<span style="color:#fff;">PIX</span>
+    </div>
+  </div>
+  <!-- פס תחתון -->
+  <div style="position:absolute;bottom:0;left:0;right:0;height:48px;background:linear-gradient(transparent,rgba(0,0,0,0.85));display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 10px;pointer-events:none;z-index:15;">
+    <div id="proj-event-name" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:rgba(255,255,255,0.6);letter-spacing:2px;"></div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:rgba(255,255,255,0.5);">MOMEN<span style="color:#00FF88;">PIX</span></div>
   </div>
 </div>
 <!-- ALBUM -->
@@ -1850,9 +1859,9 @@ function setLiveLayout(l,btn){
   document.querySelectorAll('.layout-btn').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   renderLiveGrid();
-  // עדכן גם מסך הקרנה אם פעיל
-  if(projAllPhotos.length>0&&document.getElementById('projection-screen').style.display!=='none'){
-    const theme=getTheme(S.ev&&S.ev.type?S.ev.type:'');
+  // עדכן מסך הקרנה אם פתוח
+  const ps=document.getElementById('projection-screen');
+  if(ps&&ps.style.display!=='none'&&projAllPhotos.length>0){
     const cnt=l==='3x2'?6:l==='2x2'?4:1;
     const cols=l==='3x2'?3:l==='2x2'?2:1;
     const rows=l==='3x2'?2:l==='2x2'?2:1;
@@ -1860,114 +1869,153 @@ function setLiveLayout(l,btn){
     if(grid){
       grid.style.gridTemplateColumns='repeat('+cols+',1fr)';
       grid.style.gridTemplateRows='repeat('+rows+',1fr)';
-      showProjectionSlice(theme,cnt);
+      projCurrentIdx=0;
+      if(projTheme) showProjectionSlice(projTheme,cnt,S.ev&&S.ev.type?S.ev.type:'');
     }
   }
 }
 // ── עיצובים לפי סוג אירוע ──
 const EVENT_THEMES = {
-  'חתונה': {
-    bg: 'linear-gradient(135deg,#1a0a00 0%,#2d1500 50%,#1a0a00 100%)',
-    accent: '#D4AF37',
-    accent2: '#F5E6C8',
-    border: 'rgba(212,175,55,0.4)',
-    logo_color: '#D4AF37',
-    overlay: 'linear-gradient(to top, rgba(26,10,0,0.9) 0%, transparent 60%)',
-    frame: 'wedding',
-    emoji: '💍'
-  },
-  'יומולדת': {
-    bg: 'linear-gradient(135deg,#0d001a 0%,#1a0033 50%,#0d001a 100%)',
-    accent: '#FF6B9D',
-    accent2: '#FFD700',
-    border: 'rgba(255,107,157,0.4)',
-    logo_color: '#FF6B9D',
-    overlay: 'linear-gradient(to top, rgba(13,0,26,0.9) 0%, transparent 60%)',
-    frame: 'birthday',
-    emoji: '🎂'
-  },
-  'בר/בת מצווה': {
-    bg: 'linear-gradient(135deg,#000d1a 0%,#001533 50%,#000d1a 100%)',
-    accent: '#4FC3F7',
-    accent2: '#B3E5FC',
-    border: 'rgba(79,195,247,0.4)',
-    logo_color: '#4FC3F7',
-    overlay: 'linear-gradient(to top, rgba(0,13,26,0.9) 0%, transparent 60%)',
-    frame: 'bar',
-    emoji: '✡️'
-  },
-  'גיבוש צבאי': {
-    bg: 'linear-gradient(135deg,#0a0f00 0%,#1a2200 50%,#0a0f00 100%)',
-    accent: '#8BC34A',
-    accent2: '#CDDC39',
-    border: 'rgba(139,195,74,0.4)',
-    logo_color: '#8BC34A',
-    overlay: 'linear-gradient(to top, rgba(10,15,0,0.9) 0%, transparent 60%)',
-    frame: 'military',
-    emoji: '🪖'
-  },
-  'כנס עסקי': {
-    bg: 'linear-gradient(135deg,#050510 0%,#0a0a20 50%,#050510 100%)',
-    accent: '#00BCD4',
-    accent2: '#E0F7FA',
-    border: 'rgba(0,188,212,0.4)',
-    logo_color: '#00BCD4',
-    overlay: 'linear-gradient(to top, rgba(5,5,16,0.9) 0%, transparent 60%)',
-    frame: 'business',
-    emoji: '💼'
-  },
-  'מסיבה': {
-    bg: 'linear-gradient(135deg,#1a0010 0%,#2d0020 50%,#1a0010 100%)',
-    accent: '#E040FB',
-    accent2: '#FF4081',
-    border: 'rgba(224,64,251,0.4)',
-    logo_color: '#E040FB',
-    overlay: 'linear-gradient(to top, rgba(26,0,16,0.9) 0%, transparent 60%)',
-    frame: 'party',
-    emoji: '🎉'
-  }
+  'חתונה':{bg:'radial-gradient(ellipse at center,#1a0a00 0%,#0d0500 100%)',accent:'#D4AF37',accent2:'#F5E6C8',border:'rgba(212,175,55,0.5)',overlay:'linear-gradient(to top,rgba(10,5,0,0.85) 0%,transparent 55%)',emoji:'💍'},
+  'יומולדת':{bg:'radial-gradient(ellipse at center,#1a0033 0%,#0d0020 100%)',accent:'#FF6B9D',accent2:'#FFD700',border:'rgba(255,107,157,0.5)',overlay:'linear-gradient(to top,rgba(13,0,32,0.85) 0%,transparent 55%)',emoji:'🎂'},
+  'בר/בת מצווה':{bg:'radial-gradient(ellipse at center,#001533 0%,#000d1a 100%)',accent:'#4FC3F7',accent2:'#B3E5FC',border:'rgba(79,195,247,0.5)',overlay:'linear-gradient(to top,rgba(0,13,26,0.85) 0%,transparent 55%)',emoji:'✡️'},
+  'גיבוש צבאי':{bg:'radial-gradient(ellipse at center,#1a2200 0%,#0a0f00 100%)',accent:'#8BC34A',accent2:'#CDDC39',border:'rgba(139,195,74,0.5)',overlay:'linear-gradient(to top,rgba(10,15,0,0.85) 0%,transparent 55%)',emoji:'🪖'},
+  'כנס עסקי':{bg:'radial-gradient(ellipse at center,#0a0a20 0%,#050510 100%)',accent:'#00BCD4',accent2:'#E0F7FA',border:'rgba(0,188,212,0.5)',overlay:'linear-gradient(to top,rgba(5,5,16,0.85) 0%,transparent 55%)',emoji:'💼'},
+  'מסיבה':{bg:'radial-gradient(ellipse at center,#2d0020 0%,#1a0010 100%)',accent:'#E040FB',accent2:'#FF4081',border:'rgba(224,64,251,0.5)',overlay:'linear-gradient(to top,rgba(26,0,16,0.85) 0%,transparent 55%)',emoji:'🎉'}
 };
+function getTheme(t){return EVENT_THEMES[t]||{bg:'#000',accent:'#00FF88',accent2:'#fff',border:'rgba(0,255,136,0.4)',overlay:'linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 55%)',emoji:'📷'};}
 
-function getTheme(eventType){
-  return EVENT_THEMES[eventType] || {
-    bg:'#000',accent:'#00FF88',accent2:'#fff',border:'rgba(0,255,136,0.3)',
-    logo_color:'#00FF88',overlay:'linear-gradient(to top,rgba(0,0,0,0.9) 0%,transparent 60%)',
-    frame:'default',emoji:'📷'
-  };
+// ── מסגרות דקורטיביות ──
+function getFrameHTML(evType, accent, accent2){
+  const c1=accent, c2=accent2;
+  if(evType==='חתונה') return `
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:10;">
+      <div style="position:absolute;inset:0;border:1px solid ${c1}55;"></div>
+      <div style="position:absolute;inset:6px;border:1px solid ${c1}33;"></div>
+      <!-- פינות זהב אלגנטיות -->
+      <svg style="position:absolute;top:0;left:0;width:60px;height:60px;" viewBox="0 0 60 60"><path d="M2,30 L2,2 L30,2" stroke="${c1}" stroke-width="2.5" fill="none"/><path d="M2,2 L12,2 M2,2 L2,12" stroke="${c1}" stroke-width="1" fill="none" opacity="0.5"/><circle cx="2" cy="2" r="2" fill="${c1}"/></svg>
+      <svg style="position:absolute;top:0;right:0;width:60px;height:60px;" viewBox="0 0 60 60"><path d="M58,30 L58,2 L30,2" stroke="${c1}" stroke-width="2.5" fill="none"/><path d="M58,2 L48,2 M58,2 L58,12" stroke="${c1}" stroke-width="1" fill="none" opacity="0.5"/><circle cx="58" cy="2" r="2" fill="${c1}"/></svg>
+      <svg style="position:absolute;bottom:0;left:0;width:60px;height:60px;" viewBox="0 0 60 60"><path d="M2,30 L2,58 L30,58" stroke="${c1}" stroke-width="2.5" fill="none"/><path d="M2,58 L12,58 M2,58 L2,48" stroke="${c1}" stroke-width="1" fill="none" opacity="0.5"/><circle cx="2" cy="58" r="2" fill="${c1}"/></svg>
+      <svg style="position:absolute;bottom:0;right:0;width:60px;height:60px;" viewBox="0 0 60 60"><path d="M58,30 L58,58 L30,58" stroke="${c1}" stroke-width="2.5" fill="none"/><path d="M58,58 L48,58 M58,58 L58,48" stroke="${c1}" stroke-width="1" fill="none" opacity="0.5"/><circle cx="58" cy="58" r="2" fill="${c1}"/></svg>
+      <!-- עיטורי אמצע -->
+      <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:40px;height:3px;background:linear-gradient(90deg,transparent,${c1},transparent);"></div>
+      <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:40px;height:3px;background:linear-gradient(90deg,transparent,${c1},transparent);"></div>
+    </div>`;
+
+  if(evType==='יומולדת') return `
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:10;">
+      <div style="position:absolute;inset:0;border:2px dashed ${c1}66;border-radius:4px;"></div>
+      <!-- עיגולים בפינות -->
+      <div style="position:absolute;top:-5px;left:-5px;width:16px;height:16px;background:${c2};border-radius:50%;box-shadow:0 0 8px ${c2};"></div>
+      <div style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;background:${c1};border-radius:50%;box-shadow:0 0 8px ${c1};"></div>
+      <div style="position:absolute;bottom:-5px;left:-5px;width:16px;height:16px;background:${c1};border-radius:50%;box-shadow:0 0 8px ${c1};"></div>
+      <div style="position:absolute;bottom:-5px;right:-5px;width:16px;height:16px;background:${c2};border-radius:50%;box-shadow:0 0 8px ${c2};"></div>
+      <!-- עיגולים אמצע -->
+      <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:10px;height:10px;background:${c1};border-radius:50%;"></div>
+      <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:10px;height:10px;background:${c2};border-radius:50%;"></div>
+      <div style="position:absolute;left:-4px;top:50%;transform:translateY(-50%);width:10px;height:10px;background:${c2};border-radius:50%;"></div>
+      <div style="position:absolute;right:-4px;top:50%;transform:translateY(-50%);width:10px;height:10px;background:${c1};border-radius:50%;"></div>
+    </div>`;
+
+  if(evType==='גיבוש צבאי') return `
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:10;">
+      <div style="position:absolute;inset:0;border:2px solid ${c1}88;"></div>
+      <div style="position:absolute;inset:5px;border:1px solid ${c1}44;"></div>
+      <!-- ריבועי פינה -->
+      <div style="position:absolute;top:0;left:0;width:20px;height:20px;border-top:3px solid ${c1};border-left:3px solid ${c1};"></div>
+      <div style="position:absolute;top:0;right:0;width:20px;height:20px;border-top:3px solid ${c1};border-right:3px solid ${c1};"></div>
+      <div style="position:absolute;bottom:0;left:0;width:20px;height:20px;border-bottom:3px solid ${c1};border-left:3px solid ${c1};"></div>
+      <div style="position:absolute;bottom:0;right:0;width:20px;height:20px;border-bottom:3px solid ${c1};border-right:3px solid ${c1};"></div>
+      <div style="position:absolute;top:0;left:0;width:8px;height:8px;background:${c1}66;"></div>
+      <div style="position:absolute;top:0;right:0;width:8px;height:8px;background:${c1}66;"></div>
+      <div style="position:absolute;bottom:0;left:0;width:8px;height:8px;background:${c1}66;"></div>
+      <div style="position:absolute;bottom:0;right:0;width:8px;height:8px;background:${c1}66;"></div>
+    </div>`;
+
+  if(evType==='מסיבה') return `
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:10;border:2px solid ${c1}77;box-shadow:inset 0 0 20px ${c1}33,0 0 20px ${c1}22;border-radius:2px;">
+      <div style="position:absolute;inset:4px;border:1px solid ${c2}44;"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${c1},${c2},${c1},transparent);"></div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${c2},${c1},${c2},transparent);"></div>
+    </div>`;
+
+  if(evType==='כנס עסקי') return `
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:10;">
+      <div style="position:absolute;inset:0;border:1px solid ${c1}55;"></div>
+      <div style="position:absolute;top:0;left:0;width:30px;height:2px;background:${c1};"></div>
+      <div style="position:absolute;top:0;left:0;width:2px;height:30px;background:${c1};"></div>
+      <div style="position:absolute;top:0;right:0;width:30px;height:2px;background:${c1};"></div>
+      <div style="position:absolute;top:0;right:0;width:2px;height:30px;background:${c1};"></div>
+      <div style="position:absolute;bottom:0;left:0;width:30px;height:2px;background:${c1};"></div>
+      <div style="position:absolute;bottom:0;left:0;width:2px;height:30px;background:${c1};"></div>
+      <div style="position:absolute;bottom:0;right:0;width:30px;height:2px;background:${c1};"></div>
+      <div style="position:absolute;bottom:0;right:0;width:2px;height:30px;background:${c1};"></div>
+    </div>`;
+
+  // ברירת מחדל + בר/בת מצווה
+  return `
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:10;">
+      <div style="position:absolute;inset:0;border:1px solid ${c1}66;"></div>
+      <div style="position:absolute;top:4px;left:4px;width:22px;height:22px;border-top:2px solid ${c1};border-left:2px solid ${c1};"></div>
+      <div style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-top:2px solid ${c1};border-right:2px solid ${c1};"></div>
+      <div style="position:absolute;bottom:4px;left:4px;width:22px;height:22px;border-bottom:2px solid ${c1};border-left:2px solid ${c1};"></div>
+      <div style="position:absolute;bottom:4px;right:4px;width:22px;height:22px;border-bottom:2px solid ${c1};border-right:2px solid ${c1};"></div>
+    </div>`;
 }
 
-function getFrameStyle(frame, accent, accent2){
-  // מסגרת CSS במקום SVG — עובד על כל גדלי תאים
-  const base = `position:absolute;inset:0;pointer-events:none;z-index:10;box-sizing:border-box;`;
-  if(frame==='wedding') return `<div style="${base}border:2px solid ${accent};box-shadow:inset 0 0 0 4px rgba(0,0,0,0.3),inset 0 0 20px ${accent}22,0 0 0 1px ${accent2}44;">
-    <div style="position:absolute;top:6px;left:6px;right:6px;bottom:6px;border:1px solid ${accent}66;"></div>
-    <div style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-top:3px solid ${accent};border-left:3px solid ${accent};"></div>
-    <div style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-top:3px solid ${accent};border-right:3px solid ${accent};"></div>
-    <div style="position:absolute;bottom:3px;left:3px;width:20px;height:20px;border-bottom:3px solid ${accent};border-left:3px solid ${accent};"></div>
-    <div style="position:absolute;bottom:3px;right:3px;width:20px;height:20px;border-bottom:3px solid ${accent};border-right:3px solid ${accent};"></div>
-  </div>`;
-  if(frame==='birthday') return `<div style="${base}border:3px dashed ${accent};box-shadow:inset 0 0 15px ${accent}33;">
-    <div style="position:absolute;top:-6px;left:-6px;width:12px;height:12px;background:${accent2};border-radius:50%;"></div>
-    <div style="position:absolute;top:-6px;right:-6px;width:12px;height:12px;background:${accent};border-radius:50%;"></div>
-    <div style="position:absolute;bottom:-6px;left:-6px;width:12px;height:12px;background:${accent};border-radius:50%;"></div>
-    <div style="position:absolute;bottom:-6px;right:-6px;width:12px;height:12px;background:${accent2};border-radius:50%;"></div>
-  </div>`;
-  if(frame==='military') return `<div style="${base}border:3px solid ${accent};outline:1px solid ${accent}88;outline-offset:-7px;">
-    <div style="position:absolute;top:0;left:0;width:16px;height:16px;background:${accent}44;"></div>
-    <div style="position:absolute;top:0;right:0;width:16px;height:16px;background:${accent}44;"></div>
-    <div style="position:absolute;bottom:0;left:0;width:16px;height:16px;background:${accent}44;"></div>
-    <div style="position:absolute;bottom:0;right:0;width:16px;height:16px;background:${accent}44;"></div>
-  </div>`;
-  if(frame==='party') return `<div style="${base}border:3px solid ${accent};box-shadow:inset 0 0 20px ${accent}44,0 0 10px ${accent}66;">
-    <div style="position:absolute;inset:5px;border:1px solid ${accent2}44;"></div>
-  </div>`;
-  // default / business / bar
-  return `<div style="${base}border:2px solid ${accent}88;box-shadow:inset 0 0 10px ${accent}22;">
-    <div style="position:absolute;top:4px;left:4px;width:18px;height:18px;border-top:2px solid ${accent};border-left:2px solid ${accent};"></div>
-    <div style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-top:2px solid ${accent};border-right:2px solid ${accent};"></div>
-    <div style="position:absolute;bottom:4px;left:4px;width:18px;height:18px;border-bottom:2px solid ${accent};border-left:2px solid ${accent};"></div>
-    <div style="position:absolute;bottom:4px;right:4px;width:18px;height:18px;border-bottom:2px solid ${accent};border-right:2px solid ${accent};"></div>
-  </div>`;
+// ── לוגו על תמונה ── מיקום אקראי
+const LOGO_POSITIONS=['top:10px;left:10px;','top:10px;right:10px;','bottom:40px;left:10px;','bottom:40px;right:10px;'];
+let logoPosCycle=0;
+function getLogoOverlay(accent){
+  const pos=LOGO_POSITIONS[logoPosCycle%LOGO_POSITIONS.length];
+  logoPosCycle++;
+  return `<div style="position:absolute;${pos}font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:rgba(255,255,255,0.55);z-index:12;text-shadow:0 1px 4px rgba(0,0,0,0.8);pointer-events:none;">MOMEN<span style="color:${accent}88;">PIX</span></div>`;
+}
+
+// ── שומר מסך ──
+let ssInterval=null;
+let ssLogoX=50,ssLogoY=50,ssVX=0.3,ssVY=0.2;
+function startScreensaver(accent){
+  const ss=document.getElementById('proj-screensaver');
+  const logo=document.getElementById('proj-ss-logo');
+  const canvas=document.getElementById('proj-ss-canvas');
+  if(!ss) return;
+  ss.style.display='block';
+  ss.style.background='#000';
+  logo.style.color=accent||'#00FF88';
+  // Canvas particles
+  if(canvas){
+    const ctx=canvas.getContext('2d');
+    canvas.width=window.innerWidth;
+    canvas.height=window.innerHeight;
+    const particles=Array.from({length:60},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*2+0.5,vx:(Math.random()-0.5)*0.5,vy:(Math.random()-0.5)*0.5,a:Math.random()*0.4+0.1}));
+    const drawParticles=()=>{
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      particles.forEach(p=>{
+        p.x+=p.vx;p.y+=p.vy;
+        if(p.x<0)p.x=canvas.width;if(p.x>canvas.width)p.x=0;
+        if(p.y<0)p.y=canvas.height;if(p.y>canvas.height)p.y=0;
+        ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(0,255,136,${p.a})`;ctx.fill();
+      });
+    };
+    if(ssInterval)clearInterval(ssInterval);
+    ssInterval=setInterval(drawParticles,40);
+  }
+  // לוגו זז
+  let lx=20,ly=20,lvx=0.4,lvy=0.25;
+  const moveLogo=setInterval(()=>{
+    if(document.getElementById('proj-screensaver').style.display==='none'){clearInterval(moveLogo);return;}
+    lx+=lvx;ly+=lvy;
+    if(lx<=5||lx>=75)lvx*=-1;
+    if(ly<=5||ly>=85)lvy*=-1;
+    logo.style.left=lx+'%';logo.style.top=ly+'%';
+  },50);
+}
+function stopScreensaver(){
+  const ss=document.getElementById('proj-screensaver');
+  if(ss)ss.style.display='none';
+  if(ssInterval){clearInterval(ssInterval);ssInterval=null;}
 }
 
 // ── הקרנה נקייה לאולם ──
@@ -1975,116 +2023,121 @@ let projInterval=null;
 let projAllPhotos=[];
 let projCurrentIdx=0;
 let projLayout='3x2';
+let projTheme=null;
+let projCode='';
+let projActive=false;
 
 function startCleanProjection(code, eventName, eventType){
+  projCode=code;
+  projActive=true;
   const ps=document.getElementById('projection-screen');
   const grid=document.getElementById('proj-grid');
   const nameEl=document.getElementById('proj-event-name');
   if(!ps||!grid) return;
-
   const theme=getTheme(eventType);
+  projTheme=theme;
   ps.style.background=theme.bg;
   ps.style.display='block';
   document.body.style.overflow='hidden';
-
-  // הוסף border לפי theme
-  ps.style.boxShadow='inset 0 0 0 2px '+theme.border;
-
-  if(nameEl){
-    nameEl.textContent=eventName||code||'';
-    nameEl.style.color=theme.accent2;
-  }
-
-  // לוגו צבע
-  const logoEl=ps.querySelector('.proj-logo');
-  if(logoEl){
-    logoEl.innerHTML=`MOMEN<span style="color:${theme.accent};">PIX</span>`;
-  }
-
-  // layout
+  if(nameEl){nameEl.textContent=eventName||code||'';nameEl.style.color=theme.accent2;}
+  // Layout
   const cnt=projLayout==='3x2'?6:projLayout==='2x2'?4:1;
   const cols=projLayout==='3x2'?3:projLayout==='2x2'?2:1;
   const rows=projLayout==='3x2'?2:projLayout==='2x2'?2:1;
   grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
   grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
-
   const renderPhotos=(photos)=>{
-    // סנן וידאו
-    const images=(photos||[]).filter(p=>p.type!=='video');
+    const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
     if(!images||images.length===0){
-      grid.innerHTML=`<div style="grid-column:1/-1;grid-row:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
-        <div style="font-size:48px;">${theme.emoji}</div>
-        <div style="color:${theme.accent};font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:4px;">ממתין לתמונות...</div>
-      </div>`;
+      stopScreensaver();
+      startScreensaver(theme.accent);
       return;
     }
-    // שמור תמונות — אל תאפס index אם כבר יש תמונות
+    stopScreensaver();
     const prevCount=projAllPhotos.length;
     projAllPhotos=images;
-    // אם יש תמונות חדשות — קפוץ לאחרונות
-    if(images.length>prevCount){
-      projCurrentIdx=Math.max(0,images.length-cnt);
-    }
-    showProjectionSlice(theme, cnt);
+    if(images.length>prevCount) projCurrentIdx=Math.max(0,images.length-cnt);
+    showProjectionSlice(theme,cnt,eventType);
   };
-
   const refresh=()=>{
-    fbGetPhotos(code).then(photos=>{
-      renderPhotos(photos);
-    }).catch(()=>{
-      // אין רשת — המשך לופ על הקיים
-      if(projAllPhotos.length>0){
-        projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;
-        showProjectionSlice(theme,cnt);
-      }
+    if(!projActive)return;
+    fbGetPhotos(code).then(photos=>renderPhotos(photos)).catch(()=>{
+      if(projAllPhotos.length>0){projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;showProjectionSlice(theme,cnt,eventType);}
+      else startScreensaver(theme.accent);
     });
   };
-
   refresh();
-  if(projInterval) clearInterval(projInterval);
+  if(projInterval)clearInterval(projInterval);
   projInterval=setInterval(()=>{
-    // קדם index ללא קשר אם יש תמונות חדשות
-    if(projAllPhotos.length>cnt){
-      projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;
-    }
-    // גם רענן מ-Firebase (תמונות חדשות יצטרפו)
+    if(!projActive)return;
+    if(projAllPhotos.length>cnt) projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;
     fbGetPhotos(code).then(photos=>{
-      const images=(photos||[]).filter(p=>p.type!=='video');
-      if(images.length>0){
-        projAllPhotos=images;
-        showProjectionSlice(theme,cnt);
-      }
+      const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
+      if(images.length>0){stopScreensaver();projAllPhotos=images;showProjectionSlice(theme,cnt,eventType);}
+      else if(projAllPhotos.length===0) startScreensaver(theme.accent);
     }).catch(()=>{
-      if(projAllPhotos.length>0) showProjectionSlice(theme,cnt);
+      if(projAllPhotos.length>0) showProjectionSlice(theme,cnt,eventType);
     });
   },5000);
 }
 
-function showProjectionSlice(theme, cnt){
+function stopCleanProjection(){
+  projActive=false;
+  if(projInterval){clearInterval(projInterval);projInterval=null;}
+  stopScreensaver();
+  const ps=document.getElementById('projection-screen');
+  if(ps)ps.style.display='none';
+  document.body.style.overflow='';
+  projAllPhotos=[];
+  projCurrentIdx=0;
+}
+
+function showProjectionSlice(theme,cnt,eventType){
   const grid=document.getElementById('proj-grid');
-  if(!grid||projAllPhotos.length===0) return;
+  if(!grid||projAllPhotos.length===0)return;
   const slice=[];
-  for(let i=0;i<cnt;i++){
-    slice.push(projAllPhotos[(projCurrentIdx+i)%projAllPhotos.length]);
-  }
-  const frame=getFrameStyle(theme.frame, theme.accent, theme.accent2);
-  grid.innerHTML=slice.map(p=>{
+  for(let i=0;i<cnt;i++) slice.push(projAllPhotos[(projCurrentIdx+i)%projAllPhotos.length]);
+  const frame=getFrameHTML(eventType,theme.accent,theme.accent2);
+  const newHTML=slice.map((p,idx)=>{
     const url=p.cloudUrl||p.url;
     const name=p.uploaderName||'';
     const time=p.capturedAt?new Date(p.capturedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):'';
+    const logo=getLogoOverlay(theme.accent);
     return `<div style="overflow:hidden;position:relative;background:#111;">
-      <img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.style.background='#1a1a1a'"/>
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.parentElement.style.background='#1a1a1a'"/>
       <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;"></div>
-      ${frame}
-      ${name?`<div style="position:absolute;bottom:0;left:0;right:0;padding:8px 10px;font-family:Plus Jakarta Sans,sans-serif;font-size:11px;color:${theme.accent2};font-weight:600;z-index:11;">${name}${time?' · '+time:''}</div>`:''}
+      ${frame}${logo}
+      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;color:${theme.accent2};font-weight:600;z-index:13;text-shadow:0 1px 4px rgba(0,0,0,0.9);">${name}${time?' · '+time:''}</div>`:''}
     </div>`;
   }).join('');
+  // מעבר חלק
+  grid.style.opacity='0';
+  setTimeout(()=>{grid.innerHTML=newHTML;grid.style.opacity='1';},400);
+}
+
+// ── data management ──
+function clearAllLocalData(){
+  if(!confirm('מחק את כל הנתונים המקומיים? (אירועים, תמונות, משתמשים)'))return;
+  localStorage.clear();
+  toast('✓ נתונים מקומיים נוקו');
+  setTimeout(()=>location.reload(),1000);
+}
+async function clearEventPhotos(){
+  const code=document.getElementById('clear-event-code')?.value?.toUpperCase().trim();
+  if(!code){toast('⚠ הכנס קוד אירוע');return;}
+  if(!confirm('מחק את כל תמונות האירוע '+code+' מ-Firebase?'))return;
+  try{
+    const snap=await db.collection('events').doc(code).collection('photos').get();
+    const batch=db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    await batch.commit();
+    toast('✓ תמונות האירוע נוקו מ-Firebase');
+  }catch(e){toast('⚠ שגיאה: '+e.message);}
 }
 
 function toggleLive(){
   if(!S.ev||!S.ev.code){toast('⚠ לא נבחר אירוע');return;}
   if(!S.liveActive){
-    // הפעלה
     S.liveActive=true;
     const url='https://usellouk-bot.github.io/snaptogether2/?live='+S.ev.code;
     document.getElementById('live-btn').textContent='⏹ עצור הקרנה';
@@ -2098,15 +2151,15 @@ function toggleLive(){
     renderLiveGrid();
     toast('✓ הקרנה הופעלה! הקישור הועתק');
   } else {
-    // עצירה
     S.liveActive=false;
     document.getElementById('live-btn').textContent='📺 הפעל הקרנה לייב';
     document.getElementById('live-btn').style.background='';
-    document.getElementById('live-link-inp').value='';
     document.getElementById('live-link-inp').placeholder='לחץ הפעל הקרנה כדי לקבל קישור';
     document.getElementById('live-link-note').style.display='none';
     document.getElementById('live-status-note').style.display='none';
     if(S.liveRotateInt)clearInterval(S.liveRotateInt);
+    // עצור גם את מסך ההקרנה אם פתוח
+    stopCleanProjection();
     toast('הקרנה הופסקה');
   }
 }
@@ -3316,6 +3369,16 @@ function admTab(t,btn){
       <div class="field"><label>שינוי סיסמה</label><input type="password" id="new-pass" placeholder="סיסמה חדשה"/></div>
       <div class="field"><label>אימות</label><input type="password" id="new-pass2" placeholder="חזור"/></div>
       <button class="btn-primary" style="margin:8px 0 0;width:100%;" onclick="changeAdmPass()">שמור →</button>
+    </div>
+    <div class="card card-danger">
+      <div class="card-label" style="color:var(--red);">ניהול נתונים</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">ריקון מלא של כל הנתונים המקומיים — לשימוש לפני פיילוט חדש</div>
+      <button class="btn-ghost btn-danger" style="width:100%;margin:0 0 8px;" onclick="clearAllLocalData()">🗑 ריקון נתונים מקומיים</button>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">ריקון תמונות מ-Firebase לאירוע ספציפי</div>
+      <div style="display:flex;gap:8px;">
+        <input id="clear-event-code" placeholder="קוד אירוע" style="flex:1;padding:10px;background:var(--dark4);border:1px solid var(--border2);border-radius:var(--r2);color:var(--text1);font-size:13px;font-family:var(--fb);"/>
+        <button class="btn-ghost btn-danger" style="margin:0;white-space:nowrap;" onclick="clearEventPhotos()">🗑 מחק תמונות</button>
+      </div>
     </div>
     <button class="btn-ghost btn-danger" onclick="admLogout()">התנתק →</button>`;
   }
