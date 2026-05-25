@@ -3161,18 +3161,41 @@ document.addEventListener('visibilitychange', async () => {
 
 function handleDeepLink(){
   const params=new URLSearchParams(window.location.search);
+
+  // הקרנה לייב
+  const live=params.get('live');
+  if(live){
+    const found=DB.events.find(e=>e.code===live.toUpperCase()&&!e.deleted);
+    if(found){
+      S.ev=found;
+      S.liveActive=true;
+      setTimeout(()=>{
+        nav('live');
+        setTimeout(()=>{
+          document.getElementById('live-btn').textContent='● הקרנה פעילה';
+          document.getElementById('live-link-section').style.display='block';
+          document.getElementById('live-link-inp').value=window.location.href;
+          document.getElementById('live-status-note').style.display='flex';
+          if(S.liveRotateInt)clearInterval(S.liveRotateInt);
+          S.liveRotateInt=setInterval(renderLiveGrid,5000);
+          renderLiveGrid();
+        },300);
+      },200);
+    }
+    return;
+  }
+
+  // כניסת אורח עם קוד
   const code=params.get('code');
   if(code){
     const found=DB.events.find(e=>e.code===code.toUpperCase()&&!e.deleted&&(e.paid||e.adminCreated));
     if(found){
-      // קוד קיים ותקין — עבור לכניסת אורח עם קוד מולא
       S.ev=found;
       nav('guest');
       setTimeout(()=>{
         const gEl=document.getElementById('g-code');if(gEl)gEl.value=code.toUpperCase();
       },200);
     } else {
-      // קוד לא קיים — הצג שגיאה
       nav('guest');
       setTimeout(()=>{
         const err=document.getElementById('g-err');
