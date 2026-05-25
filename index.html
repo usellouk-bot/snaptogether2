@@ -1936,58 +1936,38 @@ function getTheme(eventType){
   };
 }
 
-function getFrameSVG(frame, accent, accent2){
-  if(frame==='wedding') return `
-    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="wg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:${accent};stop-opacity:0.8"/>
-          <stop offset="100%" style="stop-color:${accent2};stop-opacity:0.4"/>
-        </linearGradient>
-      </defs>
-      <rect x="1" y="1" width="98" height="98" fill="none" stroke="url(#wg)" stroke-width="0.5" rx="0.5"/>
-      <rect x="2.5" y="2.5" width="95" height="95" fill="none" stroke="${accent}" stroke-width="0.2" rx="0.3" stroke-dasharray="2,1"/>
-      <!-- פינות קישוט -->
-      <path d="M1,1 L10,1 M1,1 L1,10" stroke="${accent}" stroke-width="1" fill="none"/>
-      <path d="M99,1 L90,1 M99,1 L99,10" stroke="${accent}" stroke-width="1" fill="none"/>
-      <path d="M1,99 L10,99 M1,99 L1,90" stroke="${accent}" stroke-width="1" fill="none"/>
-      <path d="M99,99 L90,99 M99,99 L99,90" stroke="${accent}" stroke-width="1" fill="none"/>
-      <!-- עיטורים -->
-      <circle cx="5" cy="5" r="1" fill="${accent}" opacity="0.7"/>
-      <circle cx="95" cy="5" r="1" fill="${accent}" opacity="0.7"/>
-      <circle cx="5" cy="95" r="1" fill="${accent}" opacity="0.7"/>
-      <circle cx="95" cy="95" r="1" fill="${accent}" opacity="0.7"/>
-    </svg>`;
-  if(frame==='birthday') return `
-    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <rect x="1" y="1" width="98" height="98" fill="none" stroke="${accent}" stroke-width="0.8" rx="1" stroke-dasharray="3,2"/>
-      <circle cx="5" cy="5" r="2" fill="${accent2}" opacity="0.8"/>
-      <circle cx="95" cy="5" r="2" fill="${accent}" opacity="0.8"/>
-      <circle cx="5" cy="95" r="2" fill="${accent}" opacity="0.8"/>
-      <circle cx="95" cy="95" r="2" fill="${accent2}" opacity="0.8"/>
-      <circle cx="50" cy="2" r="1.5" fill="${accent2}" opacity="0.6"/>
-      <circle cx="50" cy="98" r="1.5" fill="${accent2}" opacity="0.6"/>
-      <circle cx="2" cy="50" r="1.5" fill="${accent}" opacity="0.6"/>
-      <circle cx="98" cy="50" r="1.5" fill="${accent}" opacity="0.6"/>
-    </svg>`;
-  if(frame==='military') return `
-    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <rect x="1" y="1" width="98" height="98" fill="none" stroke="${accent}" stroke-width="1" rx="0"/>
-      <rect x="3" y="3" width="94" height="94" fill="none" stroke="${accent}" stroke-width="0.3" stroke-dasharray="4,2"/>
-      <rect x="1" y="1" width="8" height="8" fill="${accent}" opacity="0.3"/>
-      <rect x="91" y="1" width="8" height="8" fill="${accent}" opacity="0.3"/>
-      <rect x="1" y="91" width="8" height="8" fill="${accent}" opacity="0.3"/>
-      <rect x="91" y="91" width="8" height="8" fill="${accent}" opacity="0.3"/>
-    </svg>`;
-  // default / business / party / bar
-  return `
-    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <rect x="1" y="1" width="98" height="98" fill="none" stroke="${accent}" stroke-width="0.6" rx="1"/>
-      <path d="M1,1 L12,1 M1,1 L1,12" stroke="${accent}" stroke-width="1.2" fill="none"/>
-      <path d="M99,1 L88,1 M99,1 L99,12" stroke="${accent}" stroke-width="1.2" fill="none"/>
-      <path d="M1,99 L12,99 M1,99 L1,88" stroke="${accent}" stroke-width="1.2" fill="none"/>
-      <path d="M99,99 L88,99 M99,99 L99,88" stroke="${accent}" stroke-width="1.2" fill="none"/>
-    </svg>`;
+function getFrameStyle(frame, accent, accent2){
+  // מסגרת CSS במקום SVG — עובד על כל גדלי תאים
+  const base = `position:absolute;inset:0;pointer-events:none;z-index:10;box-sizing:border-box;`;
+  if(frame==='wedding') return `<div style="${base}border:2px solid ${accent};box-shadow:inset 0 0 0 4px rgba(0,0,0,0.3),inset 0 0 20px ${accent}22,0 0 0 1px ${accent2}44;">
+    <div style="position:absolute;top:6px;left:6px;right:6px;bottom:6px;border:1px solid ${accent}66;"></div>
+    <div style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-top:3px solid ${accent};border-left:3px solid ${accent};"></div>
+    <div style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-top:3px solid ${accent};border-right:3px solid ${accent};"></div>
+    <div style="position:absolute;bottom:3px;left:3px;width:20px;height:20px;border-bottom:3px solid ${accent};border-left:3px solid ${accent};"></div>
+    <div style="position:absolute;bottom:3px;right:3px;width:20px;height:20px;border-bottom:3px solid ${accent};border-right:3px solid ${accent};"></div>
+  </div>`;
+  if(frame==='birthday') return `<div style="${base}border:3px dashed ${accent};box-shadow:inset 0 0 15px ${accent}33;">
+    <div style="position:absolute;top:-6px;left:-6px;width:12px;height:12px;background:${accent2};border-radius:50%;"></div>
+    <div style="position:absolute;top:-6px;right:-6px;width:12px;height:12px;background:${accent};border-radius:50%;"></div>
+    <div style="position:absolute;bottom:-6px;left:-6px;width:12px;height:12px;background:${accent};border-radius:50%;"></div>
+    <div style="position:absolute;bottom:-6px;right:-6px;width:12px;height:12px;background:${accent2};border-radius:50%;"></div>
+  </div>`;
+  if(frame==='military') return `<div style="${base}border:3px solid ${accent};outline:1px solid ${accent}88;outline-offset:-7px;">
+    <div style="position:absolute;top:0;left:0;width:16px;height:16px;background:${accent}44;"></div>
+    <div style="position:absolute;top:0;right:0;width:16px;height:16px;background:${accent}44;"></div>
+    <div style="position:absolute;bottom:0;left:0;width:16px;height:16px;background:${accent}44;"></div>
+    <div style="position:absolute;bottom:0;right:0;width:16px;height:16px;background:${accent}44;"></div>
+  </div>`;
+  if(frame==='party') return `<div style="${base}border:3px solid ${accent};box-shadow:inset 0 0 20px ${accent}44,0 0 10px ${accent}66;">
+    <div style="position:absolute;inset:5px;border:1px solid ${accent2}44;"></div>
+  </div>`;
+  // default / business / bar
+  return `<div style="${base}border:2px solid ${accent}88;box-shadow:inset 0 0 10px ${accent}22;">
+    <div style="position:absolute;top:4px;left:4px;width:18px;height:18px;border-top:2px solid ${accent};border-left:2px solid ${accent};"></div>
+    <div style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-top:2px solid ${accent};border-right:2px solid ${accent};"></div>
+    <div style="position:absolute;bottom:4px;left:4px;width:18px;height:18px;border-bottom:2px solid ${accent};border-left:2px solid ${accent};"></div>
+    <div style="position:absolute;bottom:4px;right:4px;width:18px;height:18px;border-bottom:2px solid ${accent};border-right:2px solid ${accent};"></div>
+  </div>`;
 }
 
 // ── הקרנה נקייה לאולם ──
@@ -2029,14 +2009,22 @@ function startCleanProjection(code, eventName, eventType){
   grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
 
   const renderPhotos=(photos)=>{
-    if(!photos||photos.length===0){
+    // סנן וידאו
+    const images=(photos||[]).filter(p=>p.type!=='video');
+    if(!images||images.length===0){
       grid.innerHTML=`<div style="grid-column:1/-1;grid-row:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
         <div style="font-size:48px;">${theme.emoji}</div>
         <div style="color:${theme.accent};font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:4px;">ממתין לתמונות...</div>
       </div>`;
       return;
     }
-    projAllPhotos=photos;
+    // שמור תמונות — אל תאפס index אם כבר יש תמונות
+    const prevCount=projAllPhotos.length;
+    projAllPhotos=images;
+    // אם יש תמונות חדשות — קפוץ לאחרונות
+    if(images.length>prevCount){
+      projCurrentIdx=Math.max(0,images.length-cnt);
+    }
     showProjectionSlice(theme, cnt);
   };
 
@@ -2044,17 +2032,31 @@ function startCleanProjection(code, eventName, eventType){
     fbGetPhotos(code).then(photos=>{
       renderPhotos(photos);
     }).catch(()=>{
-      if(projAllPhotos.length>0) showProjectionSlice(theme,cnt);
+      // אין רשת — המשך לופ על הקיים
+      if(projAllPhotos.length>0){
+        projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;
+        showProjectionSlice(theme,cnt);
+      }
     });
   };
 
   refresh();
   if(projInterval) clearInterval(projInterval);
   projInterval=setInterval(()=>{
+    // קדם index ללא קשר אם יש תמונות חדשות
     if(projAllPhotos.length>cnt){
       projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;
     }
-    refresh();
+    // גם רענן מ-Firebase (תמונות חדשות יצטרפו)
+    fbGetPhotos(code).then(photos=>{
+      const images=(photos||[]).filter(p=>p.type!=='video');
+      if(images.length>0){
+        projAllPhotos=images;
+        showProjectionSlice(theme,cnt);
+      }
+    }).catch(()=>{
+      if(projAllPhotos.length>0) showProjectionSlice(theme,cnt);
+    });
   },5000);
 }
 
@@ -2065,7 +2067,7 @@ function showProjectionSlice(theme, cnt){
   for(let i=0;i<cnt;i++){
     slice.push(projAllPhotos[(projCurrentIdx+i)%projAllPhotos.length]);
   }
-  const frame=getFrameSVG(theme.frame, theme.accent, theme.accent2);
+  const frame=getFrameStyle(theme.frame, theme.accent, theme.accent2);
   grid.innerHTML=slice.map(p=>{
     const url=p.cloudUrl||p.url;
     const name=p.uploaderName||'';
