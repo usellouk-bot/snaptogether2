@@ -18,8 +18,8 @@ document.getElementById('pwa-manifest').href = 'https://usellouk-bot.github.io/s
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-firestore-compat.js"></script>
 <script>
 const FB_CONFIG={
   apiKey:"AIzaSyCORjl88oI1g9Y-ZQ7snYetUQuzDbeZS3E",
@@ -2010,11 +2010,7 @@ function stopScreensaver(){
 }
 
 // ── הקרנה נקייה לאולם ──
-let projInterval=null;
-let projAllPhotos=[];
-let projCurrentIdx=0;
-let projLayout='3x2';
-let projActive=false;
+// projection vars declared below
 
 // ── מסגרות Baroque/Victorian SVG ──
 function getBaroqueFrame(evType, accent, accent2){
@@ -3748,14 +3744,23 @@ function handleDeepLink(){
     const liveCode=live.toUpperCase();
     const startProjection=(ev)=>{
       S.ev=ev||{code:liveCode,name:liveCode};
-      // פתח מסך הקרנה נקי לאולם
       setTimeout(()=>{
         startCleanProjection(liveCode, ev&&ev.name?ev.name:'', ev&&ev.type?ev.type:'');
       },300);
     };
     const localEv=DB.events.find(e=>e.code===liveCode&&!e.deleted);
     if(localEv){startProjection(localEv);}
-    else{fbGetEvent(liveCode).then(fbEv=>startProjection(fbEv)).catch(()=>startProjection(null));}
+    else{
+      // המתן ל-Firebase אם עדיין לא מוכן
+      const tryFb=()=>{
+        if(typeof fbGetEvent==='function'&&typeof db!=='undefined'){
+          fbGetEvent(liveCode).then(fbEv=>startProjection(fbEv)).catch(()=>startProjection(null));
+        } else {
+          setTimeout(tryFb,300);
+        }
+      };
+      tryFb();
+    }
     return;
   }
 
