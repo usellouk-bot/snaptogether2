@@ -1861,17 +1861,8 @@ function setLiveLayout(l,btn){
   renderLiveGrid();
   // עדכן מסך הקרנה אם פתוח
   const ps=document.getElementById('projection-screen');
-  if(ps&&ps.style.display!=='none'&&projAllPhotos.length>0){
-    const cnt=l==='3x2'?6:l==='2x2'?4:1;
-    const cols=l==='3x2'?3:l==='2x2'?2:1;
-    const rows=l==='3x2'?2:l==='2x2'?2:1;
-    const grid=document.getElementById('proj-grid');
-    if(grid){
-      grid.style.gridTemplateColumns='repeat('+cols+',1fr)';
-      grid.style.gridTemplateRows='repeat('+rows+',1fr)';
-      projCurrentIdx=0;
-      if(projTheme) showProjectionSlice(projTheme,cnt,S.ev&&S.ev.type?S.ev.type:'');
-    }
+  if(ps&&ps.style.display!=='none'&&projTheme){
+    buildProjectionGrid(projTheme,projEventType);
   }
 }
 // ── עיצובים לפי סוג אירוע ──
@@ -2023,97 +2014,248 @@ let projInterval=null;
 let projAllPhotos=[];
 let projCurrentIdx=0;
 let projLayout='3x2';
-let projTheme=null;
-let projCode='';
 let projActive=false;
 
+// ── מסגרות Baroque/Victorian SVG ──
+function getBaroqueFrame(evType, accent, accent2){
+  const a=accent, b=accent2;
+  // חתונה — Baroque זהב עם גלילות ועלים
+  if(evType==='חתונה') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><filter id="glow_w"><feGaussianBlur stdDeviation="1" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <!-- מסגרת בסיס -->
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="2.5" rx="2" filter="url(#glow_w)"/>
+    <rect x="8" y="8" width="384" height="284" fill="none" stroke="${a}66" stroke-width="1"/>
+    <!-- פינה שמאל עליון — גלילה Baroque -->
+    <path d="M3,50 C3,30 15,15 35,15 C25,15 20,25 25,35 C30,45 45,40 45,28 C45,18 38,10 28,10 C18,10 8,20 8,32" stroke="${a}" stroke-width="2" fill="none"/>
+    <path d="M3,30 C8,20 18,12 30,12 C22,14 17,22 20,30 C23,38 35,36 38,26" stroke="${b}88" stroke-width="1.2" fill="none"/>
+    <circle cx="3" cy="3" r="4" fill="${a}" opacity="0.9"/>
+    <path d="M15,3 C20,8 18,18 12,20 C18,16 22,10 18,5" stroke="${a}" stroke-width="1.5" fill="${a}44"/>
+    <!-- פינה ימין עליון -->
+    <path d="M397,50 C397,30 385,15 365,15 C375,15 380,25 375,35 C370,45 355,40 355,28 C355,18 362,10 372,10 C382,10 392,20 392,32" stroke="${a}" stroke-width="2" fill="none"/>
+    <circle cx="397" cy="3" r="4" fill="${a}" opacity="0.9"/>
+    <path d="M385,3 C380,8 382,18 388,20 C382,16 378,10 382,5" stroke="${a}" stroke-width="1.5" fill="${a}44"/>
+    <!-- פינה שמאל תחתון -->
+    <path d="M3,250 C3,270 15,285 35,285 C25,285 20,275 25,265 C30,255 45,260 45,272 C45,282 38,290 28,290 C18,290 8,280 8,268" stroke="${a}" stroke-width="2" fill="none"/>
+    <circle cx="3" cy="297" r="4" fill="${a}" opacity="0.9"/>
+    <!-- פינה ימין תחתון -->
+    <path d="M397,250 C397,270 385,285 365,285 C375,285 380,275 375,265 C370,255 355,260 355,272 C355,282 362,290 372,290 C382,290 392,280 392,268" stroke="${a}" stroke-width="2" fill="none"/>
+    <circle cx="397" cy="297" r="4" fill="${a}" opacity="0.9"/>
+    <!-- עיטור אמצע עליון -->
+    <path d="M160,3 C175,12 190,8 200,3 C210,8 225,12 240,3" stroke="${a}" stroke-width="1.5" fill="none"/>
+    <ellipse cx="200" cy="6" rx="8" ry="4" fill="${a}66"/>
+    <!-- עיטור אמצע תחתון -->
+    <path d="M160,297 C175,288 190,292 200,297 C210,292 225,288 240,297" stroke="${a}" stroke-width="1.5" fill="none"/>
+    <ellipse cx="200" cy="294" rx="8" ry="4" fill="${a}66"/>
+  </svg>`;
+
+  // יומולדת — שמח וצבעוני
+  if(evType==='יומולדת') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="392" height="292" fill="none" stroke="${a}" stroke-width="3" rx="8" stroke-dasharray="8,4"/>
+    <rect x="10" y="10" width="380" height="280" fill="none" stroke="${b}55" stroke-width="1" rx="6"/>
+    <!-- עיגולים בפינות -->
+    <circle cx="4" cy="4" r="7" fill="${a}" opacity="0.9"/><circle cx="396" cy="4" r="7" fill="${b}" opacity="0.9"/>
+    <circle cx="4" cy="296" r="7" fill="${b}" opacity="0.9"/><circle cx="396" cy="296" r="7" fill="${a}" opacity="0.9"/>
+    <!-- עיגולים קטנים לאורך -->
+    <circle cx="100" cy="4" r="4" fill="${b}" opacity="0.7"/><circle cx="200" cy="4" r="5" fill="${a}" opacity="0.8"/>
+    <circle cx="300" cy="4" r="4" fill="${b}" opacity="0.7"/><circle cx="100" cy="296" r="4" fill="${a}" opacity="0.7"/>
+    <circle cx="200" cy="296" r="5" fill="${b}" opacity="0.8"/><circle cx="300" cy="296" r="4" fill="${a}" opacity="0.7"/>
+    <circle cx="4" cy="100" r="4" fill="${a}" opacity="0.7"/><circle cx="4" cy="200" r="4" fill="${b}" opacity="0.7"/>
+    <circle cx="396" cy="100" r="4" fill="${b}" opacity="0.7"/><circle cx="396" cy="200" r="4" fill="${a}" opacity="0.7"/>
+    <!-- כוכבים קטנים -->
+    <path d="M200,2 L201.5,6 L206,6 L202.5,8.5 L204,13 L200,10.5 L196,13 L197.5,8.5 L194,6 L198.5,6 Z" fill="${b}" opacity="0.8"/>
+  </svg>`;
+
+  // גיבוש צבאי
+  if(evType==='גיבוש צבאי') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="3"/>
+    <rect x="9" y="9" width="382" height="282" fill="none" stroke="${a}55" stroke-width="1" stroke-dasharray="6,3"/>
+    <!-- ריבועי פינה מלאים -->
+    <rect x="3" y="3" width="25" height="25" fill="${a}44" stroke="${a}" stroke-width="2"/>
+    <rect x="372" y="3" width="25" height="25" fill="${a}44" stroke="${a}" stroke-width="2"/>
+    <rect x="3" y="272" width="25" height="25" fill="${a}44" stroke="${a}" stroke-width="2"/>
+    <rect x="372" y="272" width="25" height="25" fill="${a}44" stroke="${a}" stroke-width="2"/>
+    <!-- קווי מרכז -->
+    <line x1="175" y1="3" x2="225" y2="3" stroke="${a}" stroke-width="3"/>
+    <line x1="175" y1="297" x2="225" y2="297" stroke="${a}" stroke-width="3"/>
+    <line x1="3" y1="125" x2="3" y2="175" stroke="${a}" stroke-width="3"/>
+    <line x1="397" y1="125" x2="397" y2="175" stroke="${a}" stroke-width="3"/>
+    <!-- מוטיב מרכזי -->
+    <rect x="190" y="0" width="20" height="6" fill="${a}88"/>
+    <rect x="190" y="294" width="20" height="6" fill="${a}88"/>
+  </svg>`;
+
+  // מסיבה
+  if(evType==='מסיבה') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><filter id="glow_p"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="2.5" rx="4" filter="url(#glow_p)"/>
+    <rect x="8" y="8" width="384" height="284" fill="none" stroke="${b}66" stroke-width="1" rx="3"/>
+    <!-- פסים זוהרים בקצוות -->
+    <line x1="0" y1="0" x2="400" y2="0" stroke="url(#pg)" stroke-width="4"/>
+    <defs><linearGradient id="pg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="transparent"/><stop offset="30%" stop-color="${a}"/><stop offset="50%" stop-color="${b}"/><stop offset="70%" stop-color="${a}"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
+    <rect x="0" y="0" width="400" height="4" fill="url(#pg)" opacity="0.8"/>
+    <rect x="0" y="296" width="400" height="4" fill="url(#pg)" opacity="0.8"/>
+    <!-- עיגולי זוהר בפינות -->
+    <circle cx="3" cy="3" r="6" fill="${a}" opacity="0.8" filter="url(#glow_p)"/>
+    <circle cx="397" cy="3" r="6" fill="${b}" opacity="0.8" filter="url(#glow_p)"/>
+    <circle cx="3" cy="297" r="6" fill="${b}" opacity="0.8" filter="url(#glow_p)"/>
+    <circle cx="397" cy="297" r="6" fill="${a}" opacity="0.8" filter="url(#glow_p)"/>
+  </svg>`;
+
+  // כנס עסקי
+  if(evType==='כנס עסקי') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="1.5"/>
+    <rect x="7" y="7" width="386" height="286" fill="none" stroke="${a}44" stroke-width="0.5"/>
+    <!-- L-shapes בפינות -->
+    <path d="M3,40 L3,3 L40,3" stroke="${a}" stroke-width="3" fill="none"/>
+    <path d="M360,3 L397,3 L397,40" stroke="${a}" stroke-width="3" fill="none"/>
+    <path d="M3,260 L3,297 L40,297" stroke="${a}" stroke-width="3" fill="none"/>
+    <path d="M360,297 L397,297 L397,260" stroke="${a}" stroke-width="3" fill="none"/>
+    <!-- קווים דקים נוספים -->
+    <path d="M3,55 L3,45" stroke="${a}66" stroke-width="1.5" fill="none"/>
+    <path d="M397,55 L397,45" stroke="${a}66" stroke-width="1.5" fill="none"/>
+    <path d="M3,255 L3,245" stroke="${a}66" stroke-width="1.5" fill="none"/>
+    <path d="M397,255 L397,245" stroke="${a}66" stroke-width="1.5" fill="none"/>
+    <!-- נקודת אמצע -->
+    <rect x="193" y="1" width="14" height="4" fill="${a}88"/>
+    <rect x="193" y="295" width="14" height="4" fill="${a}88"/>
+  </svg>`;
+
+  // בר/בת מצווה + ברירת מחדל — פינות אלגנטיות
+  return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}88" stroke-width="1.5"/>
+    <path d="M3,45 L3,3 L45,3" stroke="${a}" stroke-width="2.5" fill="none"/>
+    <path d="M355,3 L397,3 L397,45" stroke="${a}" stroke-width="2.5" fill="none"/>
+    <path d="M3,255 L3,297 L45,297" stroke="${a}" stroke-width="2.5" fill="none"/>
+    <path d="M355,297 L397,297 L397,255" stroke="${a}" stroke-width="2.5" fill="none"/>
+    <circle cx="3" cy="3" r="3" fill="${a}"/><circle cx="397" cy="3" r="3" fill="${a}"/>
+    <circle cx="3" cy="297" r="3" fill="${a}"/><circle cx="397" cy="297" r="3" fill="${a}"/>
+    <line x1="170" y1="3" x2="230" y2="3" stroke="${a}" stroke-width="2"/>
+    <line x1="170" y1="297" x2="230" y2="297" stroke="${a}" stroke-width="2"/>
+  </svg>`;
+}
+
+// ── כל תמונה מתנהלת עצמאית ──
+let cellTimers=[];
+let projFetchInterval=null;
+let projActive=false;
+let projAllPhotos=[];
+let projTheme=null;
+let projEventType='';
+
 function startCleanProjection(code, eventName, eventType){
-  projCode=code;
   projActive=true;
+  projEventType=eventType;
   const ps=document.getElementById('projection-screen');
-  const grid=document.getElementById('proj-grid');
-  const nameEl=document.getElementById('proj-event-name');
-  if(!ps||!grid) return;
+  if(!ps) return;
   const theme=getTheme(eventType);
   projTheme=theme;
   ps.style.background=theme.bg;
   ps.style.display='block';
   document.body.style.overflow='hidden';
+  const nameEl=document.getElementById('proj-event-name');
   if(nameEl){nameEl.textContent=eventName||code||'';nameEl.style.color=theme.accent2;}
-  // Layout
+
+  // בנה רשת תאים
+  buildProjectionGrid(theme,eventType);
+
+  // fetch תמונות כל 8 שניות
+  const fetchPhotos=()=>{
+    if(!projActive)return;
+    fbGetPhotos(code).then(photos=>{
+      const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
+      if(images.length===0){
+        stopAllCellTimers();
+        startScreensaver(theme.accent);
+        return;
+      }
+      stopScreensaver();
+      projAllPhotos=images;
+    }).catch(()=>{});
+  };
+  fetchPhotos();
+  if(projFetchInterval)clearInterval(projFetchInterval);
+  projFetchInterval=setInterval(fetchPhotos,8000);
+}
+
+function buildProjectionGrid(theme,eventType){
   const cnt=projLayout==='3x2'?6:projLayout==='2x2'?4:1;
   const cols=projLayout==='3x2'?3:projLayout==='2x2'?2:1;
   const rows=projLayout==='3x2'?2:projLayout==='2x2'?2:1;
+  const grid=document.getElementById('proj-grid');
+  if(!grid)return;
   grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
   grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
-  const renderPhotos=(photos)=>{
-    const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
-    if(!images||images.length===0){
-      stopScreensaver();
-      startScreensaver(theme.accent);
-      return;
-    }
-    stopScreensaver();
-    const prevCount=projAllPhotos.length;
-    projAllPhotos=images;
-    if(images.length>prevCount) projCurrentIdx=Math.max(0,images.length-cnt);
-    showProjectionSlice(theme,cnt,eventType);
-  };
-  const refresh=()=>{
-    if(!projActive)return;
-    fbGetPhotos(code).then(photos=>renderPhotos(photos)).catch(()=>{
-      if(projAllPhotos.length>0){projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;showProjectionSlice(theme,cnt,eventType);}
-      else startScreensaver(theme.accent);
-    });
-  };
-  refresh();
-  if(projInterval)clearInterval(projInterval);
-  projInterval=setInterval(()=>{
-    if(!projActive)return;
-    if(projAllPhotos.length>cnt) projCurrentIdx=(projCurrentIdx+cnt)%projAllPhotos.length;
-    fbGetPhotos(code).then(photos=>{
-      const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
-      if(images.length>0){stopScreensaver();projAllPhotos=images;showProjectionSlice(theme,cnt,eventType);}
-      else if(projAllPhotos.length===0) startScreensaver(theme.accent);
-    }).catch(()=>{
-      if(projAllPhotos.length>0) showProjectionSlice(theme,cnt,eventType);
-    });
-  },5000);
+  grid.style.opacity='1';
+
+  // עצור timers ישנים
+  stopAllCellTimers();
+
+  // צור תאים
+  grid.innerHTML=Array.from({length:cnt},(_,i)=>`<div id="proj-cell-${i}" style="overflow:hidden;position:relative;background:#111;"></div>`).join('');
+
+  // הפעל timer עצמאי לכל תא עם השהיה אקראית
+  for(let i=0;i<cnt;i++){
+    const delay=i*800+Math.random()*500;
+    const interval=5000+Math.random()*3000; // 5-8 שניות כל תמונה
+    setTimeout(()=>{
+      if(!projActive)return;
+      updateCell(i,theme,eventType);
+      const t=setInterval(()=>{
+        if(!projActive){clearInterval(t);return;}
+        updateCell(i,theme,eventType);
+      },interval);
+      cellTimers.push(t);
+    },delay);
+  }
+}
+
+let cellIndices=[];
+function updateCell(cellIdx, theme, eventType){
+  if(projAllPhotos.length===0)return;
+  if(!cellIndices[cellIdx]) cellIndices[cellIdx]=cellIdx;
+  cellIndices[cellIdx]=(cellIndices[cellIdx]+1)%projAllPhotos.length;
+  const p=projAllPhotos[cellIndices[cellIdx]];
+  const cell=document.getElementById('proj-cell-'+cellIdx);
+  if(!cell)return;
+  const url=p.cloudUrl||p.url;
+  const name=p.uploaderName||'';
+  const frame=getBaroqueFrame(eventType,theme.accent,theme.accent2);
+  const logoPositions=['top:8px;right:8px;','top:8px;left:8px;','bottom:32px;right:8px;','bottom:32px;left:8px;'];
+  const lpos=logoPositions[cellIdx%4];
+  // fade out → update → fade in
+  cell.style.transition='opacity 0.6s ease';
+  cell.style.opacity='0';
+  setTimeout(()=>{
+    cell.innerHTML=`
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;" onerror="this.style.display='none'"/>
+      <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;z-index:8;"></div>
+      ${frame}
+      <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:2px;color:rgba(255,255,255,0.5);z-index:14;text-shadow:0 1px 4px rgba(0,0,0,0.9);pointer-events:none;">MOMEN<span style="color:${theme.accent}77;">PIX</span></div>
+      ${name?`<div style="position:absolute;bottom:4px;left:6px;right:6px;font-family:'Plus Jakarta Sans',sans-serif;font-size:9px;color:${theme.accent2};font-weight:600;z-index:14;text-shadow:0 1px 3px rgba(0,0,0,0.9);pointer-events:none;">${name}</div>`:''}
+    `;
+    cell.style.opacity='1';
+  },350);
+}
+
+function stopAllCellTimers(){
+  cellTimers.forEach(t=>clearInterval(t));
+  cellTimers=[];
+  cellIndices=[];
 }
 
 function stopCleanProjection(){
   projActive=false;
-  if(projInterval){clearInterval(projInterval);projInterval=null;}
+  stopAllCellTimers();
+  if(projFetchInterval){clearInterval(projFetchInterval);projFetchInterval=null;}
   stopScreensaver();
   const ps=document.getElementById('projection-screen');
   if(ps)ps.style.display='none';
   document.body.style.overflow='';
   projAllPhotos=[];
-  projCurrentIdx=0;
 }
 
-function showProjectionSlice(theme,cnt,eventType){
-  const grid=document.getElementById('proj-grid');
-  if(!grid||projAllPhotos.length===0)return;
-  const slice=[];
-  for(let i=0;i<cnt;i++) slice.push(projAllPhotos[(projCurrentIdx+i)%projAllPhotos.length]);
-  const frame=getFrameHTML(eventType,theme.accent,theme.accent2);
-  const newHTML=slice.map((p,idx)=>{
-    const url=p.cloudUrl||p.url;
-    const name=p.uploaderName||'';
-    const time=p.capturedAt?new Date(p.capturedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):'';
-    const logo=getLogoOverlay(theme.accent);
-    return `<div style="overflow:hidden;position:relative;background:#111;">
-      <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.parentElement.style.background='#1a1a1a'"/>
-      <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;"></div>
-      ${frame}${logo}
-      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;color:${theme.accent2};font-weight:600;z-index:13;text-shadow:0 1px 4px rgba(0,0,0,0.9);">${name}${time?' · '+time:''}</div>`:''}
-    </div>`;
-  }).join('');
-  // מעבר חלק
-  grid.style.opacity='0';
-  setTimeout(()=>{grid.innerHTML=newHTML;grid.style.opacity='1';},400);
-}
+// legacy — לא בשימוש אך לא מוחקים
+function showProjectionSlice(theme,cnt,eventType){}
 
 // ── data management ──
 function clearAllLocalData(){
