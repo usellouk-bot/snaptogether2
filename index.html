@@ -676,6 +676,15 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   </div>
 </div>
 
+
+<!-- PROJECTION — מסך הקרנה נקי לאולם -->
+<div id="projection-screen" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;">
+  <div id="proj-grid" style="display:grid;width:100%;height:100%;"></div>
+  <div style="position:absolute;bottom:20px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none;">
+    <div id="proj-event-name" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:rgba(255,255,255,0.7);letter-spacing:2px;"></div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:#00FF88;">MOMEN<span style="color:#fff;">PIX</span></div>
+  </div>
+</div>
 <!-- ALBUM -->
 <div class="screen" id="s-album">
   <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">עיצוב אלבום</div><button class="home-btn" onclick="home()">⌂</button></div>
@@ -1836,6 +1845,44 @@ function renderLiveGrid(){
   });
 }
 function setLiveLayout(l,btn){S.liveLayout=l;document.querySelectorAll('.layout-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderLiveGrid();}
+// ── הקרנה נקייה לאולם ──
+let projInterval=null;
+function startCleanProjection(code, eventName){
+  const ps=document.getElementById('projection-screen');
+  const grid=document.getElementById('proj-grid');
+  const nameEl=document.getElementById('proj-event-name');
+  if(!ps||!grid) return;
+  if(nameEl) nameEl.textContent=eventName||code||'';
+  ps.style.display='block';
+  document.body.style.overflow='hidden';
+  // layout 3x2
+  grid.style.gridTemplateColumns='repeat(3,1fr)';
+  grid.style.gridTemplateRows='repeat(2,1fr)';
+  // רענון כל 5 שניות
+  const refresh=()=>{
+    fbGetPhotos(code).then(photos=>{
+      if(!photos||photos.length===0){
+        grid.innerHTML='<div style="grid-column:1/-1;grid-row:1/-1;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-family:Bebas Neue,sans-serif;font-size:32px;letter-spacing:4px;">ממתין לתמונות...</div>';
+        return;
+      }
+      const cnt=6;
+      const recent=photos.slice(0,cnt);
+      grid.innerHTML=recent.map(p=>{
+        const url=p.cloudUrl||p.url;
+        const name=p.uploaderName||'';
+        const time=p.capturedAt?new Date(p.capturedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):'';
+        return `<div style="overflow:hidden;position:relative;background:#111;">
+          <img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.style.background='#1a1a1a'"/>
+          ${name?`<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.8));padding:8px 10px;font-family:Plus Jakarta Sans,sans-serif;font-size:11px;color:rgba(255,255,255,0.9);font-weight:600;">${name}${time?' · '+time:''}</div>`:''}
+        </div>`;
+      }).join('');
+    }).catch(()=>{});
+  };
+  refresh();
+  if(projInterval) clearInterval(projInterval);
+  projInterval=setInterval(refresh,5000);
+}
+
 function toggleLive(){
   if(!S.ev||!S.ev.code){toast('⚠ לא נבחר אירוע');return;}
   if(!S.liveActive){
@@ -3298,20 +3345,10 @@ function handleDeepLink(){
     const liveCode=live.toUpperCase();
     const startProjection=(ev)=>{
       S.ev=ev||{code:liveCode,name:liveCode};
-      S.liveActive=true;
+      // פתח מסך הקרנה נקי לאולם
       setTimeout(()=>{
-        nav('live');
-        setTimeout(()=>{
-          document.getElementById('live-btn').textContent='⏹ עצור הקרנה';
-          document.getElementById('live-btn').style.background='var(--red)';
-          document.getElementById('live-link-inp').value=window.location.href;
-          document.getElementById('live-link-note').style.display='flex';
-          document.getElementById('live-status-note').style.display='flex';
-          if(S.liveRotateInt)clearInterval(S.liveRotateInt);
-          S.liveRotateInt=setInterval(renderLiveGrid,5000);
-          renderLiveGrid();
-        },300);
-      },200);
+        startCleanProjection(liveCode, ev&&ev.name?ev.name:'');
+      },300);
     };
     const localEv=DB.events.find(e=>e.code===liveCode&&!e.deleted);
     if(localEv){startProjection(localEv);}
