@@ -367,7 +367,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div id="home-saved-events"></div>
     <div class="sec-header">כניסה מהירה</div>
     <button class="btn-ghost" onclick="nav('guest')" style="border-color:rgba(0,255,136,0.3);color:var(--neon);margin-bottom:6px;">📷 כניסה כאורח מצלם</button>
-    <button class="btn-ghost" onclick="startNew()">+ צור אירוע חדש</button>
+    <button class="btn-ghost" onclick="startNew()" id="btn-new-event">+ צור אירוע חדש</button>
     <div class="stats-row">
       <div class="stat-box"><div class="stat-n">∞</div><div class="stat-l">אירועים</div></div>
       <div class="stat-box"><div class="stat-n">AI</div><div class="stat-l">עריכה</div></div>
@@ -1048,6 +1048,7 @@ function updatePhotoCloudUrl(code, localTs, cloudUrl, uploadedAt){
 }
 
 const S = {
+  isGuest:false,
   cur:'home', hist:['home'],
   ev: {},
   selCam:5, selStor:5, camP:0, storP:0,
@@ -1088,6 +1089,14 @@ function nav(s){
 }
 function back(){
   if(S.hist.length<=1) return;
+  // אורח שחוזר ממצלמה → גלריה
+  if(S.isGuest && S.cur==='camera'){
+    document.getElementById('s-camera').classList.remove('active');
+    S.hist=['gallery']; S.cur='gallery';
+    document.getElementById('s-gallery').classList.add('active');
+    renderGallery(); window.scrollTo(0,0);
+    return;
+  }
   const prev=document.getElementById('s-'+S.cur);
   prev.classList.remove('active');
   S.hist.pop(); S.cur=S.hist[S.hist.length-1];
@@ -1095,6 +1104,8 @@ function back(){
   enter(S.cur); window.scrollTo(0,0);
 }
 function home(){
+  if(S.isGuest){toast('⚠ אין גישה — אתה מחובר כאורח מצלם');return;}
+  S.isGuest=false;
   document.getElementById('s-'+S.cur).classList.remove('active');
   S.hist=['home']; S.cur='home';
   document.getElementById('s-home').classList.add('active');
@@ -1173,6 +1184,7 @@ function doLogin(){
   if(!user&&!(e==='admin@snap.com'&&p==='admin123')){err.textContent='⚠ אימייל או סיסמה שגויים';err.style.display='flex';return;}
   err.style.display='none';
   DB.currentUser=user||{name:'מנהל',email:e,role:'admin'};
+  S.isGuest=false;
   saveDB(); toast('✓ ברוך הבא '+DB.currentUser.name+'!');
   if(DB.currentUser.role==='admin'){
     activateAdminSession();
@@ -1205,6 +1217,9 @@ function doRegister(){
 // HOME
 // ═══════════════════════════════════════════════════════════
 function renderHome(){
+  // הסתר/הצג כפתור יצירת אירוע לפי סטטוס אורח
+  const newEvBtn=document.getElementById('btn-new-event');
+  if(newEvBtn) newEvBtn.style.display=S.isGuest?'none':'';
   const el=document.getElementById('home-saved-events');
   // וודא שה-S.ev הנוכחי שמור ב-DB
   if(S.ev&&S.ev.code&&S.ev.name){
@@ -1556,13 +1571,10 @@ function shareWA(){
   const name=S.ev.name||'האירוע';
   const msg=
     'הוזמנת להיות צלם באירוע של '+name+'! 📸\n\n'+
-    'על מנת להיכנס:\n'+
-    '1. לחץ על הקישור: '+url+'\n'+
-    '2. הזן את הקוד המצורף:\n\n'+
-    '┌─────────────────┐\n'+
-    '│   קוד האירוע:   │\n'+
-    '│    '+code+'    │\n'+
-    '└─────────────────┘\n\n'+
+    'על מנת להיכנס לחץ על הקישור:\n'+
+    url+'\n\n'+
+    'קוד האירוע שלך:\n'+
+    '*'+code+'*\n\n'+
     'שמור את הקוד — תצטרך אותו בכניסה.';
   window.open('https://wa.me/?text='+encodeURIComponent(msg));
 }
@@ -2660,6 +2672,7 @@ function enterEvent(){
   let found=DB.events.find(e=>e.code===code&&!e.deleted&&(e.paid||e.adminCreated));
   if(found){
     S.ev=found;
+    S.isGuest=true;
     localStorage.setItem('st_last_code',code);
     err.style.display='none';
     stopQRScan();
@@ -2670,6 +2683,7 @@ function enterEvent(){
   fbGetEvent(code).then(fbEv=>{
     if(fbEv&&!fbEv.deleted&&(fbEv.paid||fbEv.adminCreated)){
       S.ev=fbEv;
+      S.isGuest=true;
       // שמור מקומית
       DB.events=DB.events.filter(e=>e.code!==code);
       DB.events.push(fbEv);
