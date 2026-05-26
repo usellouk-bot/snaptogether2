@@ -693,9 +693,9 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   <div id="proj-screensaver" style="display:none;position:absolute;inset:0;background:#000;z-index:20;">
     <canvas id="proj-ss-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
     <canvas id="proj-ss-stars" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
-    <div id="proj-ss-logo" style="position:absolute;font-family:'Bebas Neue',sans-serif;font-size:85px;letter-spacing:6px;color:#00FF88;text-shadow:0 0 30px rgba(0,255,136,0.6);transition:left 1.5s ease,top 1.5s ease;pointer-events:none;text-align:center;white-space:nowrap;">
-      MOMEN<span style="color:#fff;">PIX</span>
-      <div style="font-size:75px;letter-spacing:3px;color:rgba(255,255,255,0.55);text-shadow:0 0 15px rgba(0,255,136,0.3);margin-top:-15px;white-space:nowrap;">צילום שיתופי · כל אירוע · כל מקום</div>
+    <div id="proj-ss-logo" style="position:absolute;font-family:'Bebas Neue',sans-serif;font-size:85px;letter-spacing:6px;color:#00FF88;text-shadow:0 0 30px rgba(0,255,136,0.6);transition:left 1.5s ease,top 1.5s ease;pointer-events:none;text-align:center;display:flex;flex-direction:column;align-items:center;">
+      <div>MOMEN<span style="color:#fff;">PIX</span></div>
+      <div id="proj-ss-tagline" style="font-size:75px;letter-spacing:3px;color:rgba(255,255,255,0.55);text-shadow:0 0 15px rgba(0,255,136,0.3);margin-top:-10px;white-space:nowrap;">צילום שיתופי · כל אירוע · כל מקום</div>
     </div>
   </div>
   <!-- שם האירוע — ראש המסך במרכז -->
@@ -2013,66 +2013,62 @@ function startScreensaver(accent){
   const ss=document.getElementById('proj-screensaver');
   const logo=document.getElementById('proj-ss-logo');
   const starsCanvas=document.getElementById('proj-ss-stars');
-  if(!ss) return;
+  if(!ss||!logo) return;
   ss.style.display='block';
-  logo.style.color=accent||'#00FF88';
 
   // ── כוכבים מנצנצים ──
   if(starsCanvas){
+    starsCanvas.width=window.innerWidth||1920;
+    starsCanvas.height=window.innerHeight||1080;
     const ctx=starsCanvas.getContext('2d');
-    starsCanvas.width=window.innerWidth;
-    starsCanvas.height=window.innerHeight;
-    // יצור 200 כוכבים עם נצנוץ
     const stars=Array.from({length:200},()=>({
       x:Math.random()*starsCanvas.width,
       y:Math.random()*starsCanvas.height,
-      r:Math.random()*1.8+0.2,
-      baseA:Math.random()*0.7+0.1,
+      r:Math.random()*1.5+0.3,
       phase:Math.random()*Math.PI*2,
-      speed:Math.random()*0.04+0.01
+      speed:Math.random()*0.05+0.01,
+      big:false
     }));
-    // כוכבים גדולים בולטים
-    const bigStars=Array.from({length:15},()=>({
+    const bigStars=Array.from({length:20},()=>({
       x:Math.random()*starsCanvas.width,
       y:Math.random()*starsCanvas.height,
-      r:Math.random()*3+2,
-      baseA:Math.random()*0.5+0.3,
+      r:Math.random()*2.5+1.5,
       phase:Math.random()*Math.PI*2,
-      speed:Math.random()*0.03+0.005
+      speed:Math.random()*0.03+0.008,
+      big:true
     }));
-    let frame=0;
-    const drawStars=()=>{
+    const all=[...stars,...bigStars];
+    const draw=()=>{
       ctx.clearRect(0,0,starsCanvas.width,starsCanvas.height);
-      frame++;
-      [...stars,...bigStars].forEach(s=>{
+      all.forEach(s=>{
         s.phase+=s.speed;
-        const a=s.baseA*(0.5+0.5*Math.sin(s.phase));
+        const a=0.15+0.75*((1+Math.sin(s.phase))/2);
         ctx.beginPath();
         ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-        // כוכבים גדולים — צבע הנושא, קטנים — לבן
-        ctx.fillStyle=s.r>2?`rgba(0,255,136,${a})`:`rgba(255,255,255,${a})`;
+        ctx.fillStyle=s.big?`rgba(0,255,136,${a})`:`rgba(255,255,255,${a*0.85})`;
         ctx.fill();
-        // נצנוץ — קרינה לכוכבים גדולים
-        if(s.r>2&&a>0.4){
+        if(s.big&&a>0.5){
           ctx.beginPath();
-          ctx.arc(s.x,s.y,s.r*2.5,0,Math.PI*2);
-          ctx.fillStyle=`rgba(0,255,136,${a*0.15})`;
+          ctx.arc(s.x,s.y,s.r*3,0,Math.PI*2);
+          ctx.fillStyle=`rgba(0,255,136,${a*0.12})`;
           ctx.fill();
         }
       });
     };
     if(ssInterval)clearInterval(ssInterval);
-    ssInterval=setInterval(drawStars,50);
+    ssInterval=setInterval(draw,50);
   }
 
   // ── לוגו זז ──
-  let lx=10,ly=10,lvx=0.15,lvy=0.1;
+  let lx=5,ly=5,lvx=0.12,lvy=0.08;
   if(ssLogoInterval)clearInterval(ssLogoInterval);
   ssLogoInterval=setInterval(()=>{
     if(!ss||ss.style.display==='none'){clearInterval(ssLogoInterval);ssLogoInterval=null;return;}
     lx+=lvx; ly+=lvy;
-    if(lx<=2||lx>=60){lvx*=-1; lx=Math.max(2,Math.min(60,lx));}
-    if(ly<=2||ly>=70){lvy*=-1; ly=Math.max(2,Math.min(70,ly));}
+    if(lx<=0){lx=0;lvx=Math.abs(lvx);}
+    if(lx>=55){lx=55;lvx=-Math.abs(lvx);}
+    if(ly<=0){ly=0;lvy=Math.abs(lvy);}
+    if(ly>=60){ly=60;lvy=-Math.abs(lvy);}
     logo.style.left=lx+'%';
     logo.style.top=ly+'%';
   },60);
