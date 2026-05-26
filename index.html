@@ -2010,12 +2010,9 @@ let ssInterval=null;
 let ssLogoInterval=null;
 
 function drawStar(ctx, cx, cy, r, opacity, color){
-  // צייר כוכב 5 קצוות
   ctx.save();
   ctx.globalAlpha=opacity;
   ctx.fillStyle=color;
-  ctx.shadowBlur=r*4;
-  ctx.shadowColor=color;
   ctx.beginPath();
   for(let i=0;i<10;i++){
     const angle=(i*Math.PI/5)-Math.PI/2;
@@ -2025,11 +2022,6 @@ function drawStar(ctx, cx, cy, r, opacity, color){
     if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
   ctx.closePath();
-  ctx.fill();
-  // הילה
-  ctx.globalAlpha=opacity*0.25;
-  ctx.beginPath();
-  ctx.arc(cx,cy,r*2,0,Math.PI*2);
   ctx.fill();
   ctx.restore();
 }
