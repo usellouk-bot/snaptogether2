@@ -684,7 +684,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   <!-- שומר מסך -->
   <div id="proj-screensaver" style="display:none;position:absolute;inset:0;background:#000;z-index:20;">
     <canvas id="proj-ss-canvas" style="width:100%;height:100%;"></canvas>
-    <div id="proj-ss-logo" style="position:absolute;font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:6px;color:#00FF88;text-shadow:0 0 30px rgba(0,255,136,0.6);transition:all 1.5s ease;pointer-events:none;">
+    <div id="proj-ss-logo" style="position:absolute;font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:6px;color:#00FF88;text-shadow:0 0 30px rgba(0,255,136,0.6);transition:all 1.5s ease;pointer-events:none;">
       MOMEN<span style="color:#fff;">PIX</span>
     </div>
   </div>
@@ -1861,7 +1861,10 @@ function setLiveLayout(l,btn){
   renderLiveGrid();
   // עדכן מסך הקרנה אם פתוח
   const ps=document.getElementById('projection-screen');
-  if(ps&&ps.style.display!=='none'&&projTheme){
+  const ss=document.getElementById('proj-screensaver');
+  const projOpen=ps&&ps.style.display!=='none';
+  const ssActive=ss&&ss.style.display!=='none';
+  if(projOpen&&!ssActive&&projTheme&&projAllPhotos.length>0){
     buildProjectionGrid(projTheme,projEventType);
   }
 }
@@ -2028,122 +2031,80 @@ function getBaroqueFrame(evType, accent, accent2){
   const a=accent, b=accent2;
 
   if(evType==='חתונה') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <filter id="gw${Math.round(Math.random()*99)}"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${a}" stop-opacity="1"/><stop offset="50%" stop-color="${b}" stop-opacity="0.8"/><stop offset="100%" stop-color="${a}" stop-opacity="1"/></linearGradient>
-    </defs>
-    <!-- מסגרת כפולה -->
-    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="3.5" rx="1"/>
-    <rect x="10" y="10" width="380" height="280" fill="none" stroke="${a}" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.7"/>
-    <!-- פינה שמאל עליון — גלילה Baroque מלאה -->
-    <path d="M3,55 C3,30 10,10 35,10 C22,12 16,24 22,36 C28,48 45,42 45,28 C45,16 36,6 24,6 C12,6 3,17 3,30" stroke="${a}" stroke-width="3" fill="none"/>
-    <path d="M3,38 C7,22 18,12 32,11 C24,14 19,24 23,34" stroke="${b}" stroke-width="1.5" fill="none" opacity="0.7"/>
-    <circle cx="3" cy="3" r="5" fill="${a}"/>
-    <circle cx="3" cy="3" r="2.5" fill="${b}" opacity="0.8"/>
-    <path d="M14,3 C20,9 18,22 10,24 C18,18 24,8 18,3" stroke="${a}" stroke-width="2" fill="${a}55"/>
-    <path d="M3,18 C9,14 16,18 15,26 C14,20 8,16 3,20" stroke="${a}" stroke-width="1.8" fill="${a}44"/>
-    <!-- פינה ימין עליון -->
-    <path d="M397,55 C397,30 390,10 365,10 C378,12 384,24 378,36 C372,48 355,42 355,28 C355,16 364,6 376,6 C388,6 397,17 397,30" stroke="${a}" stroke-width="3" fill="none"/>
-    <path d="M397,38 C393,22 382,12 368,11 C376,14 381,24 377,34" stroke="${b}" stroke-width="1.5" fill="none" opacity="0.7"/>
-    <circle cx="397" cy="3" r="5" fill="${a}"/>
-    <circle cx="397" cy="3" r="2.5" fill="${b}" opacity="0.8"/>
-    <path d="M386,3 C380,9 382,22 390,24 C382,18 376,8 382,3" stroke="${a}" stroke-width="2" fill="${a}55"/>
-    <!-- פינה שמאל תחתון -->
-    <path d="M3,245 C3,270 10,290 35,290 C22,288 16,276 22,264 C28,252 45,258 45,272 C45,284 36,294 24,294 C12,294 3,283 3,270" stroke="${a}" stroke-width="3" fill="none"/>
-    <circle cx="3" cy="297" r="5" fill="${a}"/>
-    <circle cx="3" cy="297" r="2.5" fill="${b}" opacity="0.8"/>
-    <path d="M14,297 C20,291 18,278 10,276 C18,282 24,292 18,297" stroke="${a}" stroke-width="2" fill="${a}55"/>
-    <!-- פינה ימין תחתון -->
-    <path d="M397,245 C397,270 390,290 365,290 C378,288 384,276 378,264 C372,252 355,258 355,272 C355,284 364,294 376,294 C388,294 397,283 397,270" stroke="${a}" stroke-width="3" fill="none"/>
-    <circle cx="397" cy="297" r="5" fill="${a}"/>
-    <circle cx="397" cy="297" r="2.5" fill="${b}" opacity="0.8"/>
-    <!-- עיטור אמצע עליון -->
-    <path d="M155,3 C170,14 185,9 200,3 C215,9 230,14 245,3" stroke="${a}" stroke-width="2.5" fill="none"/>
-    <path d="M175,3 C183,10 191,7 200,3 C209,7 217,10 225,3" stroke="${b}" stroke-width="1.5" fill="none" opacity="0.7"/>
-    <ellipse cx="200" cy="5" rx="10" ry="5" fill="${a}77"/>
-    <circle cx="200" cy="3" r="3" fill="${a}"/>
-    <!-- עיטור אמצע תחתון -->
-    <path d="M155,297 C170,286 185,291 200,297 C215,291 230,286 245,297" stroke="${a}" stroke-width="2.5" fill="none"/>
-    <ellipse cx="200" cy="295" rx="10" ry="5" fill="${a}77"/>
-    <circle cx="200" cy="297" r="3" fill="${a}"/>
-    <!-- קווי צד -->
-    <path d="M3,120 C3,130 10,135 3,145" stroke="${a}" stroke-width="1.5" fill="none" opacity="0.6"/>
-    <path d="M3,155 C3,165 10,170 3,180" stroke="${a}" stroke-width="1.5" fill="none" opacity="0.6"/>
-    <path d="M397,120 C397,130 390,135 397,145" stroke="${a}" stroke-width="1.5" fill="none" opacity="0.6"/>
-    <path d="M397,155 C397,165 390,170 397,180" stroke="${a}" stroke-width="1.5" fill="none" opacity="0.6"/>
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="3.5"/>
+    <rect x="10" y="10" width="380" height="280" fill="none" stroke="${a}" stroke-width="1" opacity="0.5"/>
+    <path d="M3,60 L3,3 L60,3" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M340,3 L397,3 L397,60" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M3,240 L3,297 L60,297" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M340,297 L397,297 L397,240" stroke="${a}" stroke-width="5" fill="none"/>
+    <rect x="3" y="3" width="14" height="14" fill="${a}"/>
+    <rect x="383" y="3" width="14" height="14" fill="${a}"/>
+    <rect x="3" y="283" width="14" height="14" fill="${a}"/>
+    <rect x="383" y="283" width="14" height="14" fill="${a}"/>
+    <rect x="180" y="0" width="40" height="6" fill="${a}"/>
+    <rect x="180" y="294" width="40" height="6" fill="${a}"/>
+    <rect x="0" y="130" width="6" height="40" fill="${a}"/>
+    <rect x="394" y="130" width="6" height="40" fill="${a}"/>
   </svg>`;
 
   if(evType==='יומולדת') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="4" y="4" width="392" height="292" fill="none" stroke="${a}" stroke-width="3.5" rx="8" stroke-dasharray="10,5"/>
-    <rect x="11" y="11" width="378" height="278" fill="none" stroke="${b}" stroke-width="1" rx="6" opacity="0.5"/>
-    <circle cx="4" cy="4" r="9" fill="${a}"/><circle cx="4" cy="4" r="4.5" fill="${b}"/>
-    <circle cx="396" cy="4" r="9" fill="${b}"/><circle cx="396" cy="4" r="4.5" fill="${a}"/>
-    <circle cx="4" cy="296" r="9" fill="${b}"/><circle cx="4" cy="296" r="4.5" fill="${a}"/>
-    <circle cx="396" cy="296" r="9" fill="${a}"/><circle cx="396" cy="296" r="4.5" fill="${b}"/>
-    <circle cx="100" cy="4" r="5" fill="${b}" opacity="0.8"/><circle cx="200" cy="4" r="6" fill="${a}" opacity="0.9"/>
-    <circle cx="300" cy="4" r="5" fill="${b}" opacity="0.8"/>
-    <circle cx="100" cy="296" r="5" fill="${a}" opacity="0.8"/><circle cx="200" cy="296" r="6" fill="${b}" opacity="0.9"/>
-    <circle cx="300" cy="296" r="5" fill="${a}" opacity="0.8"/>
-    <circle cx="4" cy="100" r="5" fill="${a}" opacity="0.8"/><circle cx="4" cy="200" r="5" fill="${b}" opacity="0.8"/>
-    <circle cx="396" cy="100" r="5" fill="${b}" opacity="0.8"/><circle cx="396" cy="200" r="5" fill="${a}" opacity="0.8"/>
-    <path d="M197,0 L200,7 L203,0 M194,0 L200,9 L206,0" stroke="${b}" stroke-width="1.5" fill="none"/>
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="4" stroke-dasharray="12,6"/>
+    <rect x="12" y="12" width="376" height="276" fill="none" stroke="${b}" stroke-width="1.5" opacity="0.6"/>
+    <circle cx="3" cy="3" r="8" fill="${a}"/><circle cx="397" cy="3" r="8" fill="${b}"/>
+    <circle cx="3" cy="297" r="8" fill="${b}"/><circle cx="397" cy="297" r="8" fill="${a}"/>
+    <circle cx="200" cy="3" r="6" fill="${a}"/><circle cx="200" cy="297" r="6" fill="${b}"/>
+    <circle cx="3" cy="150" r="6" fill="${b}"/><circle cx="397" cy="150" r="6" fill="${a}"/>
+    <circle cx="100" cy="3" r="4" fill="${b}" opacity="0.8"/><circle cx="300" cy="3" r="4" fill="${a}" opacity="0.8"/>
+    <circle cx="100" cy="297" r="4" fill="${a}" opacity="0.8"/><circle cx="300" cy="297" r="4" fill="${b}" opacity="0.8"/>
   </svg>`;
 
   if(evType==='גיבוש צבאי') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="4"/>
-    <rect x="10" y="10" width="380" height="280" fill="none" stroke="${a}" stroke-width="1" stroke-dasharray="6,3" opacity="0.6"/>
-    <rect x="3" y="3" width="32" height="32" fill="${a}55" stroke="${a}" stroke-width="2.5"/>
-    <rect x="365" y="3" width="32" height="32" fill="${a}55" stroke="${a}" stroke-width="2.5"/>
-    <rect x="3" y="265" width="32" height="32" fill="${a}55" stroke="${a}" stroke-width="2.5"/>
-    <rect x="365" y="265" width="32" height="32" fill="${a}55" stroke="${a}" stroke-width="2.5"/>
-    <line x1="19" y1="3" x2="19" y2="35" stroke="${a}" stroke-width="2"/><line x1="3" y1="19" x2="35" y2="19" stroke="${a}" stroke-width="2"/>
-    <line x1="381" y1="3" x2="381" y2="35" stroke="${a}" stroke-width="2"/><line x1="365" y1="19" x2="397" y2="19" stroke="${a}" stroke-width="2"/>
-    <line x1="19" y1="265" x2="19" y2="297" stroke="${a}" stroke-width="2"/><line x1="3" y1="281" x2="35" y2="281" stroke="${a}" stroke-width="2"/>
-    <line x1="381" y1="265" x2="381" y2="297" stroke="${a}" stroke-width="2"/><line x1="365" y1="281" x2="397" y2="281" stroke="${a}" stroke-width="2"/>
-    <rect x="180" y="0" width="40" height="6" fill="${a}99"/>
-    <rect x="180" y="294" width="40" height="6" fill="${a}99"/>
-    <rect x="0" y="130" width="6" height="40" fill="${a}99"/>
-    <rect x="394" y="130" width="6" height="40" fill="${a}99"/>
+    <rect x="12" y="12" width="376" height="276" fill="none" stroke="${a}" stroke-width="1" stroke-dasharray="6,4" opacity="0.6"/>
+    <rect x="3" y="3" width="30" height="30" fill="${a}55" stroke="${a}" stroke-width="3"/>
+    <rect x="367" y="3" width="30" height="30" fill="${a}55" stroke="${a}" stroke-width="3"/>
+    <rect x="3" y="267" width="30" height="30" fill="${a}55" stroke="${a}" stroke-width="3"/>
+    <rect x="367" y="267" width="30" height="30" fill="${a}55" stroke="${a}" stroke-width="3"/>
+    <line x1="18" y1="3" x2="18" y2="33" stroke="${a}" stroke-width="2.5"/>
+    <line x1="3" y1="18" x2="33" y2="18" stroke="${a}" stroke-width="2.5"/>
+    <line x1="382" y1="3" x2="382" y2="33" stroke="${a}" stroke-width="2.5"/>
+    <line x1="367" y1="18" x2="397" y2="18" stroke="${a}" stroke-width="2.5"/>
+    <line x1="18" y1="267" x2="18" y2="297" stroke="${a}" stroke-width="2.5"/>
+    <line x1="3" y1="282" x2="33" y2="282" stroke="${a}" stroke-width="2.5"/>
+    <line x1="382" y1="267" x2="382" y2="297" stroke="${a}" stroke-width="2.5"/>
+    <line x1="367" y1="282" x2="397" y2="282" stroke="${a}" stroke-width="2.5"/>
+    <rect x="180" y="0" width="40" height="6" fill="${a}"/>
+    <rect x="180" y="294" width="40" height="6" fill="${a}"/>
   </svg>`;
 
   if(evType==='מסיבה') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <defs><linearGradient id="pg2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="transparent"/><stop offset="25%" stop-color="${a}"/><stop offset="50%" stop-color="${b}"/><stop offset="75%" stop-color="${a}"/><stop offset="100%" stop-color="transparent"/></linearGradient>
-    <filter id="gp2"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="3" rx="4"/>
-    <rect x="9" y="9" width="382" height="282" fill="none" stroke="${b}" stroke-width="1" rx="3" opacity="0.5"/>
-    <rect x="0" y="0" width="400" height="5" fill="url(#pg2)" opacity="0.9"/>
-    <rect x="0" y="295" width="400" height="5" fill="url(#pg2)" opacity="0.9"/>
-    <rect x="0" y="0" width="5" height="300" fill="${a}" opacity="0.3"/>
-    <rect x="395" y="0" width="5" height="300" fill="${b}" opacity="0.3"/>
-    <circle cx="3" cy="3" r="8" fill="${a}" filter="url(#gp2)"/>
-    <circle cx="397" cy="3" r="8" fill="${b}" filter="url(#gp2)"/>
-    <circle cx="3" cy="297" r="8" fill="${b}" filter="url(#gp2)"/>
-    <circle cx="397" cy="297" r="8" fill="${a}" filter="url(#gp2)"/>
+    <defs><linearGradient id="pgr" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="transparent"/><stop offset="30%" stop-color="${a}"/><stop offset="50%" stop-color="${b}"/><stop offset="70%" stop-color="${a}"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="3.5"/>
+    <rect x="9" y="9" width="382" height="282" fill="none" stroke="${b}" stroke-width="1.5" opacity="0.5"/>
+    <rect x="0" y="0" width="400" height="6" fill="url(#pgr)" opacity="0.9"/>
+    <rect x="0" y="294" width="400" height="6" fill="url(#pgr)" opacity="0.9"/>
+    <circle cx="3" cy="3" r="7" fill="${a}"/><circle cx="397" cy="3" r="7" fill="${b}"/>
+    <circle cx="3" cy="297" r="7" fill="${b}"/><circle cx="397" cy="297" r="7" fill="${a}"/>
   </svg>`;
 
   if(evType==='כנס עסקי') return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="2"/>
-    <path d="M3,55 L3,3 L55,3" stroke="${a}" stroke-width="4" fill="none"/>
-    <path d="M345,3 L397,3 L397,55" stroke="${a}" stroke-width="4" fill="none"/>
-    <path d="M3,245 L3,297 L55,297" stroke="${a}" stroke-width="4" fill="none"/>
-    <path d="M345,297 L397,297 L397,245" stroke="${a}" stroke-width="4" fill="none"/>
-    <path d="M3,70 L3,60" stroke="${a}" stroke-width="2" opacity="0.6"/>
-    <path d="M397,70 L397,60" stroke="${a}" stroke-width="2" opacity="0.6"/>
-    <path d="M3,240 L3,230" stroke="${a}" stroke-width="2" opacity="0.6"/>
-    <path d="M397,240 L397,230" stroke="${a}" stroke-width="2" opacity="0.6"/>
-    <rect x="185" y="0" width="30" height="6" fill="${a}"/>
-    <rect x="185" y="294" width="30" height="6" fill="${a}"/>
-    <circle cx="3" cy="3" r="4" fill="${a}"/><circle cx="397" cy="3" r="4" fill="${a}"/>
-    <circle cx="3" cy="297" r="4" fill="${a}"/><circle cx="397" cy="297" r="4" fill="${a}"/>
+    <path d="M3,65 L3,3 L65,3" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M335,3 L397,3 L397,65" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M3,235 L3,297 L65,297" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M335,297 L397,297 L397,235" stroke="${a}" stroke-width="5" fill="none"/>
+    <circle cx="3" cy="3" r="5" fill="${a}"/><circle cx="397" cy="3" r="5" fill="${a}"/>
+    <circle cx="3" cy="297" r="5" fill="${a}"/><circle cx="397" cy="297" r="5" fill="${a}"/>
+    <rect x="183" y="0" width="34" height="5" fill="${a}"/>
+    <rect x="183" y="295" width="34" height="5" fill="${a}"/>
   </svg>`;
 
-  // בר/בת מצווה + ברירת מחדל
   return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="2.5"/>
-    <path d="M3,55 L3,3 L55,3" stroke="${a}" stroke-width="4" fill="none"/>
-    <path d="M345,3 L397,3 L397,55" stroke="${a}" stroke-width="4" fill="none"/>
-    <path d="M3,245 L3,297 L55,297" stroke="${a}" stroke-width="4" fill="none"/>
-    <path d="M345,297 L397,297 L397,245" stroke="${a}" stroke-width="4" fill="none"/>
+    <rect x="3" y="3" width="394" height="294" fill="none" stroke="${a}" stroke-width="3"/>
+    <path d="M3,55 L3,3 L55,3" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M345,3 L397,3 L397,55" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M3,245 L3,297 L55,297" stroke="${a}" stroke-width="5" fill="none"/>
+    <path d="M345,297 L397,297 L397,245" stroke="${a}" stroke-width="5" fill="none"/>
     <circle cx="3" cy="3" r="5" fill="${a}"/><circle cx="397" cy="3" r="5" fill="${a}"/>
     <circle cx="3" cy="297" r="5" fill="${a}"/><circle cx="397" cy="297" r="5" fill="${a}"/>
     <line x1="160" y1="3" x2="240" y2="3" stroke="${a}" stroke-width="3"/>
@@ -2151,6 +2112,7 @@ function getBaroqueFrame(evType, accent, accent2){
     <circle cx="200" cy="3" r="4" fill="${a}"/><circle cx="200" cy="297" r="4" fill="${a}"/>
   </svg>`;
 }
+
 
 function startCleanProjection(code, eventName, eventType){
   projActive=true;
@@ -2170,39 +2132,47 @@ function startCleanProjection(code, eventName, eventType){
 
   // fetch תמונות ובדיקת סטטוס הקרנה כל 5 שניות
   let firstLoad=true;
+  let inScreensaver=false;
   const fetchPhotos=()=>{
     if(!projActive)return;
     // בדוק אם הקרנה עדיין פעילה
     db.collection('events').doc(code).get().then(doc=>{
       if(doc.exists&&doc.data().projectionActive===false){
         // בעל האירוע עצר את ההקרנה
-        stopAllCellTimers();
-        stopScreensaver();
-        startScreensaver(theme.accent);
+        if(!inScreensaver){
+          inScreensaver=true;
+          stopAllCellTimers();
+          stopScreensaver();
+          startScreensaver(theme.accent);
+        }
         return;
       }
       // טען תמונות
       fbGetPhotos(code).then(photos=>{
         const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
         if(images.length===0){
-          stopAllCellTimers();
-          startScreensaver(theme.accent);
+          if(!inScreensaver){
+            inScreensaver=true;
+            stopAllCellTimers();
+            startScreensaver(theme.accent);
+          }
           return;
         }
-        stopScreensaver();
         projAllPhotos=images;
-        if(firstLoad){
+        // בנה רשת אם: פעם ראשונה, או חזרה משומר מסך
+        if(firstLoad||inScreensaver){
           firstLoad=false;
+          inScreensaver=false;
+          stopScreensaver();
           buildProjectionGrid(theme,eventType);
         }
       }).catch(()=>{});
     }).catch(()=>{
-      // אין רשת — המשך להציג
       fbGetPhotos(code).then(photos=>{
         const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
-        if(images.length===0){startScreensaver(theme.accent);return;}
-        stopScreensaver();projAllPhotos=images;
-        if(firstLoad){firstLoad=false;buildProjectionGrid(theme,eventType);}
+        if(images.length===0){if(!inScreensaver){inScreensaver=true;startScreensaver(theme.accent);}return;}
+        projAllPhotos=images;
+        if(firstLoad||inScreensaver){firstLoad=false;inScreensaver=false;stopScreensaver();buildProjectionGrid(theme,eventType);}
       }).catch(()=>{});
     });
   };
@@ -2267,8 +2237,8 @@ function updateCell(cellIdx, theme, eventType){
       <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;" onerror="this.style.display='none'"/>
       <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;z-index:8;"></div>
       ${frame}
-      <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:rgba(255,255,255,0.65);z-index:14;text-shadow:0 0 12px rgba(0,0,0,0.95),0 2px 6px rgba(0,0,0,0.8);pointer-events:none;">MOMEN<span style="color:${theme.accent}BB;">PIX</span></div>
-      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:${theme.accent2};font-weight:700;z-index:14;text-shadow:0 0 10px rgba(0,0,0,1),0 2px 5px rgba(0,0,0,0.9);pointer-events:none;letter-spacing:0.3px;">${name}</div>`:''}
+      <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:2px;color:rgba(255,255,255,0.65);z-index:14;text-shadow:0 0 12px rgba(0,0,0,0.95),0 2px 6px rgba(0,0,0,0.8);pointer-events:none;">MOMEN<span style="color:${theme.accent}BB;">PIX</span></div>
+      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;color:${theme.accent2};font-weight:700;z-index:14;text-shadow:0 0 10px rgba(0,0,0,1),0 2px 5px rgba(0,0,0,0.9);pointer-events:none;letter-spacing:0.3px;">${name}</div>`:''}
     `;
     cell.style.opacity='1';
   },350);
