@@ -1963,6 +1963,17 @@ function getLogoOverlay(accent){
   return `<div style="position:absolute;${pos}font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:rgba(255,255,255,0.55);z-index:12;text-shadow:0 1px 4px rgba(0,0,0,0.8);pointer-events:none;">MOMEN<span style="color:${accent}88;">PIX</span></div>`;
 }
 
+// ── משתני הקרנה ──
+let projLayout='3x2';
+let projCurrentIdx=0;
+let projActive=false;
+let projAllPhotos=[];
+let projTheme=null;
+let projEventType='';
+let cellTimers=[];
+let projFetchInterval=null;
+let cellIndices=[];
+
 // ── שומר מסך ──
 let ssInterval=null;
 let ssLogoX=50,ssLogoY=50,ssVX=0.3,ssVY=0.2;
@@ -2236,7 +2247,6 @@ function buildProjectionGrid(theme,eventType){
   }
 }
 
-let cellIndices=[];
 function updateCell(cellIdx, theme, eventType){
   if(projAllPhotos.length===0)return;
   if(!cellIndices[cellIdx]) cellIndices[cellIdx]=cellIdx;
