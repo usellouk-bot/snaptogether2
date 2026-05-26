@@ -1078,7 +1078,13 @@ const CLOUD_APPS=[{id:'gdrive',ic:'📁',nm:'Google Drive'},{id:'icloud',ic:'�
 // ═══════════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════
+const GUEST_ALLOWED=['camera','gallery','welcome','guest'];
 function nav(s){
+  // אורח — חסום ניווט למסכים לא מותרים
+  if(S.isGuest&&!GUEST_ALLOWED.includes(s)){
+    toast('⚠ אין גישה — אתה מחובר כאורח מצלם');
+    return;
+  }
   const prev=document.getElementById('s-'+S.cur);
   prev.classList.remove('active'); prev.classList.add('leaving');
   setTimeout(()=>prev.classList.remove('leaving'),300);
@@ -1089,12 +1095,21 @@ function nav(s){
 }
 function back(){
   if(S.hist.length<=1) return;
-  // אורח שחוזר ממצלמה → גלריה
-  if(S.isGuest && S.cur==='camera'){
-    document.getElementById('s-camera').classList.remove('active');
-    S.hist=['gallery']; S.cur='gallery';
-    document.getElementById('s-gallery').classList.add('active');
-    renderGallery(); window.scrollTo(0,0);
+  // אורח — מותר רק מצלמה וגלריה וברוכים הבאים
+  if(S.isGuest){
+    if(S.cur==='camera'){
+      document.getElementById('s-camera').classList.remove('active');
+      S.hist=['gallery']; S.cur='gallery';
+      document.getElementById('s-gallery').classList.add('active');
+      renderGallery(); window.scrollTo(0,0);
+    }
+    // מכל מסך אחר — חזור למצלמה
+    else{
+      document.getElementById('s-'+S.cur).classList.remove('active');
+      S.hist=['camera']; S.cur='camera';
+      document.getElementById('s-camera').classList.add('active');
+      startCam(); window.scrollTo(0,0);
+    }
     return;
   }
   const prev=document.getElementById('s-'+S.cur);
