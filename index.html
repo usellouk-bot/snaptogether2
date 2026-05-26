@@ -1095,21 +1095,23 @@ function nav(s){
 }
 function back(){
   if(S.hist.length<=1) return;
-  // אורח — מותר רק מצלמה וגלריה וברוכים הבאים
+  // אורח — מותר רק בין מצלמה לגלריה
   if(S.isGuest){
     if(S.cur==='camera'){
+      // מצלמה → גלריה (בלי לעצור את המצלמה)
       document.getElementById('s-camera').classList.remove('active');
       S.hist=['gallery']; S.cur='gallery';
       document.getElementById('s-gallery').classList.add('active');
       renderGallery(); window.scrollTo(0,0);
-    }
-    // מכל מסך אחר — חזור למצלמה
-    else{
-      document.getElementById('s-'+S.cur).classList.remove('active');
+    } else if(S.cur==='gallery'){
+      // גלריה → מצלמה (המצלמה כבר רצה ברקע)
+      document.getElementById('s-gallery').classList.remove('active');
       S.hist=['camera']; S.cur='camera';
       document.getElementById('s-camera').classList.add('active');
-      startCam(); window.scrollTo(0,0);
+      window.scrollTo(0,0);
+      // לא קוראים startCam() שוב — המצלמה כבר פעילה
     }
+    // כל מסך אחר — לא עושים כלום
     return;
   }
   const prev=document.getElementById('s-'+S.cur);
@@ -2757,8 +2759,9 @@ function isEventActive(){
   const [sh,sm]=S.ev.startTime.split(':').map(Number);
   const [eh,em]=S.ev.endTime.split(':').map(Number);
   const start=new Date(S.ev.date);start.setHours(sh,sm,0,0);
-  const end=new Date(S.ev.date);end.setHours(eh+2,em,0,0);
-  if(S.ev.endTime<S.ev.startTime)end.setDate(end.getDate()+1);
+  const end=new Date(S.ev.date);end.setHours(eh,em,0,0);
+  // אירוע שעובר חצות — end ביום הבא
+  if(eh*60+em < sh*60+sm) end.setDate(end.getDate()+1);
   return now>=start&&now<=end;
 }
 
@@ -2883,8 +2886,9 @@ function updCamTmr(){
   const el=document.getElementById('cam-tmr');
   if(!S.ev.date||!S.ev.endTime){el.textContent='--:--:--';return;}
   const [eh,em]=S.ev.endTime.split(':').map(Number);
-  const end=new Date(S.ev.date);end.setHours(eh+2,em,0,0);
-  if(S.ev.endTime<S.ev.startTime)end.setDate(end.getDate()+1);
+  const [sh,sm]=(S.ev.startTime||'00:00').split(':').map(Number);
+  const end=new Date(S.ev.date);end.setHours(eh,em,0,0);
+  if(eh*60+em < sh*60+sm) end.setDate(end.getDate()+1);
   const d=end-Date.now();
   if(d<=0){el.textContent='הסתיים';return;}
   const h=Math.floor(d/3600000),m=Math.floor((d%3600000)/60000),sec=Math.floor((d%60000)/1000);
