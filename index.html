@@ -688,11 +688,10 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       MOMEN<span style="color:#fff;">PIX</span>
     </div>
   </div>
-  <!-- פס תחתון -->
-  <div style="position:absolute;bottom:0;left:0;right:0;height:48px;background:linear-gradient(transparent,rgba(0,0,0,0.85));display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 10px;pointer-events:none;z-index:15;">
-    <div id="proj-event-name" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:rgba(255,255,255,0.6);letter-spacing:2px;"></div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:rgba(255,255,255,0.5);">MOMEN<span style="color:#00FF88;">PIX</span></div>
-  </div>
+  <!-- שם האירוע — ראש המסך במרכז -->
+  <div id="proj-event-name" style="position:absolute;top:0;left:0;right:0;text-align:center;padding:10px;font-family:'Bebas Neue',sans-serif;font-size:22px;color:rgba(255,255,255,0.7);letter-spacing:3px;background:linear-gradient(rgba(0,0,0,0.7),transparent);pointer-events:none;z-index:15;"></div>
+  <!-- לוגו — פינה ימנית תחתונה -->
+  <div style="position:absolute;bottom:10px;right:18px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:rgba(255,255,255,0.4);pointer-events:none;z-index:15;">MOMEN<span style="color:#00FF88;">PIX</span></div>
 </div>
 <!-- ALBUM -->
 <div class="screen" id="s-album">
@@ -2246,11 +2245,11 @@ function updateCell(cellIdx, theme, eventType){
   cell.style.opacity='0';
   setTimeout(()=>{
     cell.innerHTML=`
-      <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;" onerror="this.style.display='none'"/>
+      <img src="${url}" style="width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;background:#111;" onerror="this.style.display='none'"/>
       <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;z-index:8;"></div>
       ${frame}
       <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:29px;letter-spacing:2px;color:rgba(255,255,255,0.65);z-index:14;text-shadow:0 0 12px rgba(0,0,0,0.95),0 2px 6px rgba(0,0,0,0.8);pointer-events:none;">MOMEN<span style="color:${theme.accent}BB;">PIX</span></div>
-      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:23px;color:${theme.accent2};font-weight:700;z-index:14;text-shadow:0 0 10px rgba(0,0,0,1),0 2px 5px rgba(0,0,0,0.9);pointer-events:none;letter-spacing:0.3px;">${name}</div>`:''}
+      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:23px;color:${theme.accent2};font-weight:700;z-index:14;text-shadow:0 0 10px rgba(0,0,0,1),0 2px 5px rgba(0,0,0,0.9);pointer-events:none;letter-spacing:0.3px;text-align:right;">${name}</div>`:''}
     `;
     cell.style.opacity='1';
   },350);
