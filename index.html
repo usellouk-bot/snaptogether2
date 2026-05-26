@@ -684,7 +684,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   <!-- שומר מסך -->
   <div id="proj-screensaver" style="display:none;position:absolute;inset:0;background:#000;z-index:20;">
     <canvas id="proj-ss-canvas" style="width:100%;height:100%;"></canvas>
-    <div id="proj-ss-logo" style="position:absolute;font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:6px;color:#00FF88;text-shadow:0 0 30px rgba(0,255,136,0.6);transition:all 1.5s ease;pointer-events:none;">
+    <div id="proj-ss-logo" style="position:absolute;font-family:'Bebas Neue',sans-serif;font-size:62px;letter-spacing:6px;color:#00FF88;text-shadow:0 0 30px rgba(0,255,136,0.6);transition:all 1.5s ease;pointer-events:none;">
       MOMEN<span style="color:#fff;">PIX</span>
     </div>
   </div>
@@ -1859,7 +1859,11 @@ function setLiveLayout(l,btn){
   document.querySelectorAll('.layout-btn').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   renderLiveGrid();
-  // עדכן מסך הקרנה אם פתוח
+  // שמור פריסה ב-Firebase — הטאב של האולם יזהה בסבב הבא
+  if(S.ev&&S.ev.code){
+    db.collection('events').doc(S.ev.code).set({projectionLayout:l},{merge:true}).catch(()=>{});
+  }
+  // עדכן מסך הקרנה מקומי אם פתוח
   const ps=document.getElementById('projection-screen');
   const ss=document.getElementById('proj-screensaver');
   const projOpen=ps&&ps.style.display!=='none';
@@ -2137,7 +2141,8 @@ function startCleanProjection(code, eventName, eventType){
     if(!projActive)return;
     // בדוק אם הקרנה עדיין פעילה
     db.collection('events').doc(code).get().then(doc=>{
-      if(doc.exists&&doc.data().projectionActive===false){
+      const docData=doc.data();
+      if(docData.projectionActive===false){
         // בעל האירוע עצר את ההקרנה
         if(!inScreensaver){
           inScreensaver=true;
@@ -2146,6 +2151,12 @@ function startCleanProjection(code, eventName, eventType){
           startScreensaver(theme.accent);
         }
         return;
+      }
+      // בדוק שינוי פריסה
+      const newLayout=docData.projectionLayout||'3x2';
+      const layoutChanged=newLayout!==projLayout;
+      if(layoutChanged){
+        projLayout=newLayout;
       }
       // טען תמונות
       fbGetPhotos(code).then(photos=>{
@@ -2159,8 +2170,8 @@ function startCleanProjection(code, eventName, eventType){
           return;
         }
         projAllPhotos=images;
-        // בנה רשת אם: פעם ראשונה, או חזרה משומר מסך
-        if(firstLoad||inScreensaver){
+        // בנה רשת אם: פעם ראשונה, חזרה משומר מסך, או שינוי פריסה
+        if(firstLoad||inScreensaver||layoutChanged){
           firstLoad=false;
           inScreensaver=false;
           stopScreensaver();
@@ -2237,8 +2248,8 @@ function updateCell(cellIdx, theme, eventType){
       <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;" onerror="this.style.display='none'"/>
       <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;z-index:8;"></div>
       ${frame}
-      <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:2px;color:rgba(255,255,255,0.65);z-index:14;text-shadow:0 0 12px rgba(0,0,0,0.95),0 2px 6px rgba(0,0,0,0.8);pointer-events:none;">MOMEN<span style="color:${theme.accent}BB;">PIX</span></div>
-      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;color:${theme.accent2};font-weight:700;z-index:14;text-shadow:0 0 10px rgba(0,0,0,1),0 2px 5px rgba(0,0,0,0.9);pointer-events:none;letter-spacing:0.3px;">${name}</div>`:''}
+      <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:29px;letter-spacing:2px;color:rgba(255,255,255,0.65);z-index:14;text-shadow:0 0 12px rgba(0,0,0,0.95),0 2px 6px rgba(0,0,0,0.8);pointer-events:none;">MOMEN<span style="color:${theme.accent}BB;">PIX</span></div>
+      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:23px;color:${theme.accent2};font-weight:700;z-index:14;text-shadow:0 0 10px rgba(0,0,0,1),0 2px 5px rgba(0,0,0,0.9);pointer-events:none;letter-spacing:0.3px;">${name}</div>`:''}
     `;
     cell.style.opacity='1';
   },350);
