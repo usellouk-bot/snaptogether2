@@ -367,7 +367,12 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div id="home-saved-events"></div>
     <div class="sec-header">כניסה מהירה</div>
     <button class="btn-ghost" onclick="nav('guest')" style="border-color:rgba(0,255,136,0.3);color:var(--neon);margin-bottom:6px;">📷 כניסה כאורח מצלם</button>
-    <button class="btn-ghost" onclick="startNew()" id="btn-new-event">+ צור אירוע חדש</button>
+    <button class="btn-ghost" onclick="startNew()" id="btn-new-event" style="display:none;">+ צור אירוע חדש</button>
+    <!-- כפתורי רישום/כניסה — מוסתרים עד אחרי הפיילוט -->
+    <div id="auth-btns" style="display:none;">
+      <button class="btn-ghost" onclick="nav('login')" style="margin-top:6px;">כניסה →</button>
+      <button class="btn-ghost" onclick="nav('register')" style="margin-top:6px;">הרשמה →</button>
+    </div>
     <div class="stats-row">
       <div class="stat-box"><div class="stat-n">∞</div><div class="stat-l">אירועים</div></div>
       <div class="stat-box"><div class="stat-n">AI</div><div class="stat-l">עריכה</div></div>
@@ -1234,9 +1239,9 @@ function doRegister(){
 // HOME
 // ═══════════════════════════════════════════════════════════
 function renderHome(){
-  // הסתר/הצג כפתור יצירת אירוע לפי סטטוס אורח
+  // הצג כפתור יצירת אירוע רק למנהל מערכת
   const newEvBtn=document.getElementById('btn-new-event');
-  if(newEvBtn) newEvBtn.style.display=S.isGuest?'none':'';
+  if(newEvBtn) newEvBtn.style.display=isAdminSession()?'':'none';
   const el=document.getElementById('home-saved-events');
   // וודא שה-S.ev הנוכחי שמור ב-DB
   if(S.ev&&S.ev.code&&S.ev.name){
@@ -1244,8 +1249,41 @@ function renderHome(){
     if(!exists&&!S.ev.deleted){DB.events.push({...S.ev});saveDB();fbSaveEvent(S.ev).catch(()=>{});}
     else if(exists){DB.events[DB.events.indexOf(exists)]={...S.ev};saveDB();fbSaveEvent(S.ev).catch(()=>{});}
   }
-  const userEvents=DB.events.filter(e=>!e.deleted&&e.name);
-  if(!userEvents.length){el.innerHTML='';return;}
+  const userEvents=DB.events.filter(e=>!e.deleted&&e.name&&(e.adminCreated||PILOT_CODES.includes(e.code)));
+  if(!userEvents.length){
+    el.innerHTML='';
+    // אין אירועים מקומיים — נסה לטעון מ-Firebase
+    _loadEventsFromFirebase(el);
+    return;
+  }
+  _renderEventsList(el, userEvents);
+}
+
+// קודי פיילוט — אירועים שנפתחו לפני adminCreated
+const PILOT_CODES=['ST84KMD','STI6XXI','STKT78G','STN08MF','STO20CQ'];
+
+function _loadEventsFromFirebase(el){
+  if(typeof db==='undefined') return;
+  db.collection('events').get().then(snap=>{
+    const fbEvents=[];
+    snap.forEach(doc=>{
+      const ev=doc.data();
+      // הצג רק adminCreated או קודי פיילוט
+      const isPilot=PILOT_CODES.includes(ev.code);
+      if(!ev.deleted&&ev.name&&(ev.adminCreated||isPilot)){
+        fbEvents.push(ev);
+        const exists=DB.events.find(e=>e.code===ev.code);
+        if(!exists) DB.events.push(ev);
+      }
+    });
+    if(fbEvents.length>0){
+      saveDB();
+      _renderEventsList(el, DB.events.filter(e=>!e.deleted&&e.name&&(e.adminCreated||PILOT_CODES.includes(e.code))));
+    }
+  }).catch(()=>{});
+}
+
+function _renderEventsList(el, userEvents){
   el.innerHTML='<div class="sec-header">האירועים שלך</div>'+
     userEvents.map(e=>`<div class="ev-card" onclick="loadEv('${e.code}')">
       <div class="ev-card-dot" style="background:${e.paid||e.adminCreated?'var(--neon)':'var(--amber)'};"></div>
