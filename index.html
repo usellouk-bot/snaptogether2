@@ -1115,8 +1115,7 @@ function nav(s){
   enter(s); window.scrollTo(0,0);
 }
 function back(){
-  if(S.hist.length<=1) return;
-  // אורח — מותר רק בין מצלמה לגלריה
+  // אורח — מותר רק בין מצלמה לגלריה (לפני בדיקת hist)
   if(S.isGuest){
     if(S.cur==='camera'){
       document.getElementById('s-camera').classList.remove('active');
@@ -1126,7 +1125,6 @@ function back(){
       renderGallery();
       window.scrollTo(0,0);
     } else {
-      // כל מסך אחר — חזור למצלמה
       document.getElementById('s-'+S.cur).classList.remove('active');
       S.cur='camera';
       S.hist=['camera'];
@@ -1136,6 +1134,7 @@ function back(){
     }
     return;
   }
+  if(S.hist.length<=1) return;
   const prev=document.getElementById('s-'+S.cur);
   prev.classList.remove('active');
   S.hist.pop(); S.cur=S.hist[S.hist.length-1];
@@ -1266,14 +1265,11 @@ function renderHome(){
     if(!exists&&!S.ev.deleted){DB.events.push({...S.ev});saveDB();fbSaveEvent(S.ev).catch(()=>{});}
     else if(exists){DB.events[DB.events.indexOf(exists)]={...S.ev};saveDB();fbSaveEvent(S.ev).catch(()=>{});}
   }
-  const userEvents=DB.events.filter(e=>!e.deleted&&e.name&&(e.adminCreated||PILOT_CODES.includes(e.code)));
-  if(!userEvents.length){
-    el.innerHTML='';
-    // אין אירועים מקומיים — נסה לטעון מ-Firebase
-    _loadEventsFromFirebase(el);
-    return;
-  }
+  const isAdmin=isAdminSession();
+  const userEvents=DB.events.filter(e=>!e.deleted&&e.name&&(isAdmin||e.adminCreated||PILOT_CODES.includes(e.code)));
   _renderEventsList(el, userEvents);
+  // תמיד מזג מ-Firebase (ברקע)
+  _loadEventsFromFirebase(el);
 }
 
 // קודי פיילוט — אירועים שנפתחו לפני adminCreated
@@ -1281,22 +1277,22 @@ const PILOT_CODES=['ST84KMD','STI6XXI','STKT78G','STN08MF','STO20CQ'];
 
 function _loadEventsFromFirebase(el){
   if(typeof db==='undefined') return;
+  const isAdmin=isAdminSession();
   db.collection('events').get().then(snap=>{
-    const fbEvents=[];
+    let changed=false;
     snap.forEach(doc=>{
       const ev=doc.data();
-      // הצג רק adminCreated או קודי פיילוט
-      const isPilot=PILOT_CODES.includes(ev.code);
-      if(!ev.deleted&&ev.name&&(ev.adminCreated||isPilot)){
-        fbEvents.push(ev);
+      // אדמין רואה הכל, אחרים רק adminCreated או PILOT_CODES
+      const visible=isAdmin||(ev.adminCreated||PILOT_CODES.includes(ev.code));
+      if(!ev.deleted&&ev.name&&visible){
         const exists=DB.events.find(e=>e.code===ev.code);
-        if(!exists) DB.events.push(ev);
+        if(!exists){DB.events.push(ev);changed=true;}
       }
     });
-    if(fbEvents.length>0){
-      saveDB();
-      _renderEventsList(el, DB.events.filter(e=>!e.deleted&&e.name&&(e.adminCreated||PILOT_CODES.includes(e.code))));
-    }
+    if(changed) saveDB();
+    const isAdmin2=isAdminSession();
+    const all=DB.events.filter(e=>!e.deleted&&e.name&&(isAdmin2||e.adminCreated||PILOT_CODES.includes(e.code)));
+    if(all.length>0) _renderEventsList(el, all);
   }).catch(()=>{});
 }
 
@@ -1414,8 +1410,11 @@ function submitCreate(){
   // מנהל — עוקף תשלום, שומר ישר
   if(S.ev.adminCreated||(DB.currentUser&&DB.currentUser.role==='admin')){
     S.ev.adminCreated=true;S.ev.paid=true;
-    saveEvent();renderHome();
-    toast('✓ אירוע נוצר!');nav('share');return;
+    saveEvent();
+    fbSaveEvent(S.ev).then(()=>{}).catch(()=>{});
+    toast('✓ אירוע נוצר! קוד: '+S.ev.code);
+    nav('share');
+    return;
   }
 
   // משתמש רגיל — שמור טיוטה ועבור לחבילה
