@@ -1887,21 +1887,54 @@ function _renderGalleryPhotos(photos){
     return;
   }
 
+  const isAdmin=isAdminSession();
+
   document.getElementById('gal-grid').innerHTML=photos.map((p,i)=>{
     const time=new Date(p.ts).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
     const displayUrl = p.cloudUrl || p.url;
+    const delBtn=isAdmin?'<button onclick="event.stopPropagation();deleteGalleryPhoto('+i+')" style="position:absolute;top:4px;right:4px;background:rgba(220,50,50,0.85);border:none;border-radius:50%;width:24px;height:24px;color:white;font-size:13px;cursor:pointer;z-index:15;line-height:24px;text-align:center;">✕</button>':'';
     if(p.type==='video'){
-      return `<div class="g-cell" style="padding:0;overflow:hidden;position:relative;" onclick="openVideoLB('${displayUrl}')">
-        <video src="${displayUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline></video>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);"><div style="font-size:28px;">▶</div></div>
-        <div class="g-time">🎬 ${time}</div>
-      </div>`;
+      return '<div class="g-cell" style="padding:0;overflow:hidden;position:relative;" onclick="openVideoLB(\''+displayUrl+'\')">'
+        +'<video src="'+displayUrl+'" style="width:100%;height:100%;object-fit:cover;" muted playsinline></video>'
+        +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);"><div style="font-size:28px;">▶</div></div>'
+        +'<div class="g-time">🎬 '+time+'</div>'
+        +delBtn
+        +'</div>';
     }
-    return `<div class="g-cell" style="padding:0;overflow:hidden;position:relative;" onclick="openPhotoLB(${i})">
-      <img src="${displayUrl}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.parentElement.innerHTML='<div style=font-size:30px;text-align:center;padding-top:30%;>📷</div>'"/>
-      <div class="g-time">${time}</div>
-    </div>`;
+    return '<div class="g-cell" style="padding:0;overflow:hidden;position:relative;" onclick="openPhotoLB('+i+')">'
+      +'<img src="'+displayUrl+'" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.parentElement.innerHTML=\'<div style=font-size:30px;text-align:center;padding-top:30%;>📷</div>\'"/>'
+      +'<div class="g-time">'+time+'</div>'
+      +delBtn
+      +'</div>';
   }).join('');
+}
+
+async function deleteGalleryPhoto(idx){
+  const photos=getEventPhotos();
+  const p=photos[idx];
+  if(!p)return;
+  if(!confirm('מחק תמונה זו?'))return;
+  const code=S.ev.code;
+  const url=p.cloudUrl||p.url;
+
+  // מחק מ-Firebase
+  try{
+    const snap=await db.collection('events').doc(code).collection('photos').get();
+    const batch=db.batch();
+    snap.docs.forEach(d=>{
+      const data=d.data();
+      if(data.url===url||data.cloudUrl===url) batch.delete(d.ref);
+    });
+    await batch.commit();
+  }catch(e){console.error('Firebase delete:',e);}
+
+  // מחק מ-localStorage
+  const updated=photos.filter((_,i)=>i!==idx);
+  saveStoredPhotos(code,updated);
+  if(window.eventPhotos) window.eventPhotos[code]=updated;
+
+  toast('✓ תמונה נמחקה');
+  renderGallery();
 }
 
 function guestGoToCamera(){
