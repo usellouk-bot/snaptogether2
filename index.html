@@ -1762,9 +1762,25 @@ const UPLOAD_PRESET = 'snaptogether';
 
 async function uploadToCloudinary(dataURL, eventCode, uploaderName, meta){
   try{
-    const res=await fetch(dataURL);const blob=await res.blob();
+    // המרת dataURL ל-blob בצורה תואמת iOS/Safari
+    let blob;
+    try{
+      const res=await fetch(dataURL);
+      blob=await res.blob();
+    }catch(e){
+      // גיבוי לiOS/Safari שלא תומך ב-fetch של data URLs
+      const arr=dataURL.split(',');
+      const mime=arr[0].match(/:(.*?);/)[1];
+      const bstr=atob(arr[1]);
+      let n=bstr.length;
+      const u8arr=new Uint8Array(n);
+      while(n--){u8arr[n]=bstr.charCodeAt(n);}
+      blob=new Blob([u8arr],{type:mime});
+    }
+    if(!blob||blob.size===0) return null;
+
     const formData=new FormData();
-    formData.append('file',blob);
+    formData.append('file',blob,'photo.jpg');
     formData.append('upload_preset',UPLOAD_PRESET);
 
     // מבנה תיקיות: momenpix / שם_אירוע / תאריך / שם_מצלם
@@ -4243,10 +4259,7 @@ function handleDeepLink(){
       S.ev=found;
       S.isGuest=true;
       localStorage.setItem('st_last_code',upperCode);
-      nav('guest');
-      setTimeout(()=>{
-        const gEl=document.getElementById('g-code');if(gEl)gEl.value=upperCode;
-      },200);
+      nav('welcome'); // ישירות ל-welcome, לא ל-guest
     } else {
       // לא נמצא מקומית — חפש ב-Firebase
       const tryFb=()=>{
