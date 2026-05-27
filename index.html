@@ -767,7 +767,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 <div class="screen camera-screen" id="s-camera">
   <div class="cam-topbar">
     <!-- FIX: Exit goes to gallery not home; does not re-ask for code -->
-    <button onclick="stopCamera()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:var(--r1);padding:6px 12px;color:white;font-size:13px;cursor:pointer;font-family:var(--fb);font-weight:600;">‹ חזרה</button>
+    <button onclick="S.isGuest?back():stopCamera()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:var(--r1);padding:6px 12px;color:white;font-size:13px;cursor:pointer;font-family:var(--fb);font-weight:600;">‹ חזרה</button>
     <span class="cam-timer" id="cam-tmr">--:--:--</span>
     <span class="cam-ev-name" id="cam-nm"></span>
   </div>
