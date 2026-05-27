@@ -58,8 +58,15 @@ async function fbSavePhoto(eventCode,photo){
 async function fbGetPhotos(eventCode){
   try{
     const snap=await db.collection('events').doc(eventCode).collection('photos')
-      .orderBy('uploadedAt','desc').limit(100).get();
-    return snap.docs.map(d=>d.data());
+      .limit(200).get();
+    const photos=snap.docs.map(d=>d.data());
+    // מיין לפי זמן — uploadedAt או capturedAt
+    photos.sort((a,b)=>{
+      const ta=a.uploadedAt||new Date(a.capturedAt||0).getTime()||0;
+      const tb=b.uploadedAt||new Date(b.capturedAt||0).getTime()||0;
+      return tb-ta;
+    });
+    return photos;
   }catch(e){return [];}
 }
 </script>
@@ -1112,24 +1119,21 @@ function back(){
   // אורח — מותר רק בין מצלמה לגלריה
   if(S.isGuest){
     if(S.cur==='camera'){
-      // מצלמה → גלריה — רק מחליפים תצוגה, לא עוצרים stream
       document.getElementById('s-camera').classList.remove('active');
-      S.hist=['gallery']; S.cur='gallery';
+      S.cur='gallery';
+      S.hist=['gallery'];
       document.getElementById('s-gallery').classList.add('active');
       renderGallery();
       window.scrollTo(0,0);
-    } else if(S.cur==='gallery'){
-      // גלריה → מצלמה
-      document.getElementById('s-gallery').classList.remove('active');
-      S.hist=['camera']; S.cur='camera';
+    } else {
+      // כל מסך אחר — חזור למצלמה
+      document.getElementById('s-'+S.cur).classList.remove('active');
+      S.cur='camera';
+      S.hist=['camera'];
       document.getElementById('s-camera').classList.add('active');
       window.scrollTo(0,0);
-      // אם ה-stream נסגר — הפעל מחדש
-      if(!S.camStream){
-        startCam();
-      }
+      if(!S.camStream) startCam();
     }
-    // כל מסך אחר — לא עושים כלום
     return;
   }
   const prev=document.getElementById('s-'+S.cur);
@@ -1891,8 +1895,11 @@ function _renderGalleryPhotos(photos){
 }
 
 function guestGoToCamera(){
-  document.getElementById('s-gallery').classList.remove('active');
-  S.hist=['camera']; S.cur='camera';
+  if(S.cur!=='camera'){
+    document.getElementById('s-'+S.cur).classList.remove('active');
+  }
+  S.cur='camera';
+  S.hist=['camera'];
   document.getElementById('s-camera').classList.add('active');
   window.scrollTo(0,0);
   if(!S.camStream) startCam();
@@ -2845,9 +2852,16 @@ let previewCountdownInt=null;
 let capturedDataURLs=[]; // local capture buffer
 
 function isEventActive(){
-  // מנהל/בעל אירוע תמיד יכול לצלם
+  // מנהל תמיד יכול לצלם
   if(DB.currentUser&&DB.currentUser.role==='admin') return true;
-  if(!S.ev.date||!S.ev.startTime||!S.ev.endTime) return true;
+
+  // אם חסרים שדות תאריך/שעה — אורח לא יכול לצלם
+  if(!S.ev.date||!S.ev.startTime||!S.ev.endTime){
+    // בעל אירוע מחובר — מותר
+    if(DB.currentUser&&DB.currentUser.role==='owner') return true;
+    // אורח ללא פרטי זמן — חסום
+    return false;
+  }
 
   const now=new Date();
 
