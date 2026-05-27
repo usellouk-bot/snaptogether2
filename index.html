@@ -634,7 +634,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <!-- FIX: Gallery loads from cloud / localStorage, shows actual images not icons -->
     <div class="gallery-grid" id="gal-grid"></div>
     <!-- כפתור חזרה למצלמה לאורח בלבד -->
-    <button class="btn-primary" id="gal-guest-back" onclick="back()" style="display:none;margin:12px 18px;">📷 חזרה למצלמה</button>
+    <button class="btn-primary" id="gal-guest-back" onclick="guestGoToCamera()" style="display:none;margin:12px 18px;">📷 חזרה למצלמה</button>
     <button class="btn-ghost" id="gal-filter-btn" onclick="nav('filter')">🔍 סינון לפי זמן / מצלם</button>
     <div class="row2" style="margin:0 18px 10px;">
       <button class="btn-ghost" style="margin:0;flex:1;" id="gal-album-btn" onclick="nav('album')">📖 אלבום AI</button>
@@ -1805,7 +1805,6 @@ function renderGallery(){
   if(S.isGuest){
     if(guestBackBtn) guestBackBtn.style.display='block';
     guestHideEls.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-    // הסתר כפתור בית ב-topbar
     const homeBtn=document.querySelector('#s-gallery .home-btn');
     if(homeBtn) homeBtn.style.display='none';
   } else {
@@ -1814,8 +1813,37 @@ function renderGallery(){
     const homeBtn=document.querySelector('#s-gallery .home-btn');
     if(homeBtn) homeBtn.style.display='';
   }
-  // FIX: Load from localStorage, not just in-memory
-  const photos = getEventPhotos();
+
+  // טען תמונות מקומיות קודם
+  const localPhotos = getEventPhotos();
+  _renderGalleryPhotos(localPhotos);
+
+  // טען גם מ-Firebase ומזג
+  if(S.ev.code){
+    fbGetPhotos(S.ev.code).then(fbPhotos=>{
+      if(!fbPhotos||fbPhotos.length===0) return;
+      // מזג — הוסף תמונות שיש ב-Firebase אבל לא מקומית
+      const local=getEventPhotos();
+      const localUrls=new Set(local.map(p=>p.cloudUrl||p.url).filter(Boolean));
+      let added=false;
+      fbPhotos.forEach(p=>{
+        const u=p.cloudUrl||p.url;
+        if(u&&!localUrls.has(u)){
+          local.push({url:u,cloudUrl:u,ts:p.capturedAt||p.uploadedAt||new Date().toISOString(),
+            uploaderName:p.uploaderName||'אורח',type:p.type||'image'});
+          added=true;
+        }
+      });
+      if(added){
+        saveStoredPhotos(S.ev.code, local);
+        window.eventPhotos[S.ev.code]=local;
+        _renderGalleryPhotos(local);
+      }
+    }).catch(()=>{});
+  }
+}
+
+function _renderGalleryPhotos(photos){
   const images = photos.filter(p=>p.type!=='video');
   const videos = photos.filter(p=>p.type==='video');
 
@@ -1837,7 +1865,6 @@ function renderGallery(){
     return;
   }
 
-  // FIX: Show actual photos, not icons
   document.getElementById('gal-grid').innerHTML=photos.map((p,i)=>{
     const time=new Date(p.ts).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
     const displayUrl = p.cloudUrl || p.url;
@@ -1853,6 +1880,14 @@ function renderGallery(){
       <div class="g-time">${time}</div>
     </div>`;
   }).join('');
+}
+
+function guestGoToCamera(){
+  document.getElementById('s-gallery').classList.remove('active');
+  S.hist=['camera']; S.cur='camera';
+  document.getElementById('s-camera').classList.add('active');
+  window.scrollTo(0,0);
+  if(!S.camStream) startCam();
 }
 
 function openPhotoLB(idx){
