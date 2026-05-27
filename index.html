@@ -1119,6 +1119,9 @@ function back(){
   // אורח — מותר רק בין מצלמה לגלריה (לפני בדיקת hist)
   if(S.isGuest){
     if(S.cur==='camera'){
+      // עצור stream בצורה מסודרת
+      if(previewCountdownInt){clearInterval(previewCountdownInt);previewCountdownInt=null;}
+      if(S.camStream){S.camStream.getTracks().forEach(t=>t.stop());S.camStream=null;}
       document.getElementById('s-camera').classList.remove('active');
       S.cur='gallery';
       S.hist=['gallery'];
@@ -1131,7 +1134,7 @@ function back(){
       S.hist=['camera'];
       document.getElementById('s-camera').classList.add('active');
       window.scrollTo(0,0);
-      if(!S.camStream) startCam();
+      startCam(); // תמיד — stream נעצר בכניסה לגלריה
     }
     return;
   }
@@ -1909,7 +1912,7 @@ function guestGoToCamera(){
   S.hist=['camera'];
   document.getElementById('s-camera').classList.add('active');
   window.scrollTo(0,0);
-  if(!S.camStream) startCam();
+  startCam(); // תמיד — stream נעצר בכניסה לגלריה
 }
 
 function openPhotoLB(idx){
@@ -4145,19 +4148,47 @@ function handleDeepLink(){
   // כניסת אורח עם קוד
   const code=params.get('code');
   if(code){
-    const found=DB.events.find(e=>e.code===code.toUpperCase()&&!e.deleted&&(e.paid||e.adminCreated));
+    const upperCode=code.toUpperCase();
+    const found=DB.events.find(e=>e.code===upperCode&&!e.deleted&&(e.paid||e.adminCreated));
     if(found){
       S.ev=found;
+      S.isGuest=true;
+      localStorage.setItem('st_last_code',upperCode);
       nav('guest');
       setTimeout(()=>{
-        const gEl=document.getElementById('g-code');if(gEl)gEl.value=code.toUpperCase();
+        const gEl=document.getElementById('g-code');if(gEl)gEl.value=upperCode;
       },200);
     } else {
-      nav('guest');
-      setTimeout(()=>{
-        const err=document.getElementById('g-err');
-        if(err){err.textContent='⚠ קוד אירוע לא נמצא';err.style.display='flex';}
-      },300);
+      // לא נמצא מקומית — חפש ב-Firebase
+      const tryFb=()=>{
+        if(typeof fbGetEvent!=='function'||typeof db==='undefined'){
+          setTimeout(tryFb,300);return;
+        }
+        fbGetEvent(upperCode).then(fbEv=>{
+          if(fbEv&&!fbEv.deleted&&(fbEv.paid||fbEv.adminCreated)){
+            S.ev=fbEv;
+            S.isGuest=true;
+            DB.events=DB.events.filter(e=>e.code!==upperCode);
+            DB.events.push(fbEv);
+            saveDB();
+            localStorage.setItem('st_last_code',upperCode);
+            nav('welcome');
+          } else {
+            nav('guest');
+            setTimeout(()=>{
+              const err=document.getElementById('g-err');
+              if(err){err.textContent='⚠ קוד אירוע לא נמצא';err.style.display='flex';}
+            },300);
+          }
+        }).catch(()=>{
+          nav('guest');
+          setTimeout(()=>{
+            const err=document.getElementById('g-err');
+            if(err){err.textContent='⚠ קוד אירוע לא נמצא';err.style.display='flex';}
+          },300);
+        });
+      };
+      tryFb();
     }
   }
 }
