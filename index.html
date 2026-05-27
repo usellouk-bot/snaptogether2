@@ -966,6 +966,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <div class="admin-badge">ADMIN</div>
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="font-size:10px;color:var(--text3);">עוזי סלוק</div>
+        <button onclick="S.isGuest=false;home();" style="background:var(--dark3);border:1px solid var(--border2);border-radius:var(--r1);padding:6px 12px;color:var(--neon);font-size:12px;cursor:pointer;">⌂ בית</button>
         <div id="adm-notif" style="width:8px;height:8px;border-radius:50%;background:var(--red);display:none;animation:pulse 1s infinite;"></div>
       </div>
     </div>
@@ -3881,7 +3882,7 @@ function _admTabRender(t,btn){
   }
   h+=`<div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
   document.getElementById('adm-body').innerHTML=h;
-}(code){if(confirm('מחק?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
+}
 function deleteAdminEvent(code){if(confirm('מחק?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();db.collection('events').doc(code).set({deleted:true},{merge:true}).catch(()=>{});admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
 function deleteUser(email){if(confirm('מחק משתמש?')){DB.users=DB.users.filter(u=>u.email!==email);saveDB();admTab('clients',null);toast('✓ נמחק');}}
 function exportReport(name){toast('📊 מייצר דוח '+name+'...');setTimeout(()=>{toast('✓ דוח הורד!');},2000);}
