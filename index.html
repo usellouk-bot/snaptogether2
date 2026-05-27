@@ -351,7 +351,8 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
           <div class="home-logo">Momen<span>pix</span></div>
           <div class="home-tagline">צילום שיתופי · כל אירוע · כל מקום</div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+        <!-- כניסה/הרשמה — מוסתר לפיילוט -->
+        <div style="display:none;" id="hero-auth-btns">
           <button onclick="nav('login')" style="background:var(--dark3);border:1px solid var(--border2);border-radius:var(--r1);padding:8px 14px;color:var(--text2);font-size:10px;cursor:pointer;font-family:var(--fb);font-weight:600;letter-spacing:1px;text-transform:uppercase;">כניסה</button>
           <button onclick="nav('register')" style="background:var(--neon3);border:1px solid rgba(0,255,136,0.3);border-radius:var(--r1);padding:8px 14px;color:var(--neon);font-size:10px;cursor:pointer;font-family:var(--fb);font-weight:600;letter-spacing:1px;text-transform:uppercase;">הרשמה</button>
         </div>
@@ -1086,11 +1087,17 @@ const CLOUD_APPS=[{id:'gdrive',ic:'📁',nm:'Google Drive'},{id:'icloud',ic:'�
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════
 const GUEST_ALLOWED=['camera','gallery','welcome','guest'];
+const ADMIN_SCREENS=['share','admin','create','home','package','payment','cloud','edit_event','scenarios','live','filter','album','clip','storage','download'];
 function nav(s){
   // אורח — חסום ניווט למסכים לא מותרים
   if(S.isGuest&&!GUEST_ALLOWED.includes(s)){
-    toast('⚠ אין גישה — אתה מחובר כאורח מצלם');
-    return;
+    // אם admin מנסה לנווט — נקה isGuest
+    if(isAdminSession()){
+      S.isGuest=false;
+    } else {
+      toast('⚠ אין גישה — אתה מחובר כאורח מצלם');
+      return;
+    }
   }
   const prev=document.getElementById('s-'+S.cur);
   prev.classList.remove('active'); prev.classList.add('leaving');
@@ -1301,6 +1308,7 @@ function _renderEventsList(el, userEvents){
     </div>`).join('');
 }
 function loadEv(code){
+  S.isGuest=false;
   const ev=DB.events.find(e=>e.code===code);
   if(ev){
     S.ev=ev;
@@ -1310,11 +1318,11 @@ function loadEv(code){
   }
 }
 function startNew(){
-  if(!DB.currentUser){
-    toast('⚠ יש להירשם או להתחבר תחילה');
-    setTimeout(()=>nav('login'),800);
+  if(!isAdminSession()){
+    toast('יצירת אירוע זמינה למנהל בלבד');
     return;
   }
+  S.isGuest=false;
   S.ev={code:makeCode(),paid:false,free:false,usedGB:0};
   S.selCam=5;S.selStor=5;S.camP=0;S.storP=0;S.freePlan=false;
   nav('create');
@@ -1631,12 +1639,12 @@ function shareWA(){
   const code=S.ev.code||'';
   const name=S.ev.name||'האירוע';
   const msg=
-    'הוזמנת להיות צלם באירוע של '+name+'! 📸\n\n'+
-    'על מנת להיכנס לחץ על הקישור:\n'+
+    'הוזמנת לצלם באירוע של '+name+' 📸\n\n'+
+    'לחץ על הקישור:\n'+
     url+'\n\n'+
-    'קוד האירוע שלך:\n'+
-    '*'+code+'*\n\n'+
-    'שמור את הקוד — תצטרך אותו בכניסה.';
+    'קוד כניסה:\n'+
+    code+'\n\n'+
+    'שמור את הקוד - תצטרך אותו בכניסה';
   window.open('https://wa.me/?text='+encodeURIComponent(msg));
 }
 function shareSMS(){window.open('sms:?body='+encodeURIComponent(document.getElementById('sh-link').value));}
