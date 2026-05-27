@@ -2999,8 +2999,29 @@ function updCamTmr(){
   const [sh,sm]=(S.ev.startTime||'00:00').split(':').map(Number);
   const end=new Date(S.ev.date);end.setHours(eh,em,0,0);
   if(eh*60+em < sh*60+sm) end.setDate(end.getDate()+1);
-  const d=end-Date.now();
-  if(d<=0){el.textContent='הסתיים';return;}
+  // שעתיים גרייס
+  const grace=new Date(end.getTime()+2*60*60*1000);
+  const now=Date.now();
+  const d=end-now;
+  const dGrace=grace-now;
+  if(dGrace<=0){
+    // הסתיים גם הגרייס — חסום לחלוטין (לא admin)
+    if(!DB.currentUser||DB.currentUser.role!=='admin'){
+      el.textContent='הסתיים';
+      el.style.color='var(--red)';
+      const shutter=document.getElementById('shutterEl');
+      if(shutter){shutter.style.opacity='0.3';shutter.style.pointerEvents='none';}
+    }
+    return;
+  }
+  if(d<=0){
+    // אירוע הסתיים אבל יש עוד גרייס
+    const gMin=Math.floor(dGrace/60000),gSec=Math.floor((dGrace%60000)/1000);
+    el.textContent=`+${String(gMin).padStart(2,'0')}:${String(gSec).padStart(2,'0')}`;
+    el.style.color='var(--amber)';
+    return;
+  }
+  el.style.color='var(--neon)';
   const h=Math.floor(d/3600000),m=Math.floor((d%3600000)/60000),sec=Math.floor((d%60000)/1000);
   el.textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
