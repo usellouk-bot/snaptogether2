@@ -1046,7 +1046,13 @@ function addPhotoToEvent(photoObj){
 }
 
 function updatePhotoCloudUrl(code, localTs, cloudUrl, uploadedAt){
-  if(!window.eventPhotos[code]) return;
+  // שמור ב-Firebase תמיד — לא תלוי ב-memory
+  if(cloudUrl&&code){
+    const uploaderName=(DB.currentUser&&DB.currentUser.name)||S.guestName||'אורח';
+    const type=(window.eventPhotos&&window.eventPhotos[code]&&window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs)&&window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs).type)||'image';
+    fbSavePhoto(code,{url:cloudUrl,ts:localTs,uploaderName,type}).catch(()=>{});
+  }
+  if(!window.eventPhotos||!window.eventPhotos[code]) return;
   const p=window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs);
   if(p){
     p.cloudUrl=cloudUrl;
@@ -1054,11 +1060,6 @@ function updatePhotoCloudUrl(code, localTs, cloudUrl, uploadedAt){
     p.pending=false;
     p.uploadStatus='uploaded';
     p.uploadedAt=uploadedAt||new Date().toISOString();
-    // שמור ב-Firebase
-    if(cloudUrl&&code){
-      const uploaderName=(DB.currentUser&&DB.currentUser.name)||S.guestName||'אורח';
-      fbSavePhoto(code,{url:cloudUrl,ts:localTs,uploaderName,type:p.type||'image'}).catch(()=>{});
-    }
   }
   saveStoredPhotos(code, window.eventPhotos[code]);
 }
