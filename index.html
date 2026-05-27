@@ -1103,18 +1103,19 @@ function back(){
   // אורח — מותר רק בין מצלמה לגלריה
   if(S.isGuest){
     if(S.cur==='camera'){
-      // מצלמה → גלריה (בלי לעצור את המצלמה)
+      // מצלמה → גלריה — רק מחליפים תצוגה, לא עוצרים stream
       document.getElementById('s-camera').classList.remove('active');
       S.hist=['gallery']; S.cur='gallery';
       document.getElementById('s-gallery').classList.add('active');
-      renderGallery(); window.scrollTo(0,0);
+      renderGallery();
+      window.scrollTo(0,0);
     } else if(S.cur==='gallery'){
-      // גלריה → מצלמה (המצלמה כבר רצה ברקע)
+      // גלריה → מצלמה — רק מחליפים תצוגה, stream כבר פעיל
       document.getElementById('s-gallery').classList.remove('active');
       S.hist=['camera']; S.cur='camera';
       document.getElementById('s-camera').classList.add('active');
       window.scrollTo(0,0);
-      // לא קוראים startCam() שוב — המצלמה כבר פעילה
+      // לא קוראים startCam() — stream כבר פעיל
     }
     // כל מסך אחר — לא עושים כלום
     return;
@@ -3601,6 +3602,8 @@ function updCamUI(){
 
 // FIX: Stop camera goes to gallery, NOT home
 function stopCamera(){
+  // אורח — לא עוצרים את המצלמה כשעוברים לגלריה
+  if(S.isGuest) return;
   if(previewCountdownInt){clearInterval(previewCountdownInt);previewCountdownInt=null;}
   hidePhotoPreview();
   if(S.camStream)S.camStream.getTracks().forEach(t=>t.stop());S.camStream=null;
