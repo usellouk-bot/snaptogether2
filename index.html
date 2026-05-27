@@ -2534,14 +2534,49 @@ function clearAllLocalData(){
 async function clearEventPhotos(){
   const code=document.getElementById('clear-event-code')?.value?.toUpperCase().trim();
   if(!code){toast('⚠ הכנס קוד אירוע');return;}
-  if(!confirm('מחק את כל תמונות האירוע '+code+' מ-Firebase?'))return;
+  if(!confirm('מחק את כל תמונות האירוע '+code+' מכל הענן?\n(Firebase + Cloudinary + מקומי)'))return;
+  toast('⏳ מוחק תמונות...');
+  let fbCount=0, cloudCount=0, errors=[];
+
+  // 1. מחק מ-Firebase ואסוף URLs למחיקה מ-Cloudinary
   try{
     const snap=await db.collection('events').doc(code).collection('photos').get();
+    const cloudUrls=[];
+    snap.docs.forEach(d=>{
+      const data=d.data();
+      if(data.url&&data.url.includes('cloudinary')) cloudUrls.push(data.url);
+      if(data.cloudUrl&&data.cloudUrl.includes('cloudinary')) cloudUrls.push(data.cloudUrl);
+    });
     const batch=db.batch();
     snap.docs.forEach(d=>batch.delete(d.ref));
     await batch.commit();
-    toast('✓ תמונות האירוע נוקו מ-Firebase');
-  }catch(e){toast('⚠ שגיאה: '+e.message);}
+    fbCount=snap.docs.length;
+
+    // 2. מחק מ-Cloudinary דרך API
+    for(const url of [...new Set(cloudUrls)]){
+      try{
+        // חלץ public_id מה-URL
+        const match=url.match(/\/upload\/(?:v\d+\/)?(.+?)\.[^.]+$/);
+        if(match){
+          const publicId=match[1];
+          await fetch('https://api.cloudinary.com/v1_1/dufzgvkzi/image/destroy',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({public_id:publicId,invalidate:true})
+          });
+          cloudCount++;
+        }
+      }catch(e){errors.push('Cloudinary: '+e.message);}
+    }
+  }catch(e){errors.push('Firebase: '+e.message);}
+
+  // 3. מחק מ-localStorage
+  localStorage.removeItem('st_photos_'+code);
+  if(window.eventPhotos) window.eventPhotos[code]=[];
+
+  const msg='✓ נמחקו: '+fbCount+' ב-Firebase, '+cloudCount+' ב-Cloudinary'+
+    (errors.length?' | שגיאות: '+errors.length:'');
+  toast(msg,5000);
 }
 
 function enterProjectionFullscreen(){
