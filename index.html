@@ -1112,12 +1112,15 @@ function back(){
       renderGallery();
       window.scrollTo(0,0);
     } else if(S.cur==='gallery'){
-      // גלריה → מצלמה — רק מחליפים תצוגה, stream כבר פעיל
+      // גלריה → מצלמה
       document.getElementById('s-gallery').classList.remove('active');
       S.hist=['camera']; S.cur='camera';
       document.getElementById('s-camera').classList.add('active');
       window.scrollTo(0,0);
-      // לא קוראים startCam() — stream כבר פעיל
+      // אם ה-stream נסגר — הפעל מחדש
+      if(!S.camStream){
+        startCam();
+      }
     }
     // כל מסך אחר — לא עושים כלום
     return;
@@ -1644,6 +1647,19 @@ function confirmDeleteEvent(){if(confirm('האם למחוק את האירוע?')
 // EDIT EVENT
 // ═══════════════════════════════════════════════════════════
 function renderEditEvent(){
+  // חסום עריכה לאחר שעתיים מסיום האירוע (לא מנהל)
+  if(DB.currentUser?.role!=='admin'&&S.ev.date&&S.ev.endTime){
+    const [eh,em]=S.ev.endTime.split(':').map(Number);
+    const [sh,sm]=(S.ev.startTime||'00:00').split(':').map(Number);
+    const end=new Date(S.ev.date);end.setHours(eh,em,0,0);
+    if(eh*60+em < sh*60+sm) end.setDate(end.getDate()+1);
+    const grace=new Date(end.getTime()+2*60*60*1000);
+    if(new Date()>grace){
+      toast('⚠ לא ניתן לערוך אירוע שהסתיים');
+      back();
+      return;
+    }
+  }
   document.getElementById('ed-name').value=S.ev.name||'';
   document.getElementById('ed-date').value=S.ev.date||'';
   document.getElementById('ed-start').value=S.ev.startTime||'';
@@ -2819,7 +2835,9 @@ function isEventActive(){
   const end=new Date(S.ev.date);end.setHours(eh,em,0,0);
   // אירוע שעובר חצות — end ביום הבא
   if(eh*60+em < sh*60+sm) end.setDate(end.getDate()+1);
-  return now>=start&&now<=end;
+  // שעתיים גרייס אחרי סיום
+  const grace=new Date(end.getTime()+2*60*60*1000);
+  return now>=start&&now<=grace;
 }
 
 async function startCam(){
