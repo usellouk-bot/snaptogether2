@@ -3761,6 +3761,26 @@ function admCreateEvent(){
 function admTab(t,btn){
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
+  // טען מ-Firebase ואז הצג
+  if(typeof db!=='undefined'){
+    db.collection('events').get().then(snap=>{
+      snap.forEach(doc=>{
+        const ev=doc.data();
+        if(!ev.deleted&&ev.name){
+          const exists=DB.events.find(e=>e.code===ev.code);
+          if(!exists) DB.events.push(ev);
+          else DB.events[DB.events.indexOf(exists)]={...DB.events[DB.events.indexOf(exists)],...ev};
+        }
+      });
+      saveDB();
+      _admTabRender(t,btn);
+    }).catch(()=>_admTabRender(t,btn));
+  } else {
+    _admTabRender(t,btn);
+  }
+}
+
+function _admTabRender(t,btn){
   const evs=DB.events.filter(e=>!e.deleted);
   const users=DB.users;
   const totalUsedGB=evs.reduce((sum,e)=>sum+(e.usedGB||0),0).toFixed(2);
@@ -3861,8 +3881,8 @@ function admTab(t,btn){
   }
   h+=`<div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>`;
   document.getElementById('adm-body').innerHTML=h;
-}
-function deleteAdminEvent(code){if(confirm('מחק?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
+}(code){if(confirm('מחק?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
+function deleteAdminEvent(code){if(confirm('מחק?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();db.collection('events').doc(code).set({deleted:true},{merge:true}).catch(()=>{});admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
 function deleteUser(email){if(confirm('מחק משתמש?')){DB.users=DB.users.filter(u=>u.email!==email);saveDB();admTab('clients',null);toast('✓ נמחק');}}
 function exportReport(name){toast('📊 מייצר דוח '+name+'...');setTimeout(()=>{toast('✓ דוח הורד!');},2000);}
 function admBackOrLogout(){
