@@ -1267,7 +1267,11 @@ function renderHome(){
   }
   const isAdmin=isAdminSession();
   const userEvents=DB.events.filter(e=>!e.deleted&&e.name&&(isAdmin||e.adminCreated||PILOT_CODES.includes(e.code)));
-  _renderEventsList(el, userEvents);
+  if(userEvents.length>0){
+    _renderEventsList(el, userEvents);
+  } else {
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">⏳ טוען אירועים...</div>';
+  }
   // תמיד מזג מ-Firebase (ברקע)
   _loadEventsFromFirebase(el);
 }
