@@ -3360,11 +3360,13 @@ function applyNightSafe(ctx, width, height){
 
 // ── TAKE PHOTO ──
 function takePhoto(){
+  if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים');return;}
   if(S.photos>=getPhotoLimit()){toast('הגעת למגבלת התמונות');return;}
   if(typeof getTimerSecs==='function'&&getTimerSecs()>0&&!burstInt){runTimerThenShoot();return;}
   takePhotoNow();
 }
 function takePhotoNow(){
+  if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים');return;}
   if(S.photos>=getPhotoLimit()){toast('הגעת למגבלת התמונות');return;}
   if(flashOn&&torchTrack){
     torchTrack.applyConstraints({advanced:[{torch:true}]}).then(()=>{setTimeout(()=>torchTrack.applyConstraints({advanced:[{torch:false}]}),600);}).catch(()=>{});
@@ -3717,6 +3719,7 @@ function runTimerThenShoot(){
 let burstTimer=null;let burstInt=null;let isBursting=false;
 function startBurst(e){
   if(S.camMode!=='photo')return;
+  if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים');return;}
   burstTimer=setTimeout(()=>{
     isBursting=true;
     toast('📸 רצף — שחרר לעצור');
@@ -3733,6 +3736,7 @@ function stopBurst(){
   if(isBursting){toast('✓ רצף הסתיים');isBursting=false;}
 }
 function takePhotoSilent(){
+  if(!isEventActive()&&!isAdminSession())return;
   if(S.photos>=getPhotoLimit())return;
   const vid=document.getElementById('cam-vid');
   const canvas=document.createElement('canvas');
@@ -4378,12 +4382,24 @@ window.addEventListener('beforeunload', (e)=>{
 
 document.addEventListener('visibilitychange', async () => {
   if(document.visibilityState === 'visible' && S.cur === 'camera'){
-    // עצור את הסטרים הישן לחלוטין לפני פתיחה מחדש
+    // עצור stream ישן
     if(S.camStream){
       S.camStream.getTracks().forEach(t=>t.stop());
       S.camStream=null;
     }
     torchTrack=null;
+    // בדוק האם האירוע עדיין פעיל
+    if(!isEventActive()&&!isAdminSession()){
+      toast('⏰ האירוע הסתיים — מועבר לגלריה');
+      // עבור למסך מתאים
+      const dest=S.isGuest?'gallery':'gallery';
+      document.getElementById('s-camera').classList.remove('active');
+      S.cur=dest;
+      S.hist=[dest];
+      document.getElementById('s-'+dest).classList.add('active');
+      renderGallery();
+      return;
+    }
     toast('🔄 מפעיל מצלמה מחדש...');
     await openCameraStream();
     // נסה להעלות תמונות ממתינות
