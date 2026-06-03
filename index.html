@@ -2167,6 +2167,17 @@ function selG(g){S.selGuest=g;renderFilter();}
 // ═══════════════════════════════════════════════════════════
 function renderLive(){
   document.getElementById('live-nm').textContent=S.ev.name||'';
+  // שחזר מצב נעול אם הקרנה נותקה לצמיתות
+  if(S.ev&&S.ev.projectionEnded===true){
+    var btn=document.getElementById('live-btn');
+    if(btn){btn.textContent='🔒 הקרנה נותקה';btn.disabled=true;btn.style.opacity='0.45';}
+    var inp2=document.getElementById('live-link-inp');
+    if(inp2){inp2.value='';inp2.placeholder='הקרנה נותקה לצמיתות';}
+    var note2=document.getElementById('live-link-note');
+    if(note2)note2.style.display='none';
+    renderLiveGrid();
+    return;
+  }
   // הצג קישור הקרנה מראש — לפני לחיצה על הפעל
   if(S.ev&&S.ev.code){
     var projUrl='https://usellouk-bot.github.io/snaptogether2/?live='+S.ev.code;
@@ -2830,6 +2841,8 @@ function enterProjectionFullscreen(){
 function toggleLive(){
   if(!S.ev||!S.ev.code){toast('⚠ לא נבחר אירוע');return;}
   if(!S.liveActive){
+    // חסום הפעלה אחרי ניתוק סופי
+    if(S.ev.projectionEnded===true){toast('⚠ הקרנה זו נותקה לצמיתות');return;}
     S.liveActive=true;
     const url='https://usellouk-bot.github.io/snaptogether2/?live='+S.ev.code;
     document.getElementById('live-btn').textContent='⏹ עצור הקרנה';
@@ -2866,10 +2879,14 @@ function toggleLive(){
 function disconnectProjection(){
   if(!confirm('לנתק את ההקרנה לצמיתות?\nהקישור שנשלח לאולם לא יהיה פעיל יותר.'))return;
   S.liveActive=false;
-  document.getElementById('live-btn').textContent='📺 הפעל הקרנה לייב';
+  // עדכן S.ev מקומית כדי ש-toggleLive לא יאפס את projectionEnded
+  if(S.ev){S.ev.projectionEnded=true;saveEvent();}
+  document.getElementById('live-btn').textContent='🔒 הקרנה נותקה';
   document.getElementById('live-btn').style.background='';
+  document.getElementById('live-btn').style.opacity='0.45';
+  document.getElementById('live-btn').disabled=true;
   document.getElementById('live-link-inp').value='';
-  document.getElementById('live-link-inp').placeholder='לחץ הפעל הקרנה כדי לקבל קישור';
+  document.getElementById('live-link-inp').placeholder='הקרנה נותקה לצמיתות';
   document.getElementById('live-link-note').style.display='none';
   document.getElementById('live-status-note').style.display='none';
   document.getElementById('live-disconnect-btn').style.display='none';
