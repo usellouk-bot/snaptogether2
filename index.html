@@ -809,7 +809,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div class="note note-neon"><div class="note-dot"></div><div><div>📸 צלמו ישירות מהאפליקציה</div><div style="margin-top:2px;font-size:10px;opacity:0.7;">התמונות עולות אוטומטית לענן</div></div></div>
     <div class="card">
       <div class="card-label">מגבלות הצילום שלך</div>
-      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="color:var(--text2);">תמונות</span><span style="color:var(--neon);font-weight:600;">עד 50</span></div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="color:var(--text2);">תמונות</span><span style="color:var(--neon);font-weight:600;">ללא הגבלה</span></div>
       <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12px;"><span style="color:var(--text2);">אחסון</span><span style="color:var(--neon);font-weight:600;">500MB</span></div>
     </div>
     <div id="wlc-role-section"></div>
@@ -935,7 +935,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 
   <!-- PROGRESS -->
   <div class="cam-info-bar">
-    <div style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;">📸 <span id="cam-cnt" style="color:var(--neon);">0</span>/50</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;">📸 <span id="cam-cnt" style="color:var(--neon);">0</span>/<span id="cam-limit">50</span></div>
     <div style="flex:1;margin:0 10px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
       <div id="cam-prog" style="height:100%;background:var(--neon);width:0%;transition:width 0.3s;border-radius:2px;"></div>
     </div>
@@ -1271,6 +1271,15 @@ function fallbackQR(el,txt){
 }
 
 function makeCode(){ return 'ST'+Math.random().toString(36).substr(2,5).toUpperCase(); }
+
+// ── PHOTO LIMIT — client-side only (server validation: Firebase Functions בשלב הבא) ──
+function getPhotoLimit(){
+  if(S.ev.adminCreated===true) return 9999;
+  if(S.ev.cameras===999) return 9999;
+  if(S.ev.freePlan||S.ev.free) return 50;
+  if(S.ev.photoLimit) return S.ev.photoLimit;
+  return 9999; // אירוע בתשלום — ללא הגבלה מעשית
+}
 
 // ═══════════════════════════════════════════════════════════
 // AUTH
@@ -3349,12 +3358,12 @@ function applyNightSafe(ctx, width, height){
 
 // ── TAKE PHOTO ──
 function takePhoto(){
-  if(S.photos>=50){toast('הגעת למגבלת 50 תמונות');return;}
+  if(S.photos>=getPhotoLimit()){toast('הגעת למגבלת התמונות');return;}
   if(typeof getTimerSecs==='function'&&getTimerSecs()>0&&!burstInt){runTimerThenShoot();return;}
   takePhotoNow();
 }
 function takePhotoNow(){
-  if(S.photos>=50){toast('הגעת למגבלת 50 תמונות');return;}
+  if(S.photos>=getPhotoLimit()){toast('הגעת למגבלת התמונות');return;}
   if(flashOn&&torchTrack){
     torchTrack.applyConstraints({advanced:[{torch:true}]}).then(()=>{setTimeout(()=>torchTrack.applyConstraints({advanced:[{torch:false}]}),600);}).catch(()=>{});
   } else if(flashOn){
@@ -3711,7 +3720,7 @@ function startBurst(e){
     toast('📸 רצף — שחרר לעצור');
     takePhotoSilent();
     burstInt=setInterval(()=>{
-      if(S.photos>=50){stopBurst();return;}
+      if(S.photos>=getPhotoLimit()){stopBurst();return;}
       takePhotoSilent();
     },800);
   },500);
@@ -3722,7 +3731,7 @@ function stopBurst(){
   if(isBursting){toast('✓ רצף הסתיים');isBursting=false;}
 }
 function takePhotoSilent(){
-  if(S.photos>=50)return;
+  if(S.photos>=getPhotoLimit())return;
   const vid=document.getElementById('cam-vid');
   const canvas=document.createElement('canvas');
   canvas.width=vid.videoWidth||640;canvas.height=vid.videoHeight||480;
@@ -3917,8 +3926,10 @@ function renderChatLog(){const el=document.getElementById('chat-log');if(!el)ret
 function sendMsg(){const inp=document.getElementById('chat-inp');if(!inp||!inp.value.trim())return;const t=new Date();S.chatLog.push({u:'אני',m:inp.value,t:t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')});inp.value='';renderChatLog();}
 
 function updCamUI(){
-  const pct=Math.round(S.photos/50*100);
+  const photoLimit=getPhotoLimit();
+  const pct=photoLimit>=9999?Math.min(Math.round(S.photos/9999*100),100):Math.round(S.photos/photoLimit*100);
   const cnt=document.getElementById('cam-cnt');if(cnt)cnt.textContent=S.photos;
+  const limEl=document.getElementById('cam-limit');if(limEl)limEl.textContent=photoLimit>=9999?'∞':photoLimit;
   const prog=document.getElementById('cam-prog');if(prog){prog.style.width=pct+'%';prog.style.background=pct>80?'var(--red)':'var(--neon)';}
   const mb=document.getElementById('cam-mb');if(mb)mb.textContent=Math.round(S.photos*7.5);
 
