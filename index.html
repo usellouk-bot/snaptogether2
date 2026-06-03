@@ -2341,6 +2341,7 @@ let projTheme=null;
 let projEventType='';
 let cellTimers=[];
 let projFetchInterval=null;
+let projPhotosUnsub=null;
 let cellIndices=[];
 
 // ── שומר מסך ──
@@ -2549,25 +2550,68 @@ function startCleanProjection(code, eventName, eventType){
   // fetch תמונות ובדיקת סטטוס הקרנה כל 5 שניות
   let firstLoad=true;
   let inScreensaver=false;
-  const fetchPhotos=()=>{
+
+  // ── onSnapshot על תמונות — real-time במקום polling ──
+  if(projPhotosUnsub){projPhotosUnsub();projPhotosUnsub=null;}
+  projPhotosUnsub=db.collection('events').doc(code).collection('photos')
+    .limit(200)
+    .onSnapshot(function(snap){
+      if(!projActive)return;
+      var photos=snap.docs.map(function(d){return d.data();});
+      photos.sort(function(a,b){
+        var ta=a.uploadedAt||new Date(a.capturedAt||0).getTime()||0;
+        var tb=b.uploadedAt||new Date(b.capturedAt||0).getTime()||0;
+        return tb-ta;
+      });
+      var images=photos.filter(function(p){return p.type!=='video'&&(p.url||p.cloudUrl);});
+      if(images.length===0){
+        if(!inScreensaver){
+          inScreensaver=true;
+          stopAllCellTimers();
+          startScreensaver(theme.accent);
+        }
+        return;
+      }
+      // עדכן תמיד — תאים פעילים ימשכו מהמערך המעודכן אוטומטית
+      projAllPhotos=images;
+      // בנה grid רק בטעינה ראשונה — לא בכל עדכון
+      if(firstLoad){
+        firstLoad=false;
+        if(inScreensaver){
+          // screensaver פעיל — עדכנו projAllPhotos ברקע, לא סוגרים
+          return;
+        }
+        buildProjectionGrid(theme,eventType);
+      }
+    },function(){
+      // onSnapshot נכשל — fallback חד-פעמי
+      fbGetPhotos(code).then(function(photos){
+        var images=(photos||[]).filter(function(p){return p.type!=='video'&&(p.url||p.cloudUrl);});
+        if(images.length===0)return;
+        projAllPhotos=images;
+        if(firstLoad){firstLoad=false;buildProjectionGrid(theme,eventType);}
+      }).catch(function(){});
+    });
+
+  // ── polling על סטטוס האירוע בלבד (projectionActive/Ended/Layout) ──
+  var fetchEventStatus=function(){
     if(!projActive)return;
-    // בדוק אם הקרנה עדיין פעילה
-    db.collection('events').doc(code).get().then(doc=>{
-      const docData=doc.exists?doc.data():{};
-      // ניתוק לצמיתות — סגור הכל ללא שומר מסך
+    db.collection('events').doc(code).get().then(function(doc){
+      var docData=doc.exists?doc.data():{};
+      // ניתוק לצמיתות
       if(docData.projectionEnded===true){
         projActive=false;
         stopAllCellTimers();
         if(projFetchInterval){clearInterval(projFetchInterval);projFetchInterval=null;}
+        if(projPhotosUnsub){projPhotosUnsub();projPhotosUnsub=null;}
         stopScreensaver();
-        const ps=document.getElementById('projection-screen');
+        var ps=document.getElementById('projection-screen');
         if(ps)ps.style.display='none';
         document.body.style.overflow='';
-        if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}
+        if(document.fullscreenElement){document.exitFullscreen().catch(function(){});}
         return;
       }
       if(docData.projectionActive===false){
-        // בעל האירוע עצר את ההקרנה
         if(!inScreensaver){
           inScreensaver=true;
           stopAllCellTimers();
@@ -2577,44 +2621,24 @@ function startCleanProjection(code, eventName, eventType){
         return;
       }
       // בדוק שינוי פריסה
-      const newLayout=docData.projectionLayout||'3x2';
-      const layoutChanged=newLayout!==projLayout;
-      if(layoutChanged){
-        console.log('Layout changed:',projLayout,'→',newLayout);
+      var newLayout=docData.projectionLayout||'3x2';
+      if(newLayout!==projLayout){
         projLayout=newLayout;
-      }
-      // טען תמונות
-      fbGetPhotos(code).then(photos=>{
-        const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
-        if(images.length===0){
-          if(!inScreensaver){
-            inScreensaver=true;
-            stopAllCellTimers();
-            startScreensaver(theme.accent);
-          }
-          return;
-        }
-        projAllPhotos=images;
-        // בנה רשת אם: פעם ראשונה, חזרה משומר מסך, או שינוי פריסה
-        if(firstLoad||inScreensaver||layoutChanged){
-          firstLoad=false;
-          inScreensaver=false;
-          stopScreensaver();
+        if(!inScreensaver&&projAllPhotos.length>0){
           buildProjectionGrid(theme,eventType);
         }
-      }).catch(()=>{});
-    }).catch(()=>{
-      fbGetPhotos(code).then(photos=>{
-        const images=(photos||[]).filter(p=>p.type!=='video'&&(p.url||p.cloudUrl));
-        if(images.length===0){if(!inScreensaver){inScreensaver=true;startScreensaver(theme.accent);}return;}
-        projAllPhotos=images;
-        if(firstLoad||inScreensaver){firstLoad=false;inScreensaver=false;stopScreensaver();buildProjectionGrid(theme,eventType);}
-      }).catch(()=>{});
-    });
+      }
+      // חזרה מ-screensaver כשהקרנה פעילה ויש תמונות
+      if(inScreensaver&&docData.projectionActive!==false&&projAllPhotos.length>0){
+        inScreensaver=false;
+        stopScreensaver();
+        buildProjectionGrid(theme,eventType);
+      }
+    }).catch(function(){});
   };
-  fetchPhotos();
+  fetchEventStatus();
   if(projFetchInterval)clearInterval(projFetchInterval);
-  projFetchInterval=setInterval(fetchPhotos,5000);
+  projFetchInterval=setInterval(fetchEventStatus,5000);
 }
 
 function buildProjectionGrid(theme,eventType){
@@ -2690,6 +2714,7 @@ function stopCleanProjection(){
   projActive=false;
   stopAllCellTimers();
   if(projFetchInterval){clearInterval(projFetchInterval);projFetchInterval=null;}
+  if(projPhotosUnsub){projPhotosUnsub();projPhotosUnsub=null;}
   stopScreensaver();
   const ps=document.getElementById('projection-screen');
   if(ps)ps.style.display='none';
