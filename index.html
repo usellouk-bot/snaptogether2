@@ -736,11 +736,17 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       </div>
     </div>
     <button class="btn-primary" id="live-btn" onclick="toggleLive()">📺 הפעל הקרנה לייב</button>
-    <div class="link-row" style="margin:0 18px 10px;">
-      <input class="link-inp" id="live-link-inp" readonly placeholder="לחץ הפעל הקרנה כדי לקבל קישור"/>
+    <div class="card-label" style="margin:10px 18px 6px;">קישור הקרנה לאולם</div>
+    <div class="link-row" style="margin:0 18px 6px;">
+      <input class="link-inp" id="live-link-inp" readonly placeholder="טוען קישור..."/>
       <button class="copy-btn" onclick="copyLiveLink()">העתק</button>
     </div>
-    <div class="note note-amber" style="margin:0 18px 10px;display:none;" id="live-link-note"><div class="note-dot"></div>פתח קישור זה על המסך באולם</div>
+    <div style="margin:0 18px 10px;display:flex;gap:8px;">
+      <a id="live-wa-btn" href="#" target="_blank" style="display:none;flex:1;align-items:center;justify-content:center;gap:6px;padding:10px;background:rgba(37,211,102,0.12);border:1px solid rgba(37,211,102,0.35);border-radius:12px;color:#25D366;font-size:13px;font-weight:600;text-decoration:none;font-family:var(--fb);">
+        <span style="font-size:16px;">📲</span> שלח ב-WhatsApp
+      </a>
+    </div>
+    <div class="note note-amber" style="margin:0 18px 10px;" id="live-link-note"><div class="note-dot"></div>פתח קישור זה על המסך באולם</div>
     <button class="btn-ghost btn-danger" id="live-disconnect-btn" onclick="disconnectProjection()" style="display:none;margin:0 18px 8px;width:calc(100% - 36px);">🔌 ניתוק וסיום הקרנה</button>
   </div>
 </div>
@@ -2159,7 +2165,20 @@ function selG(g){S.selGuest=g;renderFilter();}
 // ═══════════════════════════════════════════════════════════
 // LIVE
 // ═══════════════════════════════════════════════════════════
-function renderLive(){document.getElementById('live-nm').textContent=S.ev.name||'';renderLiveGrid();}
+function renderLive(){
+  document.getElementById('live-nm').textContent=S.ev.name||'';
+  // הצג קישור הקרנה מראש — לפני לחיצה על הפעל
+  if(S.ev&&S.ev.code){
+    var projUrl='https://usellouk-bot.github.io/snaptogether2/?live='+S.ev.code;
+    var inp=document.getElementById('live-link-inp');
+    if(inp&&!inp.value){inp.value=projUrl;inp.placeholder=projUrl;}
+    var note=document.getElementById('live-link-note');
+    if(note)note.style.display='flex';
+    var waBtn=document.getElementById('live-wa-btn');
+    if(waBtn){waBtn.href='https://wa.me/?text='+encodeURIComponent('קישור הקרנה לאולם: '+projUrl);waBtn.style.display='inline-flex';}
+  }
+  renderLiveGrid();
+}
 function renderLiveGrid(){
   const g=document.getElementById('live-g');
   if(!g) return;
@@ -2847,10 +2866,13 @@ function disconnectProjection(){
   toast('✓ הקרנה נותקה — הקישור לאולם בוטל');
 }
 function copyLiveLink(){
-  const url=document.getElementById('live-link-inp')?.value||'';
-  if(!url){toast('⚠ הפעל קודם הקרנה');return;}
+  var inp=document.getElementById('live-link-inp');
+  var url=(inp&&inp.value)||'';
+  if(!url&&S.ev&&S.ev.code)url='https://usellouk-bot.github.io/snaptogether2/?live='+S.ev.code;
+  if(!url){toast('⚠ אין קוד אירוע');return;}
+  if(inp&&!inp.value)inp.value=url;
   navigator.clipboard.writeText(url).catch(()=>{});
-  toast('✓ קישור הועתק!');
+  toast('✓ קישור הקרנה הועתק!');
 }
 
 // ═══════════════════════════════════════════════════════════
