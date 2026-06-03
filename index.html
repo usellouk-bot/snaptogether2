@@ -101,7 +101,9 @@ async function fbSavePhoto(eventCode,photo){
       uploaderName:photo.uploaderName||'אורח',
       capturedAt:photo.ts||new Date().toISOString(),
       uploadedAt:Date.now(),
-      type:photo.type||'image'
+      type:photo.type||'image',
+      scenarioId:photo.scenarioId||'main',
+      scenarioName:photo.scenarioName||'האירוע המרכזי'
     };
     // שמור uploaderUid אם קיים
     if(photo.uploaderUid) doc.uploaderUid=photo.uploaderUid;
@@ -1110,8 +1112,12 @@ function updatePhotoCloudUrl(code, localTs, cloudUrl, uploadedAt){
     const uploaderName=(DB.currentUser&&DB.currentUser.name)||S.guestName||'אורח';
     // uploaderUid — Firebase Auth UID (anonymous או registered)
     const uploaderUid=(mpCurrentUser&&mpCurrentUser.uid)||localStorage.getItem('mp_firebase_uid')||localStorage.getItem('mp_anon_uid')||null;
-    const type=(window.eventPhotos&&window.eventPhotos[code]&&window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs)&&window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs).type)||'image';
-    fbSavePhoto(code,{url:cloudUrl,ts:localTs,uploaderName,uploaderUid,type}).catch(()=>{});
+    const photo=window.eventPhotos&&window.eventPhotos[code]&&window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs);
+    const type=(photo&&photo.type)||'image';
+    // שיוך תרחיש — נשמר על photoObj בזמן הצילום
+    const scenarioId=(photo&&photo.scenarioId)||'main';
+    const scenarioName=(photo&&photo.scenarioName)||'האירוע המרכזי';
+    fbSavePhoto(code,{url:cloudUrl,ts:localTs,uploaderName,uploaderUid,type,scenarioId,scenarioName}).catch(()=>{});
   }
   if(!window.eventPhotos||!window.eventPhotos[code]) return;
   const p=window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs);
@@ -1882,13 +1888,57 @@ function saveScenario(){
   const n=document.getElementById('sc-name').value,d=document.getElementById('sc-date').value,s=document.getElementById('sc-start').value;
   if(!n||!d||!s){toast('⚠ מלא שם, תאריך ושעת התחלה');return;}
   const sc={n,d,s,e:document.getElementById('sc-end').value,c:document.getElementById('sc-cams').value};
-  if(S.editingScIdx>=0)S.scList[S.editingScIdx]=sc; else S.scList.push(sc);
-  // שמור ב-S.ev.scenarios וב-Firestore — מקור האמת
+  // id דטרמיניסטי יציב לפי שם+תאריך+שעה — לא ישתנה אם עורכים שדות אחרים
+  if(S.editingScIdx>=0){
+    // שמור id קיים בעריכה — אל תחליף
+    sc.id=S.scList[S.editingScIdx].id||_makeScenarioId(sc.n,sc.d,sc.s);
+    S.scList[S.editingScIdx]=sc;
+  } else {
+    sc.id=_makeScenarioId(sc.n,sc.d,sc.s);
+    S.scList.push(sc);
+  }
+  // עדכן S.ev.scenarios וב-Firestore — מקור האמת
   S.ev.scenarios=[...S.scList];
   saveEvent();
   // cache ב-localStorage
   localStorage.setItem('st_scenarios_'+(S.ev.code||''), JSON.stringify(S.scList));
   cancelScForm();renderScenarios();toast('✓ תרחיש נשמר!');
+}
+
+// id דטרמיניסטי: sc_ + hash של שם+תאריך+שעה
+function _makeScenarioId(name, date, startTime){
+  const raw=(name||'')+'_'+(date||'')+'_'+(startTime||'');
+  let h=5381;
+  for(let i=0;i<raw.length;i++) h=((h<<5)+h)^raw.charCodeAt(i);
+  return 'sc_'+(h>>>0).toString(36);
+}
+
+// מחזיר את התרחיש הפעיל בזמן הצילום
+// אם אין תרחיש פעיל — מחזיר {id:'main', n:'האירוע המרכזי'}
+function getActiveScenario(){
+  const now=new Date();
+  const scenarios=S.scList||[];
+  for(let i=0;i<scenarios.length;i++){
+    const sc=scenarios[i];
+    if(!sc.d||!sc.s) continue;
+    const scStart=new Date(sc.d);
+    const parts=sc.s.split(':').map(Number);
+    scStart.setHours(parts[0],parts[1],0,0);
+    const scEnd=new Date(sc.d);
+    if(sc.e){
+      const ep=sc.e.split(':').map(Number);
+      scEnd.setHours(ep[0],ep[1],0,0);
+      if(sc.e<sc.s) scEnd.setDate(scEnd.getDate()+1);
+    } else {
+      scEnd.setHours(scStart.getHours()+3,scStart.getMinutes(),0,0);
+    }
+    if(now>=scStart&&now<=scEnd){
+      // וודא שיש id — backfill דטרמיניסטי אם חסר
+      const scId=sc.id||_makeScenarioId(sc.n,sc.d,sc.s);
+      return {id:scId, n:sc.n||'תרחיש'};
+    }
+  }
+  return {id:'main', n:'האירוע המרכזי'};
 }
 function deleteScenario(i){
   if(confirm('למחוק?')){
@@ -3629,7 +3679,9 @@ async function uploadPhoto(dataURL,meta){
     nightMode:S.nightMode,
     capturedAt,
     uploadedAt:null,
-    cloudUrl:null
+    cloudUrl:null,
+    scenarioId:(meta&&meta.scenarioId)||'main',
+    scenarioName:(meta&&meta.scenarioName)||'האירוע המרכזי'
   };
   addPhotoToEvent(photoObj);
   updCamUI();
@@ -3903,6 +3955,7 @@ function getEntrySource(){
 }
 
 function getPhotoMetadata(){
+  const activeSc=getActiveScenario();
   return {
     eventCode: S.ev.code||'',
     uploaderId: getUploaderId(),
@@ -3910,12 +3963,14 @@ function getPhotoMetadata(){
     deviceId: getDeviceId(),
     capturedAt: new Date().toISOString(),
     uploadedAt: null,
-    uploadStatus: 'pending', // pending / uploaded / failed
+    uploadStatus: 'pending',
     source: 'app-camera',
     nightMode: S.nightMode,
     facing: camFacingMode,
     mode: S.camMode,
-    cloudUrl: null
+    cloudUrl: null,
+    scenarioId: activeSc.id,
+    scenarioName: activeSc.n
   };
 }
 
