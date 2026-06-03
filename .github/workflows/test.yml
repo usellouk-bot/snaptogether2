@@ -6,6 +6,7 @@ on:
       - 'index.html'
       - 'admin.html'
       - 'tests/**'
+  workflow_dispatch:  # מאפשר הפעלה ידנית
 
 jobs:
   static-check:
