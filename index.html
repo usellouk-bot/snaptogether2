@@ -2546,6 +2546,25 @@ function getBaroqueFrame(evType, accent, accent2){
 
 
 function startCleanProjection(code, eventName, eventType){
+  // בדיקת Firebase לפני הפעלה — מניעת הקרנה אחרי ניתוק סופי
+  db.collection('events').doc(code).get().then(function(doc){
+    const d=doc.exists?doc.data():{};
+    if(d.projectionEnded===true){
+      // ניתוק סופי — חסום
+      if(projPhotosUnsub){projPhotosUnsub();projPhotosUnsub=null;}
+      if(projFetchInterval){clearInterval(projFetchInterval);projFetchInterval=null;}
+      stopAllCellTimers();
+      document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:rgba(255,255,255,0.4);letter-spacing:3px;">ההקרנה הסתיימה</div>';
+      return;
+    }
+    _doStartCleanProjection(code, eventName, eventType);
+  }).catch(function(){
+    // Firebase לא זמין — המשך רגיל (יתגלה בתוך 5 שניות דרך polling)
+    _doStartCleanProjection(code, eventName, eventType);
+  });
+}
+
+function _doStartCleanProjection(code, eventName, eventType){
   projActive=true;
   projEventType=eventType;
   const ps=document.getElementById('projection-screen');
@@ -4470,7 +4489,14 @@ function handleDeepLink(){
       },300);
     };
     const localEv=DB.events.find(e=>e.code===liveCode&&!e.deleted);
-    if(localEv){startProjection(localEv);}
+    if(localEv){
+      // בדוק projectionEnded לפני הפעלה — גם אם נמצא ב-localStorage
+      if(localEv.projectionEnded===true){
+        document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:rgba(255,255,255,0.4);letter-spacing:3px;">ההקרנה הסתיימה</div>';
+        return;
+      }
+      startProjection(localEv);
+    }
     else{
       // המתן ל-Firebase אם עדיין לא מוכן
       const tryFb=()=>{
