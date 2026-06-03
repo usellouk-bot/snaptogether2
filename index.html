@@ -1437,8 +1437,22 @@ function loadEv(code){
   const ev=DB.events.find(e=>e.code===code);
   if(ev){
     S.ev=ev;
-    // טען תרחישים של האירוע
-    S.scList=JSON.parse(localStorage.getItem('st_scenarios_'+code)||'[]');
+    // טעינת תרחישים — מקור אמת: ev.scenarios (Firebase/DB)
+    if(ev.scenarios&&ev.scenarios.length>0){
+      S.scList=ev.scenarios;
+    } else {
+      // fallback: localStorage st_scenarios_CODE
+      const local=JSON.parse(localStorage.getItem('st_scenarios_'+code)||'[]');
+      S.scList=local;
+      if(local.length>0){
+        // backfill אוטומטי: שמור ל-ev.scenarios ול-Firestore
+        S.ev.scenarios=local;
+        saveEvent();
+      } else {
+        S.scList=[];
+        S.ev.scenarios=[];
+      }
+    }
     nav('share');
   }
 }
@@ -1448,7 +1462,8 @@ function startNew(){
     return;
   }
   S.isGuest=false;
-  S.ev={code:makeCode(),paid:false,free:false,usedGB:0};
+  S.scList=[];
+  S.ev={code:makeCode(),paid:false,free:false,usedGB:0,scenarios:[]};
   S.selCam=5;S.selStor=5;S.camP=0;S.storP=0;S.freePlan=false;
   nav('create');
 }
@@ -1868,13 +1883,20 @@ function saveScenario(){
   if(!n||!d||!s){toast('⚠ מלא שם, תאריך ושעת התחלה');return;}
   const sc={n,d,s,e:document.getElementById('sc-end').value,c:document.getElementById('sc-cams').value};
   if(S.editingScIdx>=0)S.scList[S.editingScIdx]=sc; else S.scList.push(sc);
-  // שמור ב-localStorage מקושר לאירוע
+  // שמור ב-S.ev.scenarios וב-Firestore — מקור האמת
+  S.ev.scenarios=[...S.scList];
+  saveEvent();
+  // cache ב-localStorage
   localStorage.setItem('st_scenarios_'+(S.ev.code||''), JSON.stringify(S.scList));
   cancelScForm();renderScenarios();toast('✓ תרחיש נשמר!');
 }
 function deleteScenario(i){
   if(confirm('למחוק?')){
     S.scList.splice(i,1);
+    // עדכן S.ev.scenarios וב-Firestore
+    S.ev.scenarios=[...S.scList];
+    saveEvent();
+    // עדכן cache ב-localStorage
     localStorage.setItem('st_scenarios_'+(S.ev.code||''), JSON.stringify(S.scList));
     renderScenarios();toast('✓ נמחק!');
   }
@@ -4104,7 +4126,8 @@ function admBioLogin(){if(window.PublicKeyCredential){toast('🔐 מנסה...');
 function admCreateEvent(){
   if(!isAdminSession()){toast('⚠ נדרשת כניסת מנהל');return;}
   activateAdminSession();
-  S.ev={code:makeCode(),paid:true,free:false,usedGB:0,adminCreated:true};
+  S.scList=[];
+  S.ev={code:makeCode(),paid:true,free:false,usedGB:0,adminCreated:true,scenarios:[]};
   S.selCam=15;S.selStor=25;S.camP=0;S.storP=0;S.freePlan=false;
   nav('create');
 }
@@ -4275,8 +4298,20 @@ function enterEventAsAdmin(code){
   const ev=DB.events.find(e=>e.code===code);
   if(!ev)return;
   S.ev=ev;
-  S.scList=JSON.parse(localStorage.getItem('st_scenarios_'+code)||'[]');
-  // שמור שאנחנו בתוך אירוע ממנהל — לחזרה
+  // טעינת תרחישים — מקור אמת: ev.scenarios
+  if(ev.scenarios&&ev.scenarios.length>0){
+    S.scList=ev.scenarios;
+  } else {
+    const local=JSON.parse(localStorage.getItem('st_scenarios_'+code)||'[]');
+    S.scList=local;
+    if(local.length>0){
+      S.ev.scenarios=local;
+      saveEvent();
+    } else {
+      S.scList=[];
+      S.ev.scenarios=[];
+    }
+  }
   S._adminReturnToEvent=code;
   document.getElementById('adm-dash').style.display='none';
   nav('share');
