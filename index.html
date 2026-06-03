@@ -20,6 +20,7 @@ document.getElementById('pwa-manifest').href = 'https://usellouk-bot.github.io/s
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-auth-compat.js"></script>
 <script>
 const FB_CONFIG={
   apiKey:"AIzaSyCORjl88oI1g9Y-ZQ7snYetUQuzDbeZS3E",
@@ -31,6 +32,54 @@ const FB_CONFIG={
 };
 firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();
+const auth=firebase.auth();
+
+// ── Auth State ──
+// ADMIN_UID — set this after first Firebase Auth login
+// Fallback: localStorage session still works during transition
+const ADMIN_EMAIL='admin@snap.com';
+let mpCurrentUser=null; // Firebase Auth user (null until resolved)
+let mpAuthReady=false;
+
+auth.onAuthStateChanged(function(user){
+  mpCurrentUser=user;
+  mpAuthReady=true;
+  if(user){
+    // שמור uid ב-localStorage לשימוש בהמשך (uploaderUid)
+    localStorage.setItem('mp_firebase_uid', user.uid);
+    if(user.isAnonymous){
+      localStorage.setItem('mp_anon_uid', user.uid);
+    }
+  }
+});
+
+// Anonymous sign-in לאורחים — נקרא כשנכנסים עם קוד
+function ensureGuestAuth(){
+  return new Promise(function(resolve){
+    // אם כבר מחובר — החזר מיד
+    if(auth.currentUser){resolve(auth.currentUser);return;}
+    // נסה לשחזר anonymous session מ-localStorage
+    auth.signInAnonymously()
+      .then(function(result){resolve(result.user);})
+      .catch(function(err){
+        console.warn('Anonymous auth failed:', err.message);
+        resolve(null); // fallback — ממשיך גם בלי Auth
+      });
+  });
+}
+
+// Email/Password sign-in ל-Owner/Admin
+function signInWithEmail(email, password){
+  return auth.signInWithEmailAndPassword(email, password);
+}
+
+// Sign out
+function mpSignOut(){
+  return auth.signOut().then(function(){
+    mpCurrentUser=null;
+    localStorage.removeItem('mp_firebase_uid');
+  });
+}
 
 // ── Firebase helpers ──
 async function fbSaveEvent(ev){
@@ -46,14 +95,17 @@ async function fbGetEvent(code){
 async function fbSavePhoto(eventCode,photo){
   if(!eventCode||!photo||!photo.url) return;
   try{
-    await db.collection('events').doc(eventCode).collection('photos').add({
+    const doc={
       url:photo.url,
       cloudUrl:photo.url,
       uploaderName:photo.uploaderName||'אורח',
       capturedAt:photo.ts||new Date().toISOString(),
       uploadedAt:Date.now(),
       type:photo.type||'image'
-    });
+    };
+    // שמור uploaderUid אם קיים
+    if(photo.uploaderUid) doc.uploaderUid=photo.uploaderUid;
+    await db.collection('events').doc(eventCode).collection('photos').add(doc);
   }catch(e){console.error('fbSavePhoto error:',eventCode,e);}
 }
 async function fbGetPhotos(eventCode){
@@ -1050,8 +1102,10 @@ function updatePhotoCloudUrl(code, localTs, cloudUrl, uploadedAt){
   // שמור ב-Firebase תמיד — לא תלוי ב-memory
   if(cloudUrl&&code){
     const uploaderName=(DB.currentUser&&DB.currentUser.name)||S.guestName||'אורח';
+    // uploaderUid — Firebase Auth UID (anonymous או registered)
+    const uploaderUid=(mpCurrentUser&&mpCurrentUser.uid)||localStorage.getItem('mp_firebase_uid')||localStorage.getItem('mp_anon_uid')||null;
     const type=(window.eventPhotos&&window.eventPhotos[code]&&window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs)&&window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs).type)||'image';
-    fbSavePhoto(code,{url:cloudUrl,ts:localTs,uploaderName,type}).catch(()=>{});
+    fbSavePhoto(code,{url:cloudUrl,ts:localTs,uploaderName,uploaderUid,type}).catch(()=>{});
   }
   if(!window.eventPhotos||!window.eventPhotos[code]) return;
   const p=window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs);
@@ -1086,6 +1140,7 @@ const S = {
   currentZoom:1, zoomBarVisible:false,
   guestName: localStorage.getItem('mp_guest_name')||'',
   guestPhone: localStorage.getItem('mp_guest_phone')||'',
+  guestUid: localStorage.getItem('mp_firebase_uid')||localStorage.getItem('mp_anon_uid')||null,
   nightMode: false,
 };
 
@@ -2934,7 +2989,8 @@ function enterEvent(){
     localStorage.setItem('st_last_code',code);
     err.style.display='none';
     stopQRScan();
-    nav('welcome');
+    // Anonymous Auth לאורח
+    ensureGuestAuth().then(function(){nav('welcome');});
     return;
   }
   // חיפוש ב-Firebase
@@ -2949,7 +3005,8 @@ function enterEvent(){
       localStorage.setItem('st_last_code',code);
       err.style.display='none';
       stopQRScan();
-      nav('welcome');
+      // Anonymous Auth לאורח
+      ensureGuestAuth().then(function(){nav('welcome');});
     } else {
       err.textContent='⚠ קוד אירוע לא נמצא. בדוק שהקלדת נכון.';
       err.style.display='flex';
@@ -3699,13 +3756,18 @@ async function applyCameraFallbacks(vtrack){
 
 // ── Admin Session Management ──
 function isAdminSession(){
+  // Firebase Auth check (new) — Admin מחובר עם email admin@snap.com
+  if(mpCurrentUser && !mpCurrentUser.isAnonymous && mpCurrentUser.email===ADMIN_EMAIL){
+    return true;
+  }
+  // Fallback — מנגנון ישן נשמר זמנית למניעת lockout
   return sessionStorage.getItem('mp_admin_session')==='1' ||
          localStorage.getItem('mp_admin_session')==='1' ||
          (DB.currentUser && DB.currentUser.role==='admin');
 }
 
 function activateAdminSession(){
-  DB.currentUser={name:'מנהל',email:'admin@snap.com',role:'admin'};
+  DB.currentUser={name:'מנהל',email:ADMIN_EMAIL,role:'admin'};
   sessionStorage.setItem('mp_admin_session','1');
   localStorage.setItem('mp_admin_session','1');
   saveDB();
@@ -3858,13 +3920,30 @@ function stopCamera(){
 // ═══════════════════════════════════════════════════════════
 function doAdmLogin(){
   const p=document.getElementById('adm-pass').value;
-  if(p==='admin123'){
-    activateAdminSession();
-    document.getElementById('adm-login-view').style.display='none';
-    const dash=document.getElementById('adm-dash');dash.style.display='flex';
-    if(DB.notifications.length>0)document.getElementById('adm-notif').style.display='block';
-    admTab('events',document.querySelector('.admin-tab'));
-  } else {document.getElementById('adm-err').style.display='flex';}
+  const errEl=document.getElementById('adm-err');
+
+  // נסה Firebase Email/Password קודם
+  signInWithEmail(ADMIN_EMAIL, p)
+    .then(function(result){
+      mpCurrentUser=result.user;
+      activateAdminSession();
+      document.getElementById('adm-login-view').style.display='none';
+      const dash=document.getElementById('adm-dash');dash.style.display='flex';
+      if(DB.notifications.length>0)document.getElementById('adm-notif').style.display='block';
+      admTab('events',document.querySelector('.admin-tab'));
+    })
+    .catch(function(fbErr){
+      // Fallback — סיסמה ישנה (בתקופת מעבר)
+      if(p==='admin123'){
+        activateAdminSession();
+        document.getElementById('adm-login-view').style.display='none';
+        const dash=document.getElementById('adm-dash');dash.style.display='flex';
+        if(DB.notifications.length>0)document.getElementById('adm-notif').style.display='block';
+        admTab('events',document.querySelector('.admin-tab'));
+      } else {
+        if(errEl)errEl.style.display='flex';
+      }
+    });
 }
 function admBioLogin(){if(window.PublicKeyCredential){toast('🔐 מנסה...');setTimeout(()=>{document.getElementById('adm-pass').value='admin123';doAdmLogin();},1000);}else toast('⚠ לא נתמך');}
 
@@ -4103,6 +4182,15 @@ function admExportEvent(code){
 
 function admLogout(){
   sessionStorage.removeItem('mp_admin_session');
+  localStorage.removeItem('mp_admin_session');
+  // Firebase sign out (אם מחובר)
+  if(mpCurrentUser && !mpCurrentUser.isAnonymous){
+    mpSignOut().catch(function(){});
+  }
+  if(DB.currentUser && DB.currentUser.role==='admin'){
+    DB.currentUser=null;
+    saveDB();
+  }
   document.getElementById('adm-login-view').style.display='flex';
   document.getElementById('adm-dash').style.display='none';
   home();
@@ -4282,7 +4370,8 @@ function handleDeepLink(){
       S.ev=found;
       S.isGuest=true;
       localStorage.setItem('st_last_code',upperCode);
-      nav('welcome'); // ישירות ל-welcome, לא ל-guest
+      // Anonymous Auth ואז ל-welcome
+      ensureGuestAuth().then(function(){nav('welcome');});
     } else {
       // לא נמצא מקומית — חפש ב-Firebase
       const tryFb=()=>{
@@ -4297,7 +4386,8 @@ function handleDeepLink(){
             DB.events.push(fbEv);
             saveDB();
             localStorage.setItem('st_last_code',upperCode);
-            nav('welcome');
+            // Anonymous Auth ואז ל-welcome
+            ensureGuestAuth().then(function(){nav('welcome');});
           } else {
             nav('guest');
             setTimeout(()=>{
