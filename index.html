@@ -2687,7 +2687,7 @@ function updateCell(cellIdx, theme, eventType){
   const url=p.cloudUrl||p.url;
   const name=p.uploaderName||'';
   const frame=getBaroqueFrame(eventType,theme.accent,theme.accent2);
-  const logoPositions=['top:10px;right:10px;','top:10px;left:10px;','bottom:36px;right:10px;','bottom:36px;left:10px;'];
+  const logoPositions=['top:14px;right:14px;','top:14px;left:14px;','bottom:52px;right:14px;','bottom:52px;left:14px;'];
   const lpos=logoPositions[cellIdx%4];
   // fade out → update → fade in
   cell.style.transition='opacity 0.6s ease';
@@ -2697,8 +2697,8 @@ function updateCell(cellIdx, theme, eventType){
       <img src="${url}" style="width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;background:#111;" onerror="this.style.display='none'"/>
       <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;z-index:8;"></div>
       ${frame}
-      <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:29px;letter-spacing:2px;color:rgba(255,255,255,0.65);z-index:14;text-shadow:0 0 12px rgba(0,0,0,0.95),0 2px 6px rgba(0,0,0,0.8);pointer-events:none;">MOMEN<span style="color:${theme.accent}BB;">PIX</span></div>
-      ${name?`<div style="position:absolute;bottom:6px;left:8px;right:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:23px;color:${theme.accent2};font-weight:700;z-index:14;text-shadow:0 0 10px rgba(0,0,0,1),0 2px 5px rgba(0,0,0,0.9);pointer-events:none;letter-spacing:0.3px;text-align:right;">${name}</div>`:''}
+      <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:3px;color:rgba(255,255,255,0.82);z-index:14;pointer-events:none;background:rgba(0,0,0,0.38);padding:3px 10px;border-radius:6px;backdrop-filter:blur(2px);line-height:1.1;">MOMEN<span style="color:${theme.accent};">PIX</span></div>
+      ${name?`<div style="position:absolute;bottom:10px;left:10px;right:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;color:#ffffff;font-weight:700;z-index:14;pointer-events:none;letter-spacing:0.3px;text-align:right;background:rgba(0,0,0,0.45);padding:4px 12px;border-radius:6px;backdrop-filter:blur(2px);line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,0.9);">${name}</div>`:''}
     `;
     cell.style.opacity='1';
   },350);
