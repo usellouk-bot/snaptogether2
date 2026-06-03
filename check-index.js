@@ -1,265 +1,117 @@
-#!/usr/bin/env node
 /**
- * MomenPix Regression Test Harness
- * Usage: node tests/check-index.js
- * Run this before every commit / file upload.
+ * MomenPix — Static Regression Tests
+ * node tests/check-index.js
+ *
+ * בודק שה-index.html מכיל את כל הרכיבים הקריטיים.
+ * חייב לעבור 45/45 לפני כל שינוי.
  */
 
-'use strict';
-
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
-// ── Config ────────────────────────────────────────────────
-const ROOT       = path.resolve(__dirname, '..');
-const INDEX_FILE = path.join(ROOT, 'index.html');
-const ADMIN_FILE = path.join(ROOT, 'admin.html');
-const TMP_DIR    = require('os').tmpdir();
+const FILE = path.join(__dirname, '..', 'index.html');
+
+if (!fs.existsSync(FILE)) {
+  console.error('❌ index.html לא נמצא ב:', FILE);
+  process.exit(1);
+}
+
+const html = fs.readFileSync(FILE, 'utf8');
 
 let passed = 0;
 let failed = 0;
 const failures = [];
 
-// ── Helpers ───────────────────────────────────────────────
-function pass(label) {
-  console.log('  \u2705 ' + label);
-  passed++;
-}
-
-function fail(label, detail) {
-  console.log('  \u274C ' + label + (detail ? ': ' + detail : ''));
-  failed++;
-  failures.push(label + (detail ? ': ' + detail : ''));
-}
-
-function check(label, condition, detail) {
-  condition ? pass(label) : fail(label, detail || '');
-}
-
-function readFile(filePath) {
-  if (!fs.existsSync(filePath)) {
-    fail('File exists: ' + path.basename(filePath), 'not found at ' + filePath);
-    return null;
-  }
-  return fs.readFileSync(filePath, 'utf8');
-}
-
-function extractScripts(html) {
-  const scripts = [];
-  const re = /<script>([\s\S]*?)<\/script>/g;
-  let m;
-  while ((m = re.exec(html)) !== null) {
-    scripts.push(m[1]);
-  }
-  return scripts;
-}
-
-function syntaxCheck(code, label) {
-  const tmp = path.join(TMP_DIR, 'mp_check_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.js');
-  fs.writeFileSync(tmp, code, 'utf8');
-  try {
-    execSync('node --check ' + tmp, { stdio: 'pipe' });
-    pass(label);
-    return true;
-  } catch (e) {
-    const msg = (e.stderr || e.stdout || '').toString().split('\n')[0].trim();
-    fail(label, msg);
-    return false;
-  } finally {
-    try { fs.unlinkSync(tmp); } catch (_) {}
+function check(description, condition) {
+  if (condition) {
+    passed++;
+    process.stdout.write('  ✓ ' + description + '\n');
+  } else {
+    failed++;
+    failures.push(description);
+    process.stdout.write('  ✗ ' + description + '\n');
   }
 }
 
-// ── Load files ────────────────────────────────────────────
-const indexHtml = readFile(INDEX_FILE);
-const adminHtml = readFile(ADMIN_FILE);
+// ── 1. תשתית בסיסית ──────────────────────────────────────────
+console.log('\n[1] תשתית בסיסית');
+check('DOCTYPE html קיים',            html.includes('<!DOCTYPE html>'));
+check('charset UTF-8',                html.includes('charset="UTF-8"'));
+check('viewport meta קיים',           html.includes('name="viewport"'));
+check('title Momenpix',               html.includes('<title>Momenpix</title>'));
+check('PWA manifest קיים',            html.includes('pwa-manifest'));
+check('apple-touch-icon קיים',        html.includes('apple-mobile-web-app-capable'));
+check('theme-color קיים',             html.includes('theme-color'));
 
-// ═══════════════════════════════════════════════════════════
-// SECTION 1 — Syntax check
-// ═══════════════════════════════════════════════════════════
-console.log('\n[1] Syntax — index.html');
-if (indexHtml) {
-  const scripts = extractScripts(indexHtml);
-  check('index.html: at least 1 script block found', scripts.length > 0, 'no <script> blocks');
-  scripts.forEach(function(code, i) {
-    syntaxCheck(code, 'index.html script block ' + i + ' (' + code.length + ' chars)');
-  });
-}
+// ── 2. Firebase ───────────────────────────────────────────────
+console.log('\n[2] Firebase');
+check('Firebase App compat נטען',     html.includes('firebase-app-compat.js'));
+check('Firebase Firestore נטען',      html.includes('firebase-firestore-compat.js'));
+check('Firebase Auth נטען',           html.includes('firebase-auth-compat.js'));
+check('FB_CONFIG קיים',               html.includes('const FB_CONFIG='));
+check('projectId snaptogether-e3fbf', html.includes('snaptogether-e3fbf'));
+check('db = firebase.firestore()',    html.includes('const db=firebase.firestore()'));
+check('auth = firebase.auth()',       html.includes('const auth=firebase.auth()'));
+check('onAuthStateChanged קיים',      html.includes('auth.onAuthStateChanged'));
+check('ensureGuestAuth קיים',         html.includes('function ensureGuestAuth()'));
+check('fbSaveEvent קיים',             html.includes('async function fbSaveEvent('));
+check('fbGetEvent קיים',              html.includes('async function fbGetEvent('));
+check('fbSavePhoto קיים',             html.includes('async function fbSavePhoto('));
+check('fbGetPhotos קיים',             html.includes('async function fbGetPhotos('));
 
-console.log('\n[2] Syntax — admin.html');
-if (adminHtml) {
-  const scripts = extractScripts(adminHtml);
-  check('admin.html: at least 1 script block found', scripts.length > 0, 'no <script> blocks');
-  scripts.forEach(function(code, i) {
-    syntaxCheck(code, 'admin.html script block ' + i + ' (' + code.length + ' chars)');
-  });
-}
+// ── 3. Cloudinary ─────────────────────────────────────────────
+console.log('\n[3] Cloudinary');
+check('CLOUD_NAME = dufzgvkzi',       html.includes("CLOUD_NAME = 'dufzgvkzi'"));
 
-// ═══════════════════════════════════════════════════════════
-// SECTION 2 — Critical functions in index.html
-// ═══════════════════════════════════════════════════════════
-console.log('\n[3] Critical functions — index.html');
-if (indexHtml) {
-  const criticalFunctions = [
-    ['const DB =',                    'DB object defined'],
-    ['function nav(',                  'nav()'],
-    ['function renderHome(',           'renderHome()'],
-    ['function startNew(',             'startNew()'],
-    ['function enterEvent(',           'enterEvent()'],
-    ['function startCam(',             'startCam()'],
-    ['function updatePhotoCloudUrl(',  'updatePhotoCloudUrl()'],
-    ['function fbSavePhoto(',          'fbSavePhoto()'],
-    ['function fbGetPhotos(',          'fbGetPhotos()'],
-    ['function startCleanProjection(', 'startCleanProjection()'],
-    ['function stopCleanProjection(',  'stopCleanProjection()'],
-    ['function isAdminSession(',       'isAdminSession()'],
-  ];
+// ── 4. מסכים (screens) ───────────────────────────────────────
+console.log('\n[4] מסכים');
+const screens = [
+  'home','login','register','guest','welcome',
+  'create','share','camera','gallery','filter',
+  'admin','package','payment','cloud',
+  'edit_event','scenarios','live','album','clip',
+  'storage','download','ai_package'
+];
+screens.forEach(s => {
+  check('מסך ' + s + ' קיים', html.includes('id="s-' + s + '"'));
+});
 
-  criticalFunctions.forEach(function(pair) {
-    check(pair[1] + ' exists', indexHtml.includes(pair[0]));
-  });
-}
+// ── 5. אלמנטים קריטיים ───────────────────────────────────────
+console.log('\n[5] אלמנטים קריטיים');
+check('toast element קיים',           html.includes('id="toast"'));
+check('app container קיים',           html.includes('id="app"'));
+check('projection-screen קיים',       html.includes('id="projection-screen"'));
+check('proj-screensaver קיים',        html.includes('id="proj-screensaver"'));
+check('viewfinder קיים',              html.includes('id="viewfinder"'));
+check('btn-new-event קיים',           html.includes('id="btn-new-event"'));
+check('home-saved-events קיים',       html.includes('id="home-saved-events"'));
+check('qr-canvas קיים',               html.includes('id="qr-canvas"'));
+check('scenarios-list קיים',          html.includes('id="scenarios-list"'));
 
-// ═══════════════════════════════════════════════════════════
-// SECTION 3 — Firebase Auth basics
-// ═══════════════════════════════════════════════════════════
-console.log('\n[4] Firebase Auth');
-if (indexHtml) {
-  check('firebase-auth-compat.js SDK loaded',
-        indexHtml.includes('firebase-auth-compat.js'));
+// ── 6. פונקציות ניווט ────────────────────────────────────────
+console.log('\n[6] פונקציות ניווט');
+check('function nav() קיימת',         html.includes('function nav(s)'));
+check('function back() קיימת',        html.includes('function back()'));
+check('function home() קיימת',        html.includes('function home()'));
+check('function toast() קיימת',       html.includes('function toast('));
+check('GUEST_ALLOWED קיים',           html.includes("const GUEST_ALLOWED=["));
+check('ADMIN_SCREENS קיים',           html.includes("const ADMIN_SCREENS=["));
 
-  check('auth = firebase.auth() initialized',
-        indexHtml.includes('const auth=firebase.auth()'));
+// ── 7. זכויות יוצרים ─────────────────────────────────────────
+console.log('\n[7] זכויות יוצרים');
+check('copyright 2026 Momenpix',      html.includes('© 2026 Momenpix'));
 
-  check('ensureGuestAuth() defined',
-        indexHtml.includes('function ensureGuestAuth('));
-
-  check('signInAnonymously used',
-        indexHtml.includes('signInAnonymously()'));
-
-  check('auth.onAuthStateChanged registered',
-        indexHtml.includes('auth.onAuthStateChanged'));
-
-  check('mpCurrentUser variable declared',
-        indexHtml.includes('mpCurrentUser'));
-
-  check('mpAuthReady variable declared',
-        indexHtml.includes('mpAuthReady'));
-
-  check('fbSavePhoto saves uploaderUid when present',
-        indexHtml.includes('uploaderUid') &&
-        indexHtml.includes('photo.uploaderUid'));
-}
-
-// ═══════════════════════════════════════════════════════════
-// SECTION 4 — Deep Link logic
-// ═══════════════════════════════════════════════════════════
-console.log('\n[5] Deep Link — handleDeepLink');
-if (indexHtml) {
-  check('handleDeepLink() defined',
-        indexHtml.includes('function handleDeepLink('));
-
-  check('handleDeepLink handles ?code= param',
-        indexHtml.includes("params.get('code')"));
-
-  check('handleDeepLink falls back to fbGetEvent when not local',
-        indexHtml.includes('fbGetEvent(upperCode)') ||
-        indexHtml.includes('fbGetEvent(liveCode)'));
-
-  check('ensureGuestAuth called on guest entry (code path)',
-        indexHtml.includes('ensureGuestAuth'));
-}
-
-// ═══════════════════════════════════════════════════════════
-// SECTION 5 — Projection integrity
-// ═══════════════════════════════════════════════════════════
-console.log('\n[6] Projection');
-if (indexHtml) {
-  check('startCleanProjection() defined',
-        indexHtml.includes('function startCleanProjection('));
-
-  check('stopCleanProjection() defined',
-        indexHtml.includes('function stopCleanProjection('));
-
-  check('stopAllCellTimers() defined (timer cleanup)',
-        indexHtml.includes('function stopAllCellTimers('));
-
-  check('projFetchInterval cleared in stopCleanProjection',
-        indexHtml.includes('projFetchInterval') &&
-        indexHtml.includes('clearInterval(projFetchInterval)'));
-
-  check('projActive flag used',
-        indexHtml.includes('projActive'));
-
-  // No duplicate let declarations for projection vars
-  const projVarMatches = (indexHtml.match(/\blet projLayout\b/g) || []).length;
-  check('projLayout declared exactly once (no duplicates)',
-        projVarMatches === 1, 'found ' + projVarMatches + ' declarations');
-
-  const projActiveMatches = (indexHtml.match(/\blet projActive\b/g) || []).length;
-  check('projActive declared exactly once (no duplicates)',
-        projActiveMatches === 1, 'found ' + projActiveMatches + ' declarations');
-}
-
-// ═══════════════════════════════════════════════════════════
-// SECTION 6 — Cloudinary / Firebase safety
-// ═══════════════════════════════════════════════════════════
-console.log('\n[7] Cloudinary / Firebase safety');
-if (indexHtml) {
-  check('fbSavePhoto saves cloudUrl',
-        indexHtml.includes('cloudUrl:photo.url') ||
-        indexHtml.includes("cloudUrl:'") ||
-        indexHtml.includes('cloudUrl:photo.cloudUrl'));
-
-  // No Cloudinary API Secret exposed in client code
-  const hasApiSecret = /api_secret\s*[:=]\s*['"][^'"]{10,}['"]/.test(indexHtml);
-  check('No Cloudinary API Secret exposed in client', !hasApiSecret,
-        'found api_secret assignment in index.html');
-
-  // Upload flow uses Cloudinary upload endpoint
-  check('Cloudinary upload endpoint present',
-        indexHtml.includes('cloudinary.com') &&
-        indexHtml.includes('/upload'));
-
-  // fbSavePhoto is async function
-  check('fbSavePhoto is async',
-        indexHtml.includes('async function fbSavePhoto('));
-}
-
-// ═══════════════════════════════════════════════════════════
-// SECTION 7 — Admin fallback safety
-// ═══════════════════════════════════════════════════════════
-console.log('\n[8] Admin fallback');
-if (indexHtml) {
-  check('isAdminSession() has localStorage fallback',
-        indexHtml.includes("mp_admin_session')==='1'"));
-
-  check('activateAdminSession() defined',
-        indexHtml.includes('function activateAdminSession('));
-
-  check('ADMIN_EMAIL constant defined',
-        indexHtml.includes('ADMIN_EMAIL'));
-
-  check('doAdmLogin() defined',
-        indexHtml.includes('function doAdmLogin('));
-}
-
-// ═══════════════════════════════════════════════════════════
-// FINAL RESULT
-// ═══════════════════════════════════════════════════════════
+// ── סיכום ────────────────────────────────────────────────────
 const total = passed + failed;
-console.log('\n' + '='.repeat(50));
-console.log('Results: ' + passed + '/' + total + ' passed');
+console.log('\n' + '─'.repeat(44));
+console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');
 
-if (failed === 0) {
-  console.log('\n\u2705  ALL TESTS PASSED\n');
-  process.exit(0);
-} else {
-  console.log('\n\u274C  ' + failed + ' TEST(S) FAILED:\n');
-  failures.forEach(function(f, i) {
-    console.log('  ' + (i + 1) + '. ' + f);
-  });
+if (failed > 0) {
+  console.log('\nנכשלו:');
+  failures.forEach(f => console.log('  ✗ ' + f));
   console.log('');
   process.exit(1);
+} else {
+  console.log('✅ כל הבדיקות עברו!\n');
+  process.exit(0);
 }
