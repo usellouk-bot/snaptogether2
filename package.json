@@ -1,0 +1,13 @@
+{
+  "name": "momenpix",
+  "version": "1.0.0",
+  "description": "MomenPix - Collaborative Event Photography PWA",
+  "scripts": {
+    "test:static": "node tests/check-index.js",
+    "test:smoke": "node tests/check-index.js && npx playwright test tests/smoke/",
+    "test:all": "npm run test:static && npm run test:smoke"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}
