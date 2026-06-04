@@ -750,6 +750,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <div class="note note-amber" style="margin:0 18px 10px;" id="live-link-note"><div class="note-dot"></div>פתח קישור זה על המסך באולם</div>
     <button class="btn-ghost btn-danger" id="live-disconnect-btn" onclick="disconnectProjection()" style="display:none;margin:0 18px 8px;width:calc(100% - 36px);">🔌 ניתוק וסיום הקרנה</button>
+    <div id="proj-sc-filter-section" style="margin:0 18px 12px;padding:12px;background:var(--dark2);border-radius:12px;border:1px solid var(--border);"></div>
   </div>
 </div>
 
@@ -2260,6 +2261,29 @@ function renderLive(){
     var waBtn=document.getElementById('live-wa-btn');
     if(waBtn){waBtn.href='https://wa.me/?text='+encodeURIComponent('קישור הקרנה לאולם: '+projUrl);waBtn.style.display='inline-flex';}
   }
+  // UI בחירת תרחישים להקרנה — מוצג תמיד (גם לפני הפעלה)
+  var filterEl=document.getElementById('proj-sc-filter-section');
+  if(filterEl&&S.ev){
+    var scList=S.scList||[];
+    var currentFilter=(S.ev.projectionScenarioFilter)||[];
+    var allChecked=currentFilter.length===0;
+    var rows='<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">'
+      +'<input type="checkbox" class="proj-sc-filter-cb" value="main" '+(allChecked||currentFilter.indexOf('main')>=0?'checked':'')
+      +'> האירוע המרכזי</label>';
+    scList.forEach(function(sc){
+      var sid=sc.id||_makeScenarioId(sc.n,sc.d,sc.s);
+      var isChecked=allChecked||currentFilter.indexOf(sid)>=0;
+      rows+='<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">'
+        +'<input type="checkbox" class="proj-sc-filter-cb" value="'+sid+'" '+(isChecked?'checked':'')+'> '
+        +(sc.n||'תרחיש')+' <span style="color:var(--text3);font-size:11px;">('+sc.d+')</span></label>';
+    });
+    filterEl.innerHTML='<div class="card-label" style="margin-bottom:6px;">📽 תרחישים בהקרנה</div>'
+      +rows
+      +'<div style="display:flex;gap:8px;margin-top:8px;">'
+      +'<button class="btn-primary" style="flex:1;font-size:13px;padding:10px;" onclick="saveProjectionFilter()">עדכן הקרנה</button>'
+      +'<button class="btn-ghost" style="font-size:12px;padding:10px;" onclick="clearProjectionFilter()">הכל</button>'
+      +'</div>';
+  }
   renderLiveGrid();
 }
 function renderLiveGrid(){
@@ -2445,6 +2469,7 @@ let cellTimers=[];
 let projFetchInterval=null;
 let projPhotosUnsub=null;
 let cellIndices=[];
+let projScenarioFilter=[];  // [] = כל התמונות, ['main','sc_xxx'] = סינון לפי תרחיש
 
 // ── שומר מסך ──
 let ssInterval=null;
@@ -2650,6 +2675,7 @@ function startCleanProjection(code, eventName, eventType){
 function _doStartCleanProjection(code, eventName, eventType){
   projActive=true;
   projEventType=eventType;
+  projScenarioFilter=[];  // ברירת מחדל: כל התמונות
   const ps=document.getElementById('projection-screen');
   if(!ps) return;
   const theme=getTheme(eventType);
@@ -2684,7 +2710,12 @@ function _doStartCleanProjection(code, eventName, eventType){
         var tb=b.uploadedAt||new Date(b.capturedAt||0).getTime()||0;
         return tb-ta;
       });
-      var images=photos.filter(function(p){return p.type!=='video'&&(p.url||p.cloudUrl);});
+      var images=photos.filter(function(p){
+        if(p.type==='video'||(!p.url&&!p.cloudUrl)) return false;
+        if(projScenarioFilter.length===0) return true;  // [] = כל התמונות
+        var sid=p.scenarioId||'main';  // תמונות ישנות ללא scenarioId → main
+        return projScenarioFilter.indexOf(sid)>=0;
+      });
       if(images.length===0){
         if(!inScreensaver){
           inScreensaver=true;
@@ -2749,6 +2780,9 @@ function _doStartCleanProjection(code, eventName, eventType){
           buildProjectionGrid(theme,eventType);
         }
       }
+      // עדכן פילטר תרחישים — [] = כל התמונות
+      var newFilter=docData.projectionScenarioFilter||[];
+      projScenarioFilter=newFilter;
       // חזרה מ-screensaver כשהקרנה פעילה ויש תמונות
       if(inScreensaver&&docData.projectionActive!==false&&projAllPhotos.length>0){
         inScreensaver=false;
@@ -2946,6 +2980,30 @@ function toggleLive(){
     stopCleanProjection();
     toast('הקרנה הופסקה — האולם רואה שומר מסך');
   }
+}
+
+function saveProjectionFilter(){
+  if(!S.ev||!S.ev.code) return;
+  var checked=[];
+  var boxes=document.querySelectorAll('.proj-sc-filter-cb:checked');
+  boxes.forEach(function(cb){checked.push(cb.value);});
+  // שמור ל-Firestore — [] = כל התמונות
+  db.collection('events').doc(S.ev.code).set({
+    projectionScenarioFilter:checked
+  },{merge:true}).catch(function(){});
+  S.ev.projectionScenarioFilter=checked;
+  toast('✓ פילטר הקרנה עודכן');
+}
+
+function clearProjectionFilter(){
+  if(!S.ev||!S.ev.code) return;
+  // [] = כל התמונות מכל התרחישים
+  db.collection('events').doc(S.ev.code).set({
+    projectionScenarioFilter:[]
+  },{merge:true}).catch(function(){});
+  S.ev.projectionScenarioFilter=[];
+  toast('✓ מוצגות כל התמונות');
+  renderLive();
 }
 
 function disconnectProjection(){
