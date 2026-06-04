@@ -3330,7 +3330,7 @@ async function openCameraStream(){
     const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
     let stream;
 
-    // נסה constraints איכות גבוהה תחילה
+    // נסה constraints איכות גבוהה תחילה — audio:true לצילום וידאו עם קול
     const highQuality={
       video:{
         facingMode:{ideal:camFacingMode},
@@ -3341,19 +3341,25 @@ async function openCameraStream(){
         exposureMode:{ideal:'continuous'},
         whiteBalanceMode:{ideal:'continuous'}
       },
-      audio:false
+      audio:true
     };
 
     // iOS — constraints פשוטים יותר
     const iosConstraints={
       video:{facingMode:{ideal:camFacingMode},width:{ideal:1920},height:{ideal:1080}},
-      audio:false
+      audio:true
     };
 
     // fallback בסיסי
     const basicConstraints={
       video:{facingMode:{ideal:camFacingMode}},
-      audio:false
+      audio:true
+    };
+
+    // פונקציה לניסיון fallback ללא מיקרופון
+    const tryWithoutAudio=async()=>{
+      toast('🔇 המיקרופון לא אושר — הסרטון יוקלט ללא קול');
+      return await navigator.mediaDevices.getUserMedia({video:true,audio:false});
     };
 
     try{
@@ -3362,7 +3368,12 @@ async function openCameraStream(){
       try{
         stream=await navigator.mediaDevices.getUserMedia(isIOS?basicConstraints:iosConstraints);
       }catch(e2){
-        stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+        try{
+          // ניסיון אחרון עם audio — אם נכשל בגלל מיקרופון, נסה ללא
+          stream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+        }catch(e3){
+          stream=await tryWithoutAudio();
+        }
       }
     }
 
@@ -3754,6 +3765,9 @@ function toggleRec(){
       try{
         const mimeType=getSupportedMimeType();
         const options=mimeType?{mimeType}:{};
+        // הודע למשתמש אם אין audio track ב-stream
+        const hasAudio=S.camStream.getAudioTracks&&S.camStream.getAudioTracks().length>0;
+        if(!hasAudio) toast('🔇 הסרטון יוקלט ללא קול — המיקרופון לא אושר');
         S.mediaRecorder=new MediaRecorder(S.camStream,options);
         S.recordedChunks=[];
         S.mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)S.recordedChunks.push(e.data);};
