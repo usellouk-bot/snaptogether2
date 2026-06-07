@@ -3308,43 +3308,40 @@ function isEventActive(){
   // מנהל תמיד יכול לצלם
   if(DB.currentUser&&DB.currentUser.role==='admin') return true;
 
+  // isAdminSession תמיד מותר
+  if(isAdminSession()) return true;
+
+  // בעל אירוע (owner) — מותר רק אם לא אורח
+  if(!S.isGuest&&DB.currentUser&&DB.currentUser.role==='owner') return true;
+
   // אם חסרים שדות תאריך/שעה — אורח לא יכול לצלם
   if(!S.ev.date||!S.ev.startTime||!S.ev.endTime){
-    // בעל אירוע מחובר — מותר
-    if(DB.currentUser&&DB.currentUser.role==='owner') return true;
-    // אורח ללא פרטי זמן — חסום
     return false;
   }
 
   const now=new Date();
 
   // טען תרחישים של האירוע
-  const scenarios = JSON.parse(localStorage.getItem('st_scenarios_'+(S.ev.code||''))||'[]');
+  const scenarios=S.scList||JSON.parse(localStorage.getItem('st_scenarios_'+(S.ev.code||''))||'[]');
 
   // בדוק אם נמצאים בתוך תרחיש פעיל
   for(const sc of scenarios){
     if(!sc.d||!sc.s) continue;
-    const scStart=new Date(sc.d);
-    const [ssh,ssm]=sc.s.split(':').map(Number);
-    scStart.setHours(ssh,ssm,0,0);
-    const scEnd=new Date(sc.d);
-    if(sc.e){
-      const [seh,sem]=sc.e.split(':').map(Number);
-      scEnd.setHours(seh,sem,0,0);
-      if(sc.e<sc.s)scEnd.setDate(scEnd.getDate()+1);
-    } else {
-      scEnd.setHours(scStart.getHours()+3,scStart.getMinutes(),0,0);
-    }
+    // FIX: local time parsing — 'YYYY-MM-DDTHH:MM:00' ללא Z = local time
+    const scStart=new Date(sc.d+'T'+sc.s+':00');
+    const scEndStr=sc.e||(()=>{const d=new Date(scStart.getTime()+3*60*60*1000);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');})();
+    let scEnd=new Date(sc.d+'T'+scEndStr+':00');
+    // אם שעת סיום לפני שעת התחלה — עובר חצות
+    if(sc.e&&sc.e<sc.s) scEnd.setDate(scEnd.getDate()+1);
     if(now>=scStart&&now<=scEnd) return true;
   }
 
-  // בדוק אירוע ראשי
-  const [sh,sm]=S.ev.startTime.split(':').map(Number);
-  const [eh,em]=S.ev.endTime.split(':').map(Number);
-  const start=new Date(S.ev.date);start.setHours(sh,sm,0,0);
-  const end=new Date(S.ev.date);end.setHours(eh,em,0,0);
+  // FIX: local time parsing — 'YYYY-MM-DDTHH:MM:00' ללא Z = local time
+  // new Date(S.ev.date) מפרש כ-UTC ומוסיף/מוריד שעות. 'T' + time פותר זאת.
+  const start=new Date(S.ev.date+'T'+S.ev.startTime+':00');
+  let end=new Date(S.ev.date+'T'+S.ev.endTime+':00');
   // אירוע שעובר חצות — end ביום הבא
-  if(eh*60+em < sh*60+sm) end.setDate(end.getDate()+1);
+  if(end<=start) end.setDate(end.getDate()+1);
   // שעתיים גרייס אחרי סיום
   const grace=new Date(end.getTime()+2*60*60*1000);
   return now>=start&&now<=grace;
