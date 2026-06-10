@@ -3385,12 +3385,20 @@ async function openCameraStream(){
     const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
     let stream;
 
+    // רזולוציה לפי בחירת המשתמש — vidResIdx: 0=720p, 1=1080p, 2=4K
+    const resMap=[
+      {w:1280, h:720},   // 720p
+      {w:1920, h:1080},  // 1080p (ברירת מחדל)
+      {w:3840, h:2160}   // 4K (אם נתמך)
+    ];
+    const res=resMap[S.vidResIdx||1];
+
     // נסה constraints איכות גבוהה תחילה — audio:true לצילום וידאו עם קול
     const highQuality={
       video:{
         facingMode:{ideal:camFacingMode},
-        width:{ideal:2560},
-        height:{ideal:1440},
+        width:{ideal:res.w},
+        height:{ideal:res.h},
         frameRate:{ideal:30},
         focusMode:{ideal:'continuous'},
         exposureMode:{ideal:'continuous'},
@@ -3810,7 +3818,16 @@ function openLastPhoto(){
 
 // ── RECORD VIDEO ──
 function getSupportedMimeType(){
-  const types=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=h264','video/webm'];
+  // סדר עדיפויות: H.264 קודם (hardware encoder), אחר כך VP9, VP8 כאחרון
+  const types=[
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2', // H.264 Baseline + AAC
+    'video/mp4;codecs=avc1',                   // H.264 generic
+    'video/mp4',                               // MP4 כלשהו
+    'video/webm;codecs=h264,opus',             // H.264 ב-WebM container
+    'video/webm;codecs=vp9,opus',             // VP9 — טוב אבל software
+    'video/webm;codecs=vp8,opus',             // VP8 — ברירת מחדל ישנה
+    'video/webm'                              // WebM כלשהו
+  ];
   for(const t of types){try{if(MediaRecorder.isTypeSupported(t))return t;}catch(e){}}
   return '';
 }
@@ -3819,10 +3836,19 @@ function toggleRec(){
     if(S.camStream&&window.MediaRecorder){
       try{
         const mimeType=getSupportedMimeType();
-        const options=mimeType?{mimeType}:{};
+        // videoBitsPerSecond לפי רזולוציה: 720p=4Mbps, 1080p=8Mbps, 4K=20Mbps
+        const bitrateMap=[4000000, 8000000, 20000000];
+        const videoBitsPerSecond=bitrateMap[S.vidResIdx||1];
+        const options=mimeType
+          ?{mimeType, videoBitsPerSecond}
+          :{videoBitsPerSecond};
         // הודע למשתמש אם אין audio track ב-stream
         const hasAudio=S.camStream.getAudioTracks&&S.camStream.getAudioTracks().length>0;
         if(!hasAudio) toast('🔇 הסרטון יוקלט ללא קול — המיקרופון לא אושר');
+        // diagnostic — מה הדפדפן באמת נותן
+        const vtrack=S.camStream.getVideoTracks()[0];
+        const settings=vtrack?vtrack.getSettings():{};
+        console.log('[MomenPix Video] mimeType:',mimeType||'browser default','| res:',settings.width+'x'+settings.height,'| fps:',settings.frameRate,'| bitrate:',videoBitsPerSecond);
         S.mediaRecorder=new MediaRecorder(S.camStream,options);
         S.recordedChunks=[];
         S.mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)S.recordedChunks.push(e.data);};
