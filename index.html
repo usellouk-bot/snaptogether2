@@ -1150,6 +1150,8 @@ const S = {
   chatLog:[{u:'מנהל',m:'ברוכים הבאים! עברו לאזור החופה 📸',t:'19:05'}],
   mbOptions:['5MP','8MP','12MP','48MP'], mbIdx:1,
   vidResOptions:['720p','1080p','4K'], vidResIdx:1,
+  // mbIdx → JPEG quality map: 5MP=0.75, 8MP=0.85, 12MP=0.92, 48MP=0.97
+  // vidResIdx → resolution map: 720p, 1080p, 4K
   currentZoom:1, zoomBarVisible:false,
   guestName: localStorage.getItem('mp_guest_name')||'',
   guestPhone: localStorage.getItem('mp_guest_phone')||'',
@@ -3473,6 +3475,19 @@ async function openCameraStream(){
     document.getElementById('shutterEl').style.opacity='1';
     document.getElementById('shutterEl').style.pointerEvents='auto';
 
+    // Diagnostic: הצג רזולוציה ואיכות בפועל
+    const vt=stream.getVideoTracks()[0];
+    if(vt){
+      const st=vt.getSettings();
+      const reqRes=(['720p','1080p','4K'])[S.vidResIdx||1];
+      const actRes=st.width+'x'+st.height;
+      const jpgQ=Math.round(getJpegQuality()*100)+'%';
+      const label=S.mbOptions[S.mbIdx||1];
+      console.log('[MomenPix Camera] Requested:',reqRes,'| Actual:',actRes,'| JPEG:',jpgQ,'('+label+')','| FPS:',st.frameRate);
+      // toast רק אם יש פער משמעותי (debug mode)
+      if(window._mpDebug) toast('📷 '+actRes+' · '+jpgQ+' · '+reqRes);
+    }
+
   }catch(e){
     const ico=document.getElementById('cam-ico');
     ico.style.display='flex';
@@ -3617,8 +3632,8 @@ function takePhotoNow(){
     ctx.fillStyle='#00FF88';ctx.font='48px sans-serif';ctx.textAlign='center';ctx.fillText('📷',320,250);
     burnWatermark(ctx,640,480);
   }
-  // JPEG 0.92 — איכות גבוהה יותר מ-0.85
-  const dataURL=canvas.toDataURL('image/jpeg',0.92);
+  // JPEG quality לפי בחירת המשתמש (mbIdx)
+  const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
   const meta=getPhotoMetadata();
   capturedDataURLs.push(dataURL);
   showPhotoPreview(dataURL,meta);
@@ -3635,7 +3650,7 @@ function showPhotoPreview(dataURL,meta){
     secs--;
     const el=document.getElementById('preview-countdown');
     if(el)el.textContent=secs;
-    if(secs<=0){clearInterval(previewCountdownInt);previewCountdownInt=null;const canvas=document.getElementById('preview-canvas');uploadPhoto(canvas.toDataURL('image/jpeg',0.85),preview._meta);hidePhotoPreview();}
+    if(secs<=0){clearInterval(previewCountdownInt);previewCountdownInt=null;const canvas=document.getElementById('preview-canvas');uploadPhoto(canvas.toDataURL('image/jpeg',getJpegQuality()),preview._meta);hidePhotoPreview();}
   },1000);
 }
 
@@ -3647,7 +3662,7 @@ function deletePreviewPhoto(){
 function approvePhotoNow(){
   clearInterval(previewCountdownInt);previewCountdownInt=null;
   const canvas=document.getElementById('preview-canvas');
-  const dataURL=canvas.toDataURL('image/jpeg',0.85);
+  const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
   const preview=document.getElementById('photo-preview');
   const meta=preview._meta||getPhotoMetadata();
   hidePhotoPreview();uploadPhoto(dataURL,meta);toast('✓ תמונה אושרה!');
@@ -3893,7 +3908,20 @@ function stopRec(){
 
 // ── SETTINGS ──
 function cycleMB(){S.mbIdx=(S.mbIdx+1)%S.mbOptions.length;document.getElementById('mb-val').textContent=S.mbOptions[S.mbIdx];toast('📷 '+S.mbOptions[S.mbIdx]);}
-function cycleVidRes(){S.vidResIdx=(S.vidResIdx+1)%S.vidResOptions.length;document.getElementById('vid-res-val').textContent=S.vidResOptions[S.vidResIdx];toast('🎬 '+S.vidResOptions[S.vidResIdx]);}
+
+// JPEG quality לפי בחירת המשתמש — mbIdx: 0=5MP, 1=8MP, 2=12MP, 3=48MP
+function getJpegQuality(){
+  const qualityMap=[0.75, 0.85, 0.92, 0.97];
+  return qualityMap[S.mbIdx||1];
+}
+function cycleVidRes(){
+  S.vidResIdx=(S.vidResIdx+1)%S.vidResOptions.length;
+  const label=S.vidResOptions[S.vidResIdx];
+  document.getElementById('vid-res-val').textContent=label;
+  toast('🎬 '+label+' — פותח מצלמה מחדש...');
+  // רפתח מצלמה עם constraints חדשים
+  if(S.camStream) openCameraStream();
+}
 
 // ── פוקוס + Bokeh ──
 function handleViewfinderTap(e){
@@ -3996,10 +4024,7 @@ function takePhotoSilent(){
   const ctx=canvas.getContext('2d');
   ctx.drawImage(vid,0,0);
   burnWatermark(ctx,canvas.width,canvas.height);
-  const dataURL=canvas.toDataURL('image/jpeg',0.85);
-  const meta=getPhotoMetadata();
-  capturedDataURLs.push(dataURL);
-  const thumb=document.getElementById('last-thumb');
+  const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
   if(thumb)thumb.innerHTML=`<img src="${dataURL}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/>`;
   uploadPhoto(dataURL,meta);
   toast('📸 '+S.photos);
