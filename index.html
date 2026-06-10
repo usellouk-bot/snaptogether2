@@ -3635,8 +3635,8 @@ function updCamTmr(){
   const d=end-now;
   const dGrace=grace-now;
   if(dGrace<=0){
-    // הסתיים גם הגרייס — חסום לחלוטין (לא admin)
-    if(!DB.currentUser||DB.currentUser.role!=='admin'){
+    // הסתיים גם הגרייס — חסום לחלוטין (לא admin/founder)
+    if(!isAdminSession()&&(!DB.currentUser||DB.currentUser.role!=='admin')){
       el.textContent='הסתיים';
       el.style.color='var(--red)';
       const shutter=document.getElementById('shutterEl');
@@ -4348,11 +4348,15 @@ function updCamUI(){
   const storUsedMB=Math.round(S.photos*7.5);
   const storPct=Math.min(storUsedMB/storLimitMB*100,100);
 
-  // אזהרות אחסון
+  // אזהרות אחסון — Admin/Founder לא נחסמים
   if(storPct>=100){
-    toast('🚫 האחסון מלא! לא ניתן להעלות תמונות נוספות.');
-    document.getElementById('shutterEl').style.opacity='0.3';
-    document.getElementById('shutterEl').style.pointerEvents='none';
+    if(isAdminSession()){
+      toast('⚠ אחסון מלא — Admin ממשיך ללא הגבלה');
+    } else {
+      toast('🚫 האחסון מלא! לא ניתן להעלות תמונות נוספות.');
+      document.getElementById('shutterEl').style.opacity='0.3';
+      document.getElementById('shutterEl').style.pointerEvents='none';
+    }
   } else if(storPct>=95){
     toast('⚠ נותר פחות מ-5% אחסון!');
   } else if(storPct>=80){
