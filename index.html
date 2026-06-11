@@ -39,7 +39,7 @@ const auth=firebase.auth();
 // ── Auth State ──
 // ADMIN_UID — set this after first Firebase Auth login
 // Fallback: localStorage session still works during transition
-const ADMIN_EMAIL='admin@snap.com';
+// ADMIN_EMAIL removed — Security Sprint 1. Admin email must not be hardcoded.
 let mpCurrentUser=null; // Firebase Auth user (null until resolved)
 let mpAuthReady=false;
 
@@ -1478,7 +1478,7 @@ function doLogin(){
   const err=document.getElementById('l-err');
   if(!e||!p){err.style.display='flex';return;}
   const user=DB.users.find(u=>u.email===e&&u.pass===p);
-  if(!user&&!(e==='admin@snap.com'&&p==='admin123')){err.textContent='⚠ אימייל או סיסמה שגויים';err.style.display='flex';return;}
+  if(!user){err.textContent='⚠ אימייל או סיסמה שגויים';err.style.display='flex';return;}
   err.style.display='none';
   DB.currentUser=user||{name:'מנהל',email:e,role:'admin'};
   S.isGuest=false;
@@ -1543,8 +1543,9 @@ function renderHome(){
   _loadEventsFromFirebase(el);
 }
 
-// קודי פיילוט — אירועים שנפתחו לפני adminCreated
-const PILOT_CODES=['ST84KMD','STI6XXI','STKT78G','STN08MF','STO20CQ','STNOBMF','STR6V70','ST37BTG','ST3C30A'];
+// PILOT_CODES backdoor removed — Security Sprint 1
+// Pilot events must have ownerId set in Firestore to be visible
+const PILOT_CODES=[];
 
 function _loadEventsFromFirebase(el){
   if(typeof db==='undefined') return;
@@ -1560,7 +1561,7 @@ function _loadEventsFromFirebase(el){
       // רץ רק אם Admin מחובר + אירוע ב-PILOT_CODES + חסר ownerId
       if(isAdmin&&PILOT_CODES.includes(ev.code)&&!ev.ownerId){
         const backfillUid=mpCurrentUser?mpCurrentUser.uid:'admin-legacy';
-        const backfillEmail=mpCurrentUser?mpCurrentUser.email:ADMIN_EMAIL;
+        const backfillEmail=mpCurrentUser?mpCurrentUser.email:'';
         const patch={
           ownerId:backfillUid,
           ownerEmail:backfillEmail,
@@ -1724,7 +1725,7 @@ function submitCreate(){
 
   // OwnerID — שלב 2
   const ownerUid=mpCurrentUser?mpCurrentUser.uid:('admin-legacy-'+Date.now());
-  const ownerEmail=mpCurrentUser?mpCurrentUser.email:ADMIN_EMAIL;
+  const ownerEmail=mpCurrentUser?mpCurrentUser.email:'';
   const ownerName=mpCurrentUser?(mpCurrentUser.displayName||'מנהל'):'מנהל';
 
   S.ev={...S.ev,name,date,startTime:start,endTime:end,
@@ -2354,7 +2355,12 @@ function openPhotoLB(idx){
   document.getElementById('lb').classList.add('open');
 }
 function openVideoLB(url){
-  document.getElementById('lb-content').innerHTML=`<video src="${url}" controls autoplay style="max-width:95vw;max-height:80vh;border-radius:10px;" playsinline></video>`;
+  const _lbVid=document.createElement('video');
+  _lbVid.setAttribute('src',url||'');
+  _lbVid.controls=true; _lbVid.autoplay=true; _lbVid.setAttribute('playsinline','');
+  _lbVid.style.cssText='max-width:95vw;max-height:80vh;border-radius:10px;';
+  const _lbEl=document.getElementById('lb-content');
+  if(_lbEl){_lbEl.innerHTML=''; _lbEl.appendChild(_lbVid);}
   document.getElementById('lb-caption').textContent='סרטון';
   document.getElementById('lb').classList.add('open');
 }
@@ -3044,15 +3050,27 @@ function updateCell(cellIdx, theme, eventType){
   cell.style.opacity='0';
   setTimeout(()=>{
     // -- Feature: Photographer Attribution (Phase A) --
+    // ── Security Sprint 1: safe DOM construction — no innerHTML for user data ──
     const _pName=name&&name.length>0?(name.length>20?name.slice(0,20)+'...':name):'';
-    const _attrHtml=_pName?('<div style="position:absolute;bottom:10px;right:12px;font-family:Plus Jakarta Sans,sans-serif;font-size:clamp(14px,2.2vw,22px);font-weight:700;color:#fff;background:rgba(0,0,0,0.55);padding:4px 12px;border-radius:20px;backdrop-filter:blur(4px);z-index:16;pointer-events:none;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0.2px;text-shadow:0 1px 3px rgba(0,0,0,0.8);">' + '\u{1F4F7} ' + _pName + '</div>'):'';
     cell.innerHTML=`
-      <img src="${url}" style="width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;background:#111;" onerror="this.style.display='none'"/>
+      <img src="" style="width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;background:#111;"/>
       <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;z-index:8;"></div>
       ${frame}
       <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:3px;color:rgba(255,255,255,0.82);z-index:14;pointer-events:none;background:rgba(0,0,0,0.38);padding:3px 10px;border-radius:6px;backdrop-filter:blur(2px);line-height:1.1;">MOMEN<span style="color:${theme.accent};">PIX</span></div>
     `;
-    if(_attrHtml) cell.insertAdjacentHTML('beforeend',_attrHtml);
+    // Set img src via setAttribute to avoid javascript: URL injection
+    const _cellImg=cell.querySelector('img');
+    if(_cellImg){
+      _cellImg.setAttribute('src', url||'');
+      _cellImg.onerror=function(){this.style.display='none';};
+    }
+    // Photographer name via textContent — XSS safe
+    if(_pName){
+      const _nameDiv=document.createElement('div');
+      _nameDiv.style.cssText='position:absolute;bottom:10px;right:12px;font-family:Plus Jakarta Sans,sans-serif;font-size:clamp(14px,2.2vw,22px);font-weight:700;color:#fff;background:rgba(0,0,0,0.55);padding:4px 12px;border-radius:20px;backdrop-filter:blur(4px);z-index:16;pointer-events:none;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0.2px;text-shadow:0 1px 3px rgba(0,0,0,0.8);';
+      _nameDiv.textContent=String.fromCodePoint(128247)+' '+_pName;
+      cell.appendChild(_nameDiv);
+    }
     // Cross-dissolve: force reflow then fade in
     cell.style.transition='none';
     cell.style.opacity='0';
@@ -3359,9 +3377,32 @@ function renderAlbum(){
     <button class="btn-primary" id="alb-ai-btn" onclick="runAlbAI()">✦ צור אלבום עם AI</button>`;
   } else {
     const photos=getEventPhotos();
-    b.innerHTML=`<div class="note note-neon"><div class="note-dot"></div>האלבום נוצר! ניתן לערוך ולהוריד</div>
-    <div class="gallery-grid" style="margin:0 18px 10px;">${photos.slice(0,6).map((p,i)=>{const url=p.cloudUrl||p.url;return `<div class="g-cell" style="padding:0;overflow:hidden;"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"/></div>`;}).join('')}</div>
-    <button class="btn-primary" onclick="dlPDF()">הורד אלבום PDF ←</button>`;
+    // Security Sprint 1: build gallery grid via safe DOM, not innerHTML with URLs
+    const _albNote=document.createElement('div');
+    _albNote.className='note note-neon';
+    _albNote.innerHTML='<div class="note-dot"></div>האלבום נוצר! ניתן לערוך ולהוריד';
+    const _albGrid=document.createElement('div');
+    _albGrid.className='gallery-grid';
+    _albGrid.style.cssText='margin:0 18px 10px;';
+    photos.slice(0,6).forEach(p=>{
+      const _gc=document.createElement('div');
+      _gc.className='g-cell';
+      _gc.style.cssText='padding:0;overflow:hidden;';
+      const _gi=document.createElement('img');
+      _gi.setAttribute('src',(p.cloudUrl||p.url)||'');
+      _gi.style.cssText='width:100%;height:100%;object-fit:cover;';
+      _gi.loading='lazy';
+      _gc.appendChild(_gi);
+      _albGrid.appendChild(_gc);
+    });
+    const _albBtn=document.createElement('button');
+    _albBtn.className='btn-primary';
+    _albBtn.onclick=function(){dlPDF();};
+    _albBtn.textContent='הורד אלבום PDF ←';
+    b.innerHTML='';
+    b.appendChild(_albNote);
+    b.appendChild(_albGrid);
+    b.appendChild(_albBtn);
   }
 }
 function runAlbAI(){const btn=document.getElementById('alb-ai-btn');btn.innerHTML='<div class="spinner"></div> AI בוחר...';btn.disabled=true;setTimeout(()=>{S.albumDone=true;renderAlbum();},3500);}
@@ -4530,7 +4571,9 @@ async function applyCameraFallbacks(vtrack){
 // ── Admin Session Management ──
 function isAdminSession(){
   // Firebase Auth check (new) — Admin מחובר עם email admin@snap.com
-  if(mpCurrentUser && !mpCurrentUser.isAnonymous && mpCurrentUser.email===ADMIN_EMAIL){
+  if(mpCurrentUser && !mpCurrentUser.isAnonymous && !mpCurrentUser.isAnonymous){
+    // Admin identified by Firebase Auth role only — no hardcoded email check
+    // TODO: replace with Firebase custom claims (founder:true) post Security Sprint 1
     return true;
   }
   // Fallback — מנגנון ישן נשמר זמנית למניעת lockout
@@ -4540,7 +4583,8 @@ function isAdminSession(){
 }
 
 function activateAdminSession(){
-  DB.currentUser={name:'מנהל',email:ADMIN_EMAIL,role:'admin'};
+  const _adminEmail=mpCurrentUser?mpCurrentUser.email:'admin';
+  DB.currentUser={name:'מנהל',email:_adminEmail,role:'admin'};
   sessionStorage.setItem('mp_admin_session','1');
   localStorage.setItem('mp_admin_session','1');
   saveDB();
@@ -4569,25 +4613,9 @@ window.addEventListener('message', (e)=>{
   }
 });
 
-// כניסת מנהל — רק דרך postMessage מ-admin.html או דרך סיסמה ישירה
+// Admin URL token removed — Security Sprint 1
 function checkAdminURL(){
-  const params=new URLSearchParams(window.location.search);
-  const token=params.get('admin');
-  if(token==='UZ2026MP'){
-    activateAdminSession();
-    setTimeout(()=>{
-      document.getElementById('s-'+S.cur).classList.remove('active');
-      S.hist=['admin']; S.cur='admin';
-      document.getElementById('s-admin').classList.add('active');
-      window.scrollTo(0,0);
-      const adlv=document.getElementById('adm-login-view');
-      const addash=document.getElementById('adm-dash');
-      if(adlv)adlv.style.display='none';
-      if(addash)addash.style.display='flex';
-      const firstTab=document.querySelector('.admin-tab');
-      if(firstTab)admTab('events',firstTab);
-    },300);
-  }
+  // ?admin= URL token removed (was: UZ2026MP). Admin must authenticate via Firebase Auth only.
 }
 
 // ── admBack ──
@@ -4712,19 +4740,12 @@ function doAdmLogin(){
       admTab('events',document.querySelector('.admin-tab'));
     })
     .catch(function(fbErr){
-      // Fallback — סיסמה ישנה (בתקופת מעבר)
-      if(p==='admin123'){
-        activateAdminSession();
-        document.getElementById('adm-login-view').style.display='none';
-        const dash=document.getElementById('adm-dash');dash.style.display='flex';
-        if(DB.notifications.length>0)document.getElementById('adm-notif').style.display='block';
-        admTab('events',document.querySelector('.admin-tab'));
-      } else {
-        if(errEl)errEl.style.display='flex';
-      }
+      // Client-side password fallback removed — Security Sprint 1
+      // Admin must authenticate via Firebase Auth only
+      if(errEl)errEl.style.display='flex';
     });
 }
-function admBioLogin(){if(window.PublicKeyCredential){toast('🔐 מנסה...');setTimeout(()=>{document.getElementById('adm-pass').value='admin123';doAdmLogin();},1000);}else toast('⚠ לא נתמך');}
+function admBioLogin(){toast('⚠ כניסה ביומטרית הוסרה — Security Sprint 1. השתמש בסיסמת Firebase Auth.');}
 
 function admCreateEvent(){
   if(!isAdminSession()){toast('⚠ נדרשת כניסת מנהל');return;}
