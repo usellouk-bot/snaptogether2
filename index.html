@@ -126,6 +126,162 @@ async function fbGetPhotos(eventCode){
     return photos;
   }catch(e){return [];}
 }
+
+// ═══════════════════════════════════════════════════════════
+// CURATOR PHASE 0 — Silent data collection for pilot learning
+// Purpose: measure technicalScore + temporalClusterScore per photo
+// No UI changes. No projection changes. No gallery changes.
+// Failure is always silent — upload is never affected.
+// ═══════════════════════════════════════════════════════════
+
+function curatorP0ScoreTechnical(eventCode, photoTs, imgEl){
+  // Runs after upload completes, on background thread via setTimeout
+  setTimeout(function(){
+    try{
+      // Downsample to 400×400 for performance
+      var SIZE=400;
+      var cv=document.createElement('canvas');
+      cv.width=SIZE; cv.height=SIZE;
+      var ctx=cv.getContext('2d');
+      if(!ctx) throw new Error('no ctx');
+      ctx.drawImage(imgEl,0,0,SIZE,SIZE);
+      var data=ctx.getImageData(0,0,SIZE,SIZE).data;
+
+      // ── Sharpness: Laplacian variance on grayscale ──
+      var gray=new Float32Array(SIZE*SIZE);
+      for(var i=0;i<SIZE*SIZE;i++){
+        var idx=i*4;
+        gray[i]=0.299*data[idx]+0.587*data[idx+1]+0.114*data[idx+2];
+      }
+      var lapSum=0, lapCount=0;
+      for(var y=1;y<SIZE-1;y++){
+        for(var x=1;x<SIZE-1;x++){
+          var lap=Math.abs(
+            -gray[(y-1)*SIZE+x]-gray[(y+1)*SIZE+x]
+            -gray[y*SIZE+(x-1)]-gray[y*SIZE+(x+1)]
+            +4*gray[y*SIZE+x]
+          );
+          lapSum+=lap*lap;
+          lapCount++;
+        }
+      }
+      var lapVar=lapCount>0?lapSum/lapCount:0;
+      var sharpScore;
+      if(lapVar<30) sharpScore=0;
+      else if(lapVar<80) sharpScore=(lapVar-30)/50*60;
+      else sharpScore=60+Math.min((lapVar-80)/200*40,40);
+      sharpScore=Math.min(100,Math.max(0,sharpScore));
+
+      // ── Exposure: mean luminance ──
+      var lumSum=0;
+      for(var j=0;j<gray.length;j++) lumSum+=gray[j];
+      var meanLum=lumSum/gray.length;
+      var expScore;
+      if(meanLum<40||meanLum>220) expScore=0;
+      else if(meanLum<80) expScore=(meanLum-40)/40*70;
+      else if(meanLum<=180) expScore=70+((meanLum-80)/100*30);
+      else expScore=100-(meanLum-180)/40*30;
+      expScore=Math.min(100,Math.max(0,expScore));
+
+      // ── technicalScore ──
+      var techScore=Math.round((sharpScore*0.6+expScore*0.4)*10)/10;
+
+      // Store and then compute temporal score
+      curatorP0ComputeTemporal(eventCode, photoTs, techScore);
+
+    }catch(e){
+      curatorP0StoreFailure(eventCode, photoTs);
+    }
+  },0);
+}
+
+function curatorP0ComputeTemporal(eventCode, photoTs, techScore){
+  // Count photos within ±90 seconds in Firestore
+  try{
+    var windowMs=90*1000;
+    var tsNum=new Date(photoTs).getTime();
+    if(!tsNum||isNaN(tsNum)){
+      // capturedAt may already be a number
+      tsNum=typeof photoTs==='number'?photoTs:0;
+    }
+    if(!tsNum){
+      curatorP0Store(eventCode, photoTs, techScore, null);
+      return;
+    }
+    // Query photos collection for temporal window
+    db.collection('events').doc(eventCode).collection('photos')
+      .get()
+      .then(function(snap){
+        try{
+          var count=0;
+          snap.docs.forEach(function(d){
+            var p=d.data();
+            var otherTs=p.capturedAt?new Date(p.capturedAt).getTime():0;
+            if(otherTs&&Math.abs(otherTs-tsNum)<=windowMs) count++;
+          });
+          // Subtract self (if already saved)
+          var clusterCount=Math.max(0,count-1);
+          curatorP0Store(eventCode, photoTs, techScore, clusterCount);
+        }catch(e){
+          curatorP0Store(eventCode, photoTs, techScore, null);
+        }
+      })
+      .catch(function(){
+        curatorP0Store(eventCode, photoTs, techScore, null);
+      });
+  }catch(e){
+    curatorP0Store(eventCode, photoTs, techScore, null);
+  }
+}
+
+function curatorP0Store(eventCode, photoTs, techScore, clusterCount){
+  // Find the Firestore document for this photo by capturedAt/ts
+  try{
+    db.collection('events').doc(eventCode).collection('photos')
+      .where('capturedAt','==',typeof photoTs==='string'?photoTs:new Date(photoTs).toISOString())
+      .limit(1)
+      .get()
+      .then(function(snap){
+        if(snap.empty) return;
+        var docId=snap.docs[0].id;
+        var payload={
+          curator_p0:{
+            technical: techScore,
+            clusterCount: clusterCount,
+            failed: false,
+            computedAt: Date.now()
+          }
+        };
+        db.collection('events').doc(eventCode)
+          .collection('photos').doc(docId)
+          .set(payload,{merge:true})
+          .catch(function(){});
+      })
+      .catch(function(){});
+  }catch(e){}
+}
+
+function curatorP0StoreFailure(eventCode, photoTs){
+  // Silent failure — record that scoring was attempted and failed
+  try{
+    db.collection('events').doc(eventCode).collection('photos')
+      .where('capturedAt','==',typeof photoTs==='string'?photoTs:new Date(photoTs).toISOString())
+      .limit(1)
+      .get()
+      .then(function(snap){
+        if(snap.empty) return;
+        var docId=snap.docs[0].id;
+        db.collection('events').doc(eventCode)
+          .collection('photos').doc(docId)
+          .set({curator_p0:{technical:null,clusterCount:null,failed:true,computedAt:Date.now()}},{merge:true})
+          .catch(function(){});
+      })
+      .catch(function(){});
+  }catch(e){}
+}
+// ═══════════════════════════════════════════════════════════
+// END CURATOR PHASE 0
+// ═══════════════════════════════════════════════════════════
 </script>
 <style>
 :root{
@@ -1120,7 +1276,22 @@ function updatePhotoCloudUrl(code, localTs, cloudUrl, uploadedAt){
     // שיוך תרחיש — נשמר על photoObj בזמן הצילום
     const scenarioId=(photo&&photo.scenarioId)||'main';
     const scenarioName=(photo&&photo.scenarioName)||'האירוע המרכזי';
-    fbSavePhoto(code,{url:cloudUrl,ts:localTs,uploaderName,uploaderUid,type,scenarioId,scenarioName}).catch(()=>{});
+    const savedRef=fbSavePhoto(code,{url:cloudUrl,ts:localTs,uploaderName,uploaderUid,type,scenarioId,scenarioName}).catch(()=>{});
+    // Curator Phase 0 — silent scoring after upload, no blocking
+    savedRef.then(function(){
+      try{
+        const imgEl=new window.Image();
+        imgEl.crossOrigin='anonymous';
+        imgEl.onload=function(){
+          try{ curatorP0ScoreTechnical(code,localTs,imgEl); }catch(e){}
+        };
+        imgEl.onerror=function(){
+          curatorP0StoreFailure(code,localTs);
+        };
+        // use cloudUrl for scoring
+        imgEl.src=cloudUrl+'?_c=1';
+      }catch(e){ curatorP0StoreFailure(code,localTs); }
+    }).catch(function(){});
   }
   if(!window.eventPhotos||!window.eventPhotos[code]) return;
   const p=window.eventPhotos[code].find(x=>x.ts===localTs||x.capturedAt===localTs);
