@@ -2646,6 +2646,16 @@ let projPhotosUnsub=null;
 let cellIndices=[];
 let projScenarioFilter=[];  // [] = כל התמונות, ['main','sc_xxx'] = סינון לפי תרחיש
 
+// -- Projection Phase A globals --
+let projSpotlightTimer=null;
+let projIdleTimer=null;
+let projLastUploadTs=0;
+let projLastFlashTs=0;
+let projIdleOverlayActive=false;
+const PROJ_SPOTLIGHT_INTERVAL_MS=4*60*1000;
+const PROJ_SPOTLIGHT_DURATION_MS=15*1000;
+const PROJ_IDLE_THRESHOLD_MS=3*60*1000;
+
 // ── שומר מסך ──
 let ssInterval=null;
 let ssLogoInterval=null;
@@ -2868,6 +2878,10 @@ function _doStartCleanProjection(code, eventName, eventType){
 
   // בנה רשת תאים ריקים
   buildProjectionGrid(theme,eventType);
+  // -- Phase A: start Spotlight and Idle timers --
+  if(projSpotlightTimer){clearInterval(projSpotlightTimer);projSpotlightTimer=null;}
+  projSpotlightTimer=setInterval(triggerSpotlight,PROJ_SPOTLIGHT_INTERVAL_MS);
+  projStartIdleCheck(theme.accent);
 
   // fetch תמונות ובדיקת סטטוס הקרנה כל 5 שניות
   let firstLoad=true;
@@ -2900,7 +2914,13 @@ function _doStartCleanProjection(code, eventName, eventType){
         return;
       }
       // עדכן תמיד — תאים פעילים ימשכו מהמערך המעודכן אוטומטית
+      var _prevCount=projAllPhotos.length;
       projAllPhotos=images;
+      // -- Phase A: Flash on new photo + reset idle --
+      if(images.length>_prevCount&&projActive){
+        try{ projFlashNewPhoto(); }catch(e){}
+        try{ projHideIdleOverlay(); }catch(e){}
+      }
       // בנה grid רק בטעינה ראשונה — לא בכל עדכון
       if(firstLoad){
         firstLoad=false;
@@ -3019,19 +3039,120 @@ function updateCell(cellIdx, theme, eventType){
   const frame=getBaroqueFrame(eventType,theme.accent,theme.accent2);
   const logoPositions=['top:14px;right:14px;','top:14px;left:14px;','bottom:52px;right:14px;','bottom:52px;left:14px;'];
   const lpos=logoPositions[cellIdx%4];
-  // fade out → update → fade in
+  // -- Feature: Cross-Dissolve Transition (Phase A) --
   cell.style.transition='opacity 0.6s ease';
   cell.style.opacity='0';
   setTimeout(()=>{
+    // -- Feature: Photographer Attribution (Phase A) --
+    const _pName=name&&name.length>0?(name.length>20?name.slice(0,20)+'...':name):'';
+    const _attrHtml=_pName?('<div style="position:absolute;bottom:10px;right:12px;font-family:Plus Jakarta Sans,sans-serif;font-size:clamp(14px,2.2vw,22px);font-weight:700;color:#fff;background:rgba(0,0,0,0.55);padding:4px 12px;border-radius:20px;backdrop-filter:blur(4px);z-index:16;pointer-events:none;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0.2px;text-shadow:0 1px 3px rgba(0,0,0,0.8);">' + '\u{1F4F7} ' + _pName + '</div>'):'';
     cell.innerHTML=`
       <img src="${url}" style="width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;background:#111;" onerror="this.style.display='none'"/>
       <div style="position:absolute;inset:0;background:${theme.overlay};pointer-events:none;z-index:8;"></div>
       ${frame}
       <div style="position:absolute;${lpos}font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:3px;color:rgba(255,255,255,0.82);z-index:14;pointer-events:none;background:rgba(0,0,0,0.38);padding:3px 10px;border-radius:6px;backdrop-filter:blur(2px);line-height:1.1;">MOMEN<span style="color:${theme.accent};">PIX</span></div>
-      ${name?`<div style="position:absolute;bottom:10px;left:10px;right:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;color:#ffffff;font-weight:700;z-index:14;pointer-events:none;letter-spacing:0.3px;text-align:right;background:rgba(0,0,0,0.45);padding:4px 12px;border-radius:6px;backdrop-filter:blur(2px);line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,0.9);">${name}</div>`:''}
     `;
+    if(_attrHtml) cell.insertAdjacentHTML('beforeend',_attrHtml);
+    // Cross-dissolve: force reflow then fade in
+    cell.style.transition='none';
+    cell.style.opacity='0';
+    void cell.offsetHeight;
+    cell.style.transition='opacity 0.6s ease';
     cell.style.opacity='1';
-  },350);
+  },650);
+}
+
+// -- Feature: New Photo Flash Effect (Phase A) --
+function projFlashNewPhoto(){
+  try{
+    var now=Date.now();
+    if(now-projLastFlashTs<8000)return; // max one flash per 8s, no strobing
+    projLastFlashTs=now;
+    var cells=document.querySelectorAll('.proj-cell');
+    if(!cells||!cells.length)return;
+    var cellEl=cells[Math.floor(Math.random()*cells.length)];
+    if(!cellEl)return;
+    var flash=document.createElement('div');
+    flash.style.cssText='position:absolute;inset:0;background:rgba(255,255,255,0.55);z-index:20;pointer-events:none;border-radius:inherit;opacity:1;transition:opacity 0.4s ease;';
+    cellEl.style.position='relative';
+    cellEl.appendChild(flash);
+    setTimeout(function(){
+      flash.style.opacity='0';
+      setTimeout(function(){ if(flash.parentNode)flash.parentNode.removeChild(flash); },420);
+    },80);
+  }catch(e){}
+}
+
+// -- Feature: Spotlight Mode (Phase A) --
+function triggerSpotlight(){
+  try{
+    if(!projActive||projAllPhotos.length===0)return;
+    var ps=document.getElementById('projection-screen');
+    if(!ps)return;
+    var photo=projAllPhotos[0];
+    var url=photo&&(photo.cloudUrl||photo.url);
+    if(!url)return;
+    var uploaderName=photo.uploaderName||'';
+    var _sName=uploaderName.length>24?uploaderName.slice(0,24)+'...':uploaderName;
+    var overlay=document.createElement('div');
+    overlay.id='proj-spotlight-overlay';
+    overlay.style.cssText='position:fixed;inset:0;background:#000;z-index:50;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.8s ease;';
+    var img=document.createElement('img');
+    img.src=url;
+    img.style.cssText='max-width:100%;max-height:100%;object-fit:contain;';
+    overlay.appendChild(img);
+    if(_sName){
+      var nameDiv=document.createElement('div');
+      nameDiv.style.cssText='position:absolute;bottom:24px;right:28px;font-family:Plus Jakarta Sans,sans-serif;font-size:clamp(18px,2.8vw,32px);font-weight:700;color:#fff;background:rgba(0,0,0,0.6);padding:6px 18px;border-radius:24px;backdrop-filter:blur(4px);';
+      nameDiv.textContent=String.fromCodePoint(128247)+' '+_sName;
+      overlay.appendChild(nameDiv);
+    }
+    ps.appendChild(overlay);
+    void overlay.offsetHeight;
+    overlay.style.opacity='1';
+    setTimeout(function(){
+      overlay.style.opacity='0';
+      setTimeout(function(){ if(overlay.parentNode)overlay.parentNode.removeChild(overlay); },850);
+    },PROJ_SPOTLIGHT_DURATION_MS);
+  }catch(e){}
+}
+
+// -- Feature: Smart Idle Mode (Phase A) --
+function projStartIdleCheck(accent){
+  if(projIdleTimer)clearInterval(projIdleTimer);
+  projLastUploadTs=Date.now();
+  projIdleTimer=setInterval(function(){
+    if(!projActive){clearInterval(projIdleTimer);projIdleTimer=null;return;}
+    var idle=Date.now()-projLastUploadTs;
+    if(idle>=PROJ_IDLE_THRESHOLD_MS&&!projIdleOverlayActive){
+      projShowIdleOverlay(accent);
+    }
+  },30000); // check every 30s
+}
+function projShowIdleOverlay(accent){
+  try{
+    var ps=document.getElementById('projection-screen');
+    if(!ps||projIdleOverlayActive)return;
+    projIdleOverlayActive=true;
+    var overlay=document.createElement('div');
+    overlay.id='proj-idle-overlay';
+    overlay.style.cssText='position:absolute;bottom:32px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.72);backdrop-filter:blur(8px);border-radius:16px;padding:14px 28px;z-index:30;text-align:center;border:1px solid rgba(255,255,255,0.12);opacity:0;transition:opacity 0.6s ease;';
+    overlay.innerHTML='<div style="font-family:Plus Jakarta Sans,sans-serif;font-size:clamp(16px,2vw,24px);font-weight:700;color:#fff;">' +
+      String.fromCodePoint(128247) + ' צלמו ושתפו — התמונה שלכם עשויה להופיע כאן</div>';
+    ps.appendChild(overlay);
+    void overlay.offsetHeight;
+    overlay.style.opacity='1';
+  }catch(e){}
+}
+function projHideIdleOverlay(){
+  try{
+    projIdleOverlayActive=false;
+    projLastUploadTs=Date.now();
+    var overlay=document.getElementById('proj-idle-overlay');
+    if(!overlay)return;
+    overlay.style.opacity='0';
+    setTimeout(function(){ if(overlay.parentNode)overlay.parentNode.removeChild(overlay); },650);
+  }catch(e){}
 }
 
 function stopAllCellTimers(){
@@ -3046,6 +3167,14 @@ function stopCleanProjection(){
   if(projFetchInterval){clearInterval(projFetchInterval);projFetchInterval=null;}
   if(projPhotosUnsub){projPhotosUnsub();projPhotosUnsub=null;}
   stopScreensaver();
+  // -- Phase A cleanup --
+  if(projSpotlightTimer){clearInterval(projSpotlightTimer);projSpotlightTimer=null;}
+  if(projIdleTimer){clearInterval(projIdleTimer);projIdleTimer=null;}
+  projIdleOverlayActive=false;
+  var _so=document.getElementById('proj-spotlight-overlay');
+  if(_so&&_so.parentNode)_so.parentNode.removeChild(_so);
+  var _io=document.getElementById('proj-idle-overlay');
+  if(_io&&_io.parentNode)_io.parentNode.removeChild(_io);
   const ps=document.getElementById('projection-screen');
   if(ps)ps.style.display='none';
   document.body.style.overflow='';
