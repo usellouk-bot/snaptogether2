@@ -555,7 +555,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 </head>
 <body>
 <div class="app" id="app">
-<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">responsibility-cleanup-v1</div>
+<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">ev-hydration-v1</div>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lb" onclick="closeLB()">
   <div style="position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:1;">✕</div>
@@ -3721,6 +3721,53 @@ function stopQRScan(){
   if(ui)ui.style.display='flex';
 }
 
+// hydrateEvFromFirestore — always load event from Firestore as source of truth
+// Assigns S.ev with all required fields before navigation
+// Returns promise resolving to {ok:true} or {ok:false, reason:string}
+function hydrateEvFromFirestore(code){
+  return ensureGuestAuth().then(function(){
+    return fbGetEvent(code);
+  }).then(function(fbEv){
+    if(!fbEv||fbEv.deleted===true){
+      return {ok:false,reason:'קוד אירוע לא נמצא. בדוק שהקלדת נכון.'};
+    }
+    if(!fbEv.paid&&!fbEv.adminCreated){
+      return {ok:false,reason:'האירוע טרם שולם ואינו פעיל.'};
+    }
+    // Hydrate S.ev with all fields from Firestore
+    S.ev={
+      code:       fbEv.code       || code,
+      name:       fbEv.name       || '',
+      date:       fbEv.date       || '',
+      startTime:  fbEv.startTime  || '',
+      endTime:    fbEv.endTime    || '',
+      ownerId:    fbEv.ownerId    || '',
+      paid:       fbEv.paid       || false,
+      adminCreated: fbEv.adminCreated || false,
+      deleted:    fbEv.deleted    || false,
+      free:       fbEv.free       || false,
+      type:       fbEv.type       || '',
+      cameras:    fbEv.cameras    || 5,
+      storageGB:  fbEv.storageGB  || 5,
+      usedGB:     fbEv.usedGB     || 0,
+      photoLimit: fbEv.photoLimit || null,
+      scenarios:  fbEv.scenarios  || [],
+      projectionEnded: fbEv.projectionEnded || false,
+      projectionLayout: fbEv.projectionLayout || '3x2',
+    };
+    // Update local cache
+    DB.events = DB.events.filter(function(e){return e.code!==code;});
+    DB.events.push(S.ev);
+    saveDB();
+    localStorage.setItem('st_last_code', code);
+    console.log('[MP hydrateEvFromFirestore] ev.date='+S.ev.date+' start='+S.ev.startTime+' end='+S.ev.endTime+' paid='+S.ev.paid);
+    return {ok:true};
+  }).catch(function(e){
+    console.warn('[MP hydrateEvFromFirestore] error:',e);
+    return {ok:false,reason:'שגיאת חיבור. נסה שוב.'};
+  });
+}
+
 function enterEvent(){
   const code=document.getElementById('g-code').value.toUpperCase().trim();
   const err=document.getElementById('g-err');
@@ -3732,43 +3779,17 @@ function enterEvent(){
   localStorage.removeItem('mp_admin_email');
   sessionStorage.removeItem('mp_admin_session');
   sessionStorage.removeItem('mp_admin_email');
-  // Fix: authenticate FIRST, then search Firestore
-  // Firestore Rules require auth — fbGetEvent without auth returns PERMISSION_DENIED
-  ensureGuestAuth().then(function(){
-    // חיפוש ב-localStorage קודם (לא דורש auth)
-    let found=DB.events.find(e=>e.code===code&&!e.deleted&&(e.paid||e.adminCreated));
-    if(found){
-      S.ev=found;
-      S.isGuest=true;
-      localStorage.setItem('st_last_code',code);
-      err.style.display='none';
-      stopQRScan();
-      nav('welcome');
+  // Firestore is source of truth — always hydrate S.ev from Firestore before navigation
+  hydrateEvFromFirestore(code).then(function(result){
+    if(!result.ok){
+      err.textContent='⚠ '+result.reason;
+      err.style.display='flex';
       return;
     }
-    // חיפוש ב-Firebase — עכשיו כשיש auth
-    fbGetEvent(code).then(fbEv=>{
-      if(fbEv&&!fbEv.deleted&&(fbEv.paid||fbEv.adminCreated)){
-        S.ev=fbEv;
-        S.isGuest=true;
-        DB.events=DB.events.filter(e=>e.code!==code);
-        DB.events.push(fbEv);
-        saveDB();
-        localStorage.setItem('st_last_code',code);
-        err.style.display='none';
-        stopQRScan();
-        nav('welcome');
-      } else {
-        err.textContent='⚠ קוד אירוע לא נמצא. בדוק שהקלדת נכון.';
-        err.style.display='flex';
-      }
-    }).catch(()=>{
-      err.textContent='⚠ קוד אירוע לא נמצא. בדוק שהקלדת נכון.';
-      err.style.display='flex';
-    });
-  }).catch(()=>{
-    err.textContent='⚠ שגיאת חיבור. נסה שוב.';
-    err.style.display='flex';
+    S.isGuest=true;
+    err.style.display='none';
+    stopQRScan();
+    nav('welcome');
   });
 }
 
@@ -5278,48 +5299,25 @@ function handleDeepLink(){
   const code=params.get('code');
   if(code){
     const upperCode=code.toUpperCase();
-    const found=DB.events.find(e=>e.code===upperCode&&!e.deleted&&(e.paid||e.adminCreated));
-    if(found){
-      S.ev=found;
-      S.isGuest=true;
-      localStorage.setItem('st_last_code',upperCode);
-      // Anonymous Auth ואז ל-welcome
-      ensureGuestAuth().then(function(){nav('welcome');});
-    } else {
-      // לא נמצא מקומית — אמת auth קודם, אחר כך חפש ב-Firebase
-      const tryFb=()=>{
-        if(typeof fbGetEvent!=='function'||typeof db==='undefined'){
-          setTimeout(tryFb,300);return;
-        }
-        ensureGuestAuth().then(function(){
-        fbGetEvent(upperCode).then(fbEv=>{
-          if(fbEv&&!fbEv.deleted&&(fbEv.paid||fbEv.adminCreated)){
-            S.ev=fbEv;
-            S.isGuest=true;
-            DB.events=DB.events.filter(e=>e.code!==upperCode);
-            DB.events.push(fbEv);
-            saveDB();
-            localStorage.setItem('st_last_code',upperCode);
-            // Anonymous Auth ואז ל-welcome
-            ensureGuestAuth().then(function(){nav('welcome');});
-          } else {
-            nav('guest');
-            setTimeout(()=>{
-              const err=document.getElementById('g-err');
-              if(err){err.textContent='⚠ קוד אירוע לא נמצא';err.style.display='flex';}
-            },300);
-          }
-        }).catch(()=>{
+    // Firestore is source of truth — wait for Firebase SDK then hydrate
+    const tryDeepLink=function(){
+      if(typeof fbGetEvent!=='function'||typeof db==='undefined'){
+        setTimeout(tryDeepLink,300);return;
+      }
+      hydrateEvFromFirestore(upperCode).then(function(result){
+        if(!result.ok){
           nav('guest');
-          setTimeout(()=>{
+          setTimeout(function(){
             const err=document.getElementById('g-err');
-            if(err){err.textContent='⚠ קוד אירוע לא נמצא';err.style.display='flex';}
+            if(err){err.textContent='⚠ '+result.reason;err.style.display='flex';}
           },300);
-        });
-        }).catch(()=>{nav('guest');});
-      };
-      tryFb();
-    }
+          return;
+        }
+        S.isGuest=true;
+        nav('welcome');
+      });
+    };
+    tryDeepLink();
   }
 }
 handleDeepLink();
