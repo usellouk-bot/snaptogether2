@@ -555,6 +555,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 </head>
 <body>
 <div class="app" id="app">
+<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">security-regression-fix-v2</div>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lb" onclick="closeLB()">
   <div style="position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:1;">✕</div>
@@ -3777,17 +3778,20 @@ let previewCountdownInt=null;
 let capturedDataURLs=[]; // local capture buffer
 
 function isEventActive(){
+  // Production debug
+  console.log('[MP isEventActive] S.isGuest='+S.isGuest+' ev.date='+S.ev.date+' start='+S.ev.startTime+' end='+S.ev.endTime+' DB.role='+(DB.currentUser&&DB.currentUser.role)+' now='+new Date().toISOString());
   // מנהל תמיד יכול לצלם
-  if(DB.currentUser&&DB.currentUser.role==='admin') return true;
+  if(DB.currentUser&&DB.currentUser.role==='admin'){console.log('[MP isEventActive] -> true (DB admin)');return true;}
 
   // isAdminSession תמיד מותר
-  if(isAdminSession()) return true;
+  if(isAdminSession()){console.log('[MP isEventActive] -> true (isAdminSession)');return true;}
 
   // בעל אירוע (owner) — מותר רק אם לא אורח
-  if(!S.isGuest&&DB.currentUser&&DB.currentUser.role==='owner') return true;
+  if(!S.isGuest&&DB.currentUser&&DB.currentUser.role==='owner'){console.log('[MP isEventActive] -> true (owner)');return true;}
 
   // אם חסרים שדות תאריך/שעה — אורח לא יכול לצלם
   if(!S.ev.date||!S.ev.startTime||!S.ev.endTime){
+    console.log('[MP isEventActive] -> false (missing date fields)');
     return false;
   }
 
@@ -4596,16 +4600,20 @@ async function applyCameraFallbacks(vtrack){
 
 // ── Admin Session Management ──
 function isAdminSession(){
-  // Firebase Auth check — Admin מזוהה לפי email שמאוחסן ב-sessionStorage (לא בקוד)
-  // Admin email מוגדר בעת login ומאומת מול Firebase Auth — לא hardcoded כאן
   const _adminEmail=sessionStorage.getItem('mp_admin_email')||localStorage.getItem('mp_admin_email');
-  if(mpCurrentUser && !mpCurrentUser.isAnonymous && _adminEmail && mpCurrentUser.email===_adminEmail){
-    return true;
+  const _ssSess=sessionStorage.getItem('mp_admin_session');
+  const _lsSess=localStorage.getItem('mp_admin_session');
+  const _dbRole=DB.currentUser&&DB.currentUser.role;
+  // Production debug log
+  console.log('[MP isAdminSession]',{anon:mpCurrentUser?mpCurrentUser.isAnonymous:'no-user',email:mpCurrentUser?mpCurrentUser.email:null,adminEmail:_adminEmail,ss:_ssSess,ls:_lsSess,dbRole:_dbRole,isGuest:S.isGuest});
+  if(mpCurrentUser&&!mpCurrentUser.isAnonymous&&_adminEmail&&mpCurrentUser.email===_adminEmail){
+    console.log('[MP isAdminSession] -> true (email match)'); return true;
   }
-  // Fallback — sessionStorage session flag (set by activateAdminSession after successful login)
-  return sessionStorage.getItem('mp_admin_session')==='1' ||
-         localStorage.getItem('mp_admin_session')==='1' ||
-         (DB.currentUser && DB.currentUser.role==='admin');
+  if(_ssSess==='1'){console.log('[MP isAdminSession] -> true (sessionStorage)'); return true;}
+  if(_lsSess==='1'){console.log('[MP isAdminSession] -> true (localStorage STALE?)'); return true;}
+  if(DB.currentUser&&DB.currentUser.role==='admin'){console.log('[MP isAdminSession] -> true (DB role)'); return true;}
+  console.log('[MP isAdminSession] -> false');
+  return false;
 }
 
 function activateAdminSession(){
@@ -4645,7 +4653,10 @@ window.addEventListener('message', (e)=>{
 // admin.html sets sessionStorage.mp_admin_session='1' before opening this page
 // checkAdminURL reads that flag — no URL token, no hardcoded password
 function checkAdminURL(){
-  if(sessionStorage.getItem('mp_admin_session')==='1'){
+  const _ss=sessionStorage.getItem('mp_admin_session');
+  const _params=new URLSearchParams(window.location.search);
+  console.log('[MP checkAdminURL] ss='+_ss+' url_params='+window.location.search);
+  if(_ss==='1'){
     // valid admin session established by admin.html — navigate to dashboard
     setTimeout(()=>{
       document.getElementById('s-'+S.cur).classList.remove('active');
