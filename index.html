@@ -3726,6 +3726,11 @@ function enterEvent(){
   if(!code){err.textContent='⚠ נא להזין קוד';err.style.display='flex';return;}
   err.style.display='none';
   err.textContent='⏳ מחפש אירוע...';err.style.display='flex';
+  // Security: clear stale admin session flags — guest must not inherit admin from previous session
+  localStorage.removeItem('mp_admin_session');
+  localStorage.removeItem('mp_admin_email');
+  sessionStorage.removeItem('mp_admin_session');
+  sessionStorage.removeItem('mp_admin_email');
   // חיפוש ב-localStorage קודם
   let found=DB.events.find(e=>e.code===code&&!e.deleted&&(e.paid||e.adminCreated));
   if(found){
@@ -4137,6 +4142,8 @@ function deletePreviewPhoto(){
 }
 
 function approvePhotoNow(){
+  // Guest time-window enforcement — approve blocked if event expired
+  if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים — לא ניתן לשמור תמונה');return;}
   clearInterval(previewCountdownInt);previewCountdownInt=null;
   const canvas=document.getElementById('preview-canvas');
   const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
@@ -4220,6 +4227,11 @@ window.addEventListener('online',()=>{
 });
 
 async function uploadPhoto(dataURL,meta){
+  // Final safety gate — guest cannot upload outside event window regardless of UI state
+  if(!isEventActive()&&!isAdminSession()){
+    console.warn('[MomenPix] uploadPhoto blocked — event expired for guest');
+    return;
+  }
   S.photos++;
   const capturedAt=(meta&&meta.capturedAt)||new Date().toISOString();
   const uploaderName=(meta&&meta.uploaderName)||getUploaderName();
@@ -4325,6 +4337,8 @@ function getSupportedMimeType(){
 }
 function toggleRec(){
   if(!S.recTimer){
+    // Guest time-window enforcement — recording blocked if event expired
+    if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים — לא ניתן להקליט וידאו');return;}
     if(S.camStream&&window.MediaRecorder){
       try{
         const mimeType=getSupportedMimeType();
@@ -4628,8 +4642,24 @@ window.addEventListener('message', (e)=>{
 });
 
 // Admin URL token removed — Security Sprint 1
+// admin.html sets sessionStorage.mp_admin_session='1' before opening this page
+// checkAdminURL reads that flag — no URL token, no hardcoded password
 function checkAdminURL(){
-  // ?admin= URL token removed (was: UZ2026MP). Admin must authenticate via Firebase Auth only.
+  if(sessionStorage.getItem('mp_admin_session')==='1'){
+    // valid admin session established by admin.html — navigate to dashboard
+    setTimeout(()=>{
+      document.getElementById('s-'+S.cur).classList.remove('active');
+      S.hist=['admin']; S.cur='admin';
+      document.getElementById('s-admin').classList.add('active');
+      window.scrollTo(0,0);
+      const adlv=document.getElementById('adm-login-view');
+      const addash=document.getElementById('adm-dash');
+      if(adlv)adlv.style.display='none';
+      if(addash)addash.style.display='flex';
+      const firstTab=document.querySelector('.admin-tab');
+      if(firstTab)admTab('events',firstTab);
+    },300);
+  }
 }
 
 // ── admBack ──
