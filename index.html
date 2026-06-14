@@ -3794,24 +3794,36 @@ function isEventActive(){
   // בדוק אם נמצאים בתוך תרחיש פעיל
   for(const sc of scenarios){
     if(!sc.d||!sc.s) continue;
-    // FIX: local time parsing — 'YYYY-MM-DDTHH:MM:00' ללא Z = local time
     const scStart=new Date(sc.d+'T'+sc.s+':00');
     const scEndStr=sc.e||(()=>{const d=new Date(scStart.getTime()+3*60*60*1000);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');})();
     let scEnd=new Date(sc.d+'T'+scEndStr+':00');
-    // אם שעת סיום לפני שעת התחלה — עובר חצות
     if(sc.e&&sc.e<sc.s) scEnd.setDate(scEnd.getDate()+1);
     if(now>=scStart&&now<=scEnd) return true;
   }
 
-  // FIX: local time parsing — 'YYYY-MM-DDTHH:MM:00' ללא Z = local time
-  // new Date(S.ev.date) מפרש כ-UTC ומוסיף/מוריד שעות. 'T' + time פותר זאת.
-  const start=new Date(S.ev.date+'T'+S.ev.startTime+':00');
-  let end=new Date(S.ev.date+'T'+S.ev.endTime+':00');
-  // אירוע שעובר חצות — end ביום הבא
-  if(end<=start) end.setDate(end.getDate()+1);
-  // שעתיים גרייס אחרי סיום
-  const grace=new Date(end.getTime()+2*60*60*1000);
-  return now>=start&&now<=grace;
+  // FIX: local time parsing + cross-midnight support
+  // בדיקה כפולה: גם כאילו האירוע היום, גם כאילו האירוע התחיל אתמול (לאחר חצות)
+  function _checkWindow(dateStr){
+    const start=new Date(dateStr+'T'+S.ev.startTime+':00');
+    let end=new Date(dateStr+'T'+S.ev.endTime+':00');
+    // אירוע שעובר חצות — end ביום הבא
+    if(end<=start) end.setDate(end.getDate()+1);
+    // שעתיים גרייס אחרי סיום
+    const grace=new Date(end.getTime()+2*60*60*1000);
+    return now>=start&&now<=grace;
+  }
+
+  // בדוק עם תאריך האירוע המוגדר
+  if(_checkWindow(S.ev.date)) return true;
+
+  // בדוק כאילו האירוע התחיל אתמול — רלוונטי לאורחים אחרי חצות
+  // דוגמה: date=2026-05-31 start=19:00 end=02:00 → גרייס עד 04:00 ב-2026-06-01
+  const prevDate=new Date(S.ev.date+'T12:00:00'); // noon לפי תאריך האירוע
+  prevDate.setDate(prevDate.getDate()-1);
+  const prevDateStr=prevDate.toISOString().slice(0,10);
+  if(_checkWindow(prevDateStr)) return true;
+
+  return false;
 }
 
 async function startCam(){
@@ -4570,13 +4582,13 @@ async function applyCameraFallbacks(vtrack){
 
 // ── Admin Session Management ──
 function isAdminSession(){
-  // Firebase Auth check (new) — Admin מחובר עם email admin@snap.com
-  if(mpCurrentUser && !mpCurrentUser.isAnonymous && !mpCurrentUser.isAnonymous){
-    // Admin identified by Firebase Auth role only — no hardcoded email check
-    // TODO: replace with Firebase custom claims (founder:true) post Security Sprint 1
+  // Firebase Auth check — Admin מזוהה לפי email שמאוחסן ב-sessionStorage (לא בקוד)
+  // Admin email מוגדר בעת login ומאומת מול Firebase Auth — לא hardcoded כאן
+  const _adminEmail=sessionStorage.getItem('mp_admin_email')||localStorage.getItem('mp_admin_email');
+  if(mpCurrentUser && !mpCurrentUser.isAnonymous && _adminEmail && mpCurrentUser.email===_adminEmail){
     return true;
   }
-  // Fallback — מנגנון ישן נשמר זמנית למניעת lockout
+  // Fallback — sessionStorage session flag (set by activateAdminSession after successful login)
   return sessionStorage.getItem('mp_admin_session')==='1' ||
          localStorage.getItem('mp_admin_session')==='1' ||
          (DB.currentUser && DB.currentUser.role==='admin');
@@ -4586,7 +4598,9 @@ function activateAdminSession(){
   const _adminEmail=mpCurrentUser?mpCurrentUser.email:'admin';
   DB.currentUser={name:'מנהל',email:_adminEmail,role:'admin'};
   sessionStorage.setItem('mp_admin_session','1');
+  sessionStorage.setItem('mp_admin_email',_adminEmail);
   localStorage.setItem('mp_admin_session','1');
+  localStorage.setItem('mp_admin_email',_adminEmail);
   saveDB();
 }
 
