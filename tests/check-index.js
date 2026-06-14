@@ -1,9 +1,6 @@
 /**
  * MomenPix — Static Regression Tests
  * node tests/check-index.js
- *
- * בודק שה-index.html מכיל את כל הרכיבים הקריטיים.
- * חייב לעבור 45/45 לפני כל שינוי.
  */
 
 const fs = require('fs');
@@ -33,7 +30,7 @@ function check(description, condition) {
   }
 }
 
-// ── 1. תשתית בסיסית ──────────────────────────────────────────
+// ── 1. תשתית בסיסית
 console.log('\n[1] תשתית בסיסית');
 check('DOCTYPE html קיים',            html.includes('<!DOCTYPE html>'));
 check('charset UTF-8',                html.includes('charset="UTF-8"'));
@@ -43,7 +40,7 @@ check('PWA manifest קיים',            html.includes('pwa-manifest'));
 check('apple-touch-icon קיים',        html.includes('apple-mobile-web-app-capable'));
 check('theme-color קיים',             html.includes('theme-color'));
 
-// ── 2. Firebase ───────────────────────────────────────────────
+// ── 2. Firebase
 console.log('\n[2] Firebase');
 check('Firebase App compat נטען',     html.includes('firebase-app-compat.js'));
 check('Firebase Firestore נטען',      html.includes('firebase-firestore-compat.js'));
@@ -59,11 +56,11 @@ check('fbGetEvent קיים',              html.includes('async function fbGetEve
 check('fbSavePhoto קיים',             html.includes('async function fbSavePhoto('));
 check('fbGetPhotos קיים',             html.includes('async function fbGetPhotos('));
 
-// ── 3. Cloudinary ─────────────────────────────────────────────
+// ── 3. Cloudinary
 console.log('\n[3] Cloudinary');
 check('CLOUD_NAME = dufzgvkzi',       html.includes("CLOUD_NAME = 'dufzgvkzi'"));
 
-// ── 4. מסכים (screens) ───────────────────────────────────────
+// ── 4. מסכים
 console.log('\n[4] מסכים');
 const screens = [
   'home','login','register','guest','welcome',
@@ -76,7 +73,7 @@ screens.forEach(s => {
   check('מסך ' + s + ' קיים', html.includes('id="s-' + s + '"'));
 });
 
-// ── 5. אלמנטים קריטיים ───────────────────────────────────────
+// ── 5. אלמנטים קריטיים
 console.log('\n[5] אלמנטים קריטיים');
 check('toast element קיים',           html.includes('id="toast"'));
 check('app container קיים',           html.includes('id="app"'));
@@ -88,7 +85,7 @@ check('home-saved-events קיים',       html.includes('id="home-saved-events"'
 check('qr-canvas קיים',               html.includes('id="qr-canvas"'));
 check('scenarios-list קיים',          html.includes('id="scenarios-list"'));
 
-// ── 6. פונקציות ניווט ────────────────────────────────────────
+// ── 6. פונקציות ניווט
 console.log('\n[6] פונקציות ניווט');
 check('function nav() קיימת',         html.includes('function nav(s)'));
 check('function back() קיימת',        html.includes('function back()'));
@@ -97,11 +94,31 @@ check('function toast() קיימת',       html.includes('function toast('));
 check('GUEST_ALLOWED קיים',           html.includes("const GUEST_ALLOWED=["));
 check('ADMIN_SCREENS קיים',           html.includes("const ADMIN_SCREENS=["));
 
-// ── 7. זכויות יוצרים ─────────────────────────────────────────
+// ── 7. זכויות יוצרים
 console.log('\n[7] זכויות יוצרים');
 check('copyright 2026 Momenpix',      html.includes('© 2026 Momenpix'));
 
-// ── סיכום ────────────────────────────────────────────────────
+// ── 8. בדיקות אבטחה
+console.log('\n[8] בדיקות אבטחה');
+check('ADMIN_EMAIL לא hardcoded כ-const',
+  !html.includes("const ADMIN_EMAIL='") && !html.includes('const ADMIN_EMAIL="'));
+check('canCaptureNow() קיימת',
+  html.includes('function canCaptureNow()'));
+check('hydrateEvFromFirestore() קיימת',
+  html.includes('function hydrateEvFromFirestore('));
+check('submitCreate() חוסמת anonymous',
+  html.includes('mpCurrentUser.isAnonymous') && html.includes('נדרשת כניסה כבעל אירוע'));
+check('ensureGuestAuth() נקרא לפני fbGetEvent ב-enterEvent',
+  (()=>{
+    const enter = html.indexOf('function enterEvent()');
+    const nextFn = html.indexOf('\nfunction ', enter+1);
+    const block = html.slice(enter, nextFn);
+    const authIdx = block.indexOf('hydrateEvFromFirestore');
+    const fbIdx   = block.indexOf('fbGetEvent');
+    return authIdx !== -1 && (fbIdx === -1 || authIdx < fbIdx);
+  })());
+
+// ── סיכום
 const total = passed + failed;
 console.log('\n' + '─'.repeat(44));
 console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');
