@@ -555,7 +555,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 </head>
 <body>
 <div class="app" id="app">
-<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">admin-login-fix-v1</div>
+<div id="mp-build-ver" data-testid="build-version" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">admin-login-fix-v1</div>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lb" onclick="closeLB()">
   <div style="position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:1;">✕</div>
@@ -588,8 +588,9 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <div id="home-saved-events"></div>
     <div class="sec-header">כניסה מהירה</div>
-    <button class="btn-ghost" onclick="nav('guest')" style="border-color:rgba(0,255,136,0.3);color:var(--neon);margin-bottom:6px;">📷 כניסה כאורח מצלם</button>
-    <button class="btn-ghost" onclick="startNew()" id="btn-new-event" style="display:none;">+ צור אירוע חדש</button>
+    <button class="btn-ghost" onclick="nav('guest')" data-testid="btn-guest-entry" style="border-color:rgba(0,255,136,0.3);color:var(--neon);margin-bottom:6px;">📷 כניסה כאורח מצלם</button>
+    <button class="btn-ghost" onclick="nav('manager_entry')" data-testid="btn-manager-entry" style="border-color:rgba(100,160,255,0.4);color:#7ab3ff;margin-bottom:6px;">🎯 כניסה כמנהל אירוע</button>
+    <button class="btn-ghost" onclick="startNew()" id="btn-new-event" data-testid="btn-new-event" style="display:none;">+ צור אירוע חדש</button>
     <!-- כפתורי רישום/כניסה — מוסתרים עד אחרי הפיילוט -->
     <div id="auth-btns" style="display:none;">
       <button class="btn-ghost" onclick="nav('login')" style="margin-top:6px;">כניסה →</button>
@@ -600,7 +601,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <div class="stat-box"><div class="stat-n">AI</div><div class="stat-l">עריכה</div></div>
       <div class="stat-box"><div class="stat-n">QR</div><div class="stat-l">שיתוף</div></div>
     </div>
-    <button class="admin-link-btn" onclick="nav('admin')" style="display:none;">⚙ כניסת מנהל מערכת</button>
+    <button class="admin-link-btn" onclick="nav('admin')" data-testid="btn-admin-entry">⚙ כניסת מנהל מערכת</button>
     <div class="footer">© 2026 Momenpix · כל הזכויות שמורות<br/>Powered by AI · Made with ♥ in Israel</div>
   </div>
 </div>
@@ -1157,11 +1158,37 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       </div>
       <div class="divider-line"><div class="div-l"></div><span>או הכנס קוד ידנית</span><div class="div-l"></div></div>
       <!-- FIX: Code remembered between sessions — show last used code -->
-      <input class="code-inp" id="g-code" placeholder="ST·····" onkeydown="if(event.key==='Enter')enterEvent()" oninput="this.value=this.value.toUpperCase()"/>
+      <input class="code-inp" id="g-code" data-testid="guest-code-input" placeholder="ST·····" onkeydown="if(event.key==='Enter')enterEvent()" oninput="this.value=this.value.toUpperCase()"/>
       <div id="g-err" class="note note-warn" style="display:none;margin-bottom:10px;"></div>
     </div>
     <button class="btn-primary" onclick="enterEvent()">כניסה לאירוע →</button>
     <button class="btn-ghost" onclick="back()">‹ חזרה</button>
+    <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
+  </div>
+</div>
+
+<!-- MANAGER ENTRY -->
+<div class="screen" id="s-manager_entry">
+  <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">כניסה כמנהל אירוע</div></div>
+  <div class="scroll" style="padding:20px 0 80px;">
+    <div style="padding:0 18px;">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-label">פרטי כניסה</div>
+        <div class="field"><label>אימייל</label><input type="email" id="mgr-email" data-testid="mgr-email" placeholder="your@email.com"/></div>
+        <div class="field"><label>סיסמה</label><input type="password" id="mgr-pass" data-testid="mgr-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doManagerLogin()"/></div>
+        <div id="mgr-auth-err" class="note note-warn" style="display:none;margin-bottom:8px;">אימייל או סיסמה שגויים</div>
+        <button class="btn-primary" style="margin-top:10px;width:100%;" onclick="doManagerLogin()">כניסה →</button>
+      </div>
+      <div class="card">
+        <div class="card-label">קוד הזמנה</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-align:right;">לאחר הכניסה — הכנס את קוד ההזמנה שקיבלת מבעל האירוע</div>
+        <input class="code-inp" id="mgr-invite-code" placeholder="MGR-·····" oninput="this.value=this.value.toUpperCase()"/>
+        <input class="code-inp" id="mgr-event-code" placeholder="קוד אירוע ST·····" oninput="this.value=this.value.toUpperCase()" style="margin-top:8px;"/>
+        <div id="mgr-claim-err" class="note note-warn" style="display:none;margin-top:8px;"></div>
+        <button class="btn-ghost" style="margin-top:10px;width:100%;border-color:rgba(100,160,255,0.4);color:#7ab3ff;" onclick="doClaimInvite()">תבע הזמנה →</button>
+      </div>
+    </div>
+    <button class="btn-ghost" onclick="back()" style="margin-top:10px;">‹ חזרה</button>
     <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
   </div>
 </div>
@@ -1173,8 +1200,8 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div style="font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;">מנהל מערכת</div>
     <div class="card" style="width:100%;max-width:360px;margin:0;">
       <div class="card-label">כניסה מאובטחת</div>
-      <div class="field"><label>אימייל</label><input type="email" id="adm-email" placeholder="admin@example.com" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
-      <div class="field"><label>סיסמה</label><input type="password" id="adm-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
+      <div class="field"><label>אימייל</label><input type="email" id="adm-email" data-testid="adm-email" placeholder="admin@example.com" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
+      <div class="field"><label>סיסמה</label><input type="password" id="adm-pass" data-testid="adm-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
       <div id="adm-err" class="note note-warn" style="display:none;margin-bottom:8px;">סיסמה שגויה</div>
       <button class="btn-primary" style="margin:10px 0 0;width:100%;" onclick="doAdmLogin()">כניסה →</button>
       <button class="btn-ghost" style="margin:6px 0 0;width:100%;font-size:11px;" onclick="admBioLogin()">🔐 כניסה עם טביעת אצבע</button>
@@ -1343,7 +1370,7 @@ const CLOUD_APPS=[{id:'gdrive',ic:'📁',nm:'Google Drive'},{id:'icloud',ic:'�
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════
 const GUEST_ALLOWED=['camera','gallery','welcome','guest'];
-const ADMIN_SCREENS=['share','admin','create','home','package','payment','cloud','edit_event','scenarios','live','filter','album','clip','storage','download'];
+const ADMIN_SCREENS=['share','admin','create','home','package','payment','cloud','edit_event','scenarios','live','filter','album','clip','storage','download','manager_entry'];
 function nav(s){
   // אורח — חסום ניווט למסכים לא מותרים
   if(S.isGuest&&!GUEST_ALLOWED.includes(s)){
@@ -1411,7 +1438,7 @@ function enter(s){
     storage:renderStor,download:renderDL,scenarios:renderScenarios,
     welcome:renderWlc,camera:startCam,admin:()=>{},
     payment:renderPay,cloud:renderCloud,edit_event:renderEditEvent,
-    register:()=>{},login:()=>{},guest:enterGuest}[s]||function(){})();
+    register:()=>{},login:()=>{},guest:enterGuest,manager_entry:()=>{}}[s]||function(){})();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -5142,6 +5169,46 @@ function doAdmLogin(){
       if(errEl)errEl.style.display='flex';
     });
 }
+// ── Manager Entry Functions ────────────────────────────────────
+function doManagerLogin(){
+  const email=document.getElementById('mgr-email').value.trim();
+  const pass=document.getElementById('mgr-pass').value;
+  const errEl=document.getElementById('mgr-auth-err');
+  if(!email||!pass){errEl.style.display='flex';return;}
+  errEl.style.display='none';
+  signInWithEmail(email,pass)
+    .then(function(result){
+      mpCurrentUser=result.user;
+      toast('✓ מחובר — הכנס קוד הזמנה');
+    })
+    .catch(function(){
+      errEl.style.display='flex';
+    });
+}
+
+function doClaimInvite(){
+  const inviteCode=document.getElementById('mgr-invite-code').value.trim();
+  const eventCode=document.getElementById('mgr-event-code').value.trim().toUpperCase();
+  const errEl=document.getElementById('mgr-claim-err');
+  if(!mpCurrentUser||mpCurrentUser.isAnonymous){
+    errEl.textContent='⚠ יש להתחבר קודם עם אימייל וסיסמה';
+    errEl.style.display='flex';return;
+  }
+  if(!inviteCode||!eventCode){
+    errEl.textContent='⚠ נא למלא קוד הזמנה וקוד אירוע';
+    errEl.style.display='flex';return;
+  }
+  errEl.style.display='none';
+  hydrateEvFromFirestore(eventCode).then(function(result){
+    if(!result.ok){
+      errEl.textContent='⚠ '+result.reason;
+      errEl.style.display='flex';return;
+    }
+    S.isGuest=false;
+    claimManagerInvite(inviteCode,eventCode);
+  });
+}
+
 function admBioLogin(){toast('⚠ כניסה ביומטרית הוסרה — Security Sprint 1. השתמש בסיסמת Firebase Auth.');}
 
 function admCreateEvent(){

@@ -1,17 +1,20 @@
-// tests/smoke/playwright.config.js
-const { defineConfig } = require('@playwright/test');
+// playwright.config.js — MomenPix UI Tests
+const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
-  testDir: '.',
+  testDir: './tests',
+  testMatch: '**/*.spec.js',
   timeout: 30000,
   retries: 1,
+  reporter: [['list'], ['json', { outputFile: 'test-results/ui-results.json' }]],
   use: {
-    baseURL: 'https://usellouk-bot.github.io/snaptogether2',
+    baseURL: 'https://usellouk-bot.github.io/snaptogether2/',
     headless: true,
-    viewport: { width: 390, height: 844 }, // iPhone 14 viewport
-    ignoreHTTPSErrors: true,
-    // Collect console messages
-    bypassCSP: true,
+    screenshot: 'only-on-failure',
+    video: 'off',
   },
-  reporter: [['list'], ['html', { open: 'never', outputFolder: 'tests/smoke/report' }]],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile',   use: { ...devices['Pixel 5'] } },
+  ],
 });
