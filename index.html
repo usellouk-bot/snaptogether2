@@ -1347,13 +1347,17 @@ const ADMIN_SCREENS=['share','admin','create','home','package','payment','cloud'
 function nav(s){
   // אורח — חסום ניווט למסכים לא מותרים
   if(S.isGuest&&!GUEST_ALLOWED.includes(s)){
-    // אם admin מנסה לנווט — נקה isGuest
     if(isAdminSession()){
       S.isGuest=false;
     } else {
       toast('⚠ אין גישה — אתה מחובר כאורח מצלם');
       return;
     }
+  }
+  // מנהל אירוע — חסום ניווט למסכים עסקיים
+  if(isManagerSession()&&MANAGER_BLOCKED.includes(s)){
+    showPermissionMessage(s);
+    return;
   }
   const prev=document.getElementById('s-'+S.cur);
   prev.classList.remove('active'); prev.classList.add('leaving');
@@ -1549,6 +1553,104 @@ function renderHome(){
 // Pilot events must have ownerId set in Firestore to be visible
 const PILOT_CODES=[];
 
+// ── Event Manager Phase 1 ──────────────────────────────────
+const MANAGER_ROLE='manager';
+const MANAGER_BLOCKED=['create','share','admin','package','payment','cloud',
+  'scenarios','album','clip','storage','download'];
+
+// isManagerSession() — checks if current user is active manager of S.ev
+// Does NOT bypass time window. Does NOT grant admin rights.
+// S._managerVerified: in-memory cache of Firestore manager check
+// Populated by resolveManagerRole() on event load. Not persisted.
+// On reload, resolveManagerRole() re-reads Firestore — no re-claim needed.
+let _managerVerifiedCode=null; // eventCode for which verification was done
+
+function isManagerSession(){
+  // Must be authenticated non-anonymous
+  if(!mpCurrentUser||mpCurrentUser.isAnonymous) return false;
+  if(!S.ev||!S.ev.code) return false;
+  // Source of truth: S._managerActive flag set by resolveManagerRole()
+  // This flag is populated from Firestore managers/{uid}.active==true
+  return S._managerActive===true && _managerVerifiedCode===S.ev.code;
+}
+
+// resolveManagerRole() — called after hydrateEvFromFirestore()
+// Reads Firestore managers/{uid} for current event.
+// Sets S._managerActive=true if active manager, false otherwise.
+// This makes isManagerSession() survive page reload.
+function resolveManagerRole(eventCode){
+  S._managerActive=false;
+  _managerVerifiedCode=null;
+  if(!mpCurrentUser||mpCurrentUser.isAnonymous) return Promise.resolve(false);
+  if(!eventCode) return Promise.resolve(false);
+  if(typeof db==='undefined') return Promise.resolve(false);
+  return db.collection('events').doc(eventCode)
+    .collection('managers').doc(mpCurrentUser.uid)
+    .get()
+    .then(function(doc){
+      if(doc.exists && doc.data().active===true){
+        S._managerActive=true;
+        _managerVerifiedCode=eventCode;
+        // Update DB.currentUser role as cache (not source of truth)
+        if(!DB.currentUser) DB.currentUser={};
+        DB.currentUser.role=MANAGER_ROLE;
+        DB.currentUser.name=doc.data().name||'מנהל אירוע';
+        console.log('[MP] resolveManagerRole: active manager for',eventCode);
+        return true;
+      }
+      S._managerActive=false;
+      console.log('[MP] resolveManagerRole: not a manager for',eventCode);
+      return false;
+    })
+    .catch(function(e){
+      console.warn('[MP] resolveManagerRole error:',e.message);
+      S._managerActive=false;
+      return false;
+    });
+}
+
+// showPermissionMessage() — Hebrew explanation for blocked Manager actions
+function showPermissionMessage(action){
+  const msgs={
+    'payment': 'פעולה זו זמינה רק לבעל האירוע. מנהל האירוע יכול לתפעל את האירוע אך אינו רשאי לשנות חבילה, תשלום או נפח אחסון.',
+    'package': 'פעולה זו זמינה רק לבעל האירוע. מנהל האירוע יכול לתפעל את האירוע אך אינו רשאי לשנות חבילה, תשלום או נפח אחסון.',
+    'storage': 'פעולה זו זמינה רק לבעל האירוע. מנהל האירוע יכול לתפעל את האירוע אך אינו רשאי לשנות חבילה, תשלום או נפח אחסון.',
+    'download': 'הורדת הגלריה זמינה רק לבעל האירוע.',
+    'scenarios': 'תרחישים נקבעים על ידי בעל האירוע ואינם ניתנים לעריכה על ידי מנהל האירוע.',
+    'create': 'פעולה זו זמינה רק לבעל האירוע.',
+    'delete': 'פעולה זו זמינה רק לבעל האירוע.',
+    'time_range': 'מנהל האירוע יכול לשנות את זמני האירוע רק עד שעתיים לפני תחילתו המקורית ועד שעתיים לאחר סיומו המקורי.',
+  };
+  toast('⚠ '+(msgs[action]||'פעולה זו אינה זמינה למנהל האירוע.'));
+}
+
+// hideFromProjection() — Manager/Owner/Admin can hide photo from projection
+function hideFromProjection(photoId, reason){
+  if(!isManagerSession()&&!isAdminSession()&&!(DB.currentUser&&DB.currentUser.role==='owner')){
+    toast('⚠ אין הרשאה להסתיר תמונות');return;
+  }
+  if(!S.ev||!S.ev.code||!photoId){toast('⚠ שגיאה — אין נתוני תמונה');return;}
+  const by=mpCurrentUser?mpCurrentUser.uid:'unknown';
+  const role=DB.currentUser?DB.currentUser.role:'unknown';
+  db.collection('events').doc(S.ev.code).collection('photos').doc(photoId)
+    .update({
+      hiddenFromProjection:true,
+      hiddenBy:by,
+      hiddenAt:new Date().toISOString(),
+      hiddenReason:reason||'הוסתר על ידי מנהל אירוע'
+    })
+    .then(()=>{
+      toast('✓ התמונה הוסתרה מההקרנה');
+      // Audit log
+      db.collection('events').doc(S.ev.code).collection('auditLog').add({
+        action:'photo_hidden',eventCode:S.ev.code,
+        userId:by,role,timestamp:new Date().toISOString(),
+        details:{photoId,reason:reason||''}
+      }).catch(()=>{});
+    })
+    .catch(e=>toast('⚠ שגיאה בהסתרת תמונה: '+e.message));
+}
+
 function _loadEventsFromFirebase(el){
   if(typeof db==='undefined') return;
   const isAdmin=isAdminSession();
@@ -1731,6 +1833,8 @@ function submitCreate(){
     toast('⚠ נדרשת כניסה כבעל אירוע ליצירת אירוע');
     return;
   }
+  // Manager cannot create events
+  if(isManagerSession()){showPermissionMessage('create');return;}
   const ownerUid=mpCurrentUser.uid;
   const ownerEmail=mpCurrentUser.email||'';
   const ownerName=mpCurrentUser?(mpCurrentUser.displayName||'מנהל'):'מנהל';
@@ -1745,7 +1849,11 @@ function submitCreate(){
     ownerId:ownerUid,
     ownerEmail:ownerEmail,
     ownerName:ownerName,
-    createdByAdmin:isAdminSession()};
+    createdByAdmin:isAdminSession(),
+    // Event Manager Phase 1: store original time for buffer enforcement
+    originalDate:date,
+    originalStartTime:start,
+    originalEndTime:end};
 
   // מנהל — עוקף תשלום, שומר ישר
   if(S.ev.adminCreated||(DB.currentUser&&DB.currentUser.role==='admin')){
@@ -2004,7 +2112,17 @@ function confirmDeleteEvent(){if(confirm('האם למחוק את האירוע?')
 // EDIT EVENT
 // ═══════════════════════════════════════════════════════════
 function renderEditEvent(){
-  // חסום עריכה לאחר שעתיים מסיום האירוע (לא מנהל)
+  // Manager: only date/startTime/endTime within 2h buffer
+  if(isManagerSession()){
+    // Lock name field
+    const nameField=document.getElementById('ed-name');
+    if(nameField){nameField.value=S.ev.name||'';nameField.disabled=true;nameField.style.opacity='0.5';}
+    document.getElementById('ed-date').value=S.ev.date||'';
+    document.getElementById('ed-start').value=S.ev.startTime||'';
+    document.getElementById('ed-end').value=S.ev.endTime||'';
+    return;
+  }
+  // Owner/Admin: full edit with grace period check
   if(DB.currentUser?.role!=='admin'&&S.ev.date&&S.ev.endTime){
     const [eh,em]=S.ev.endTime.split(':').map(Number);
     const [sh,sm]=(S.ev.startTime||'00:00').split(':').map(Number);
@@ -2017,15 +2135,59 @@ function renderEditEvent(){
       return;
     }
   }
-  document.getElementById('ed-name').value=S.ev.name||'';
+  const nameField=document.getElementById('ed-name');
+  if(nameField){nameField.disabled=false;nameField.style.opacity='';nameField.value=S.ev.name||'';}
   document.getElementById('ed-date').value=S.ev.date||'';
   document.getElementById('ed-start').value=S.ev.startTime||'';
   document.getElementById('ed-end').value=S.ev.endTime||'';
 }
 function saveEditEvent(){
+  // Manager: enforce 2-hour buffer around original event time
+  if(isManagerSession()){
+    const origDate=S.ev.originalDate||S.ev.date;
+    const origStart=S.ev.originalStartTime||S.ev.startTime||'00:00';
+    const origEnd=S.ev.originalEndTime||S.ev.endTime||'23:59';
+    const [osh,osm]=origStart.split(':').map(Number);
+    const [oeh,oem]=origEnd.split(':').map(Number);
+    const origStartDt=new Date(origDate+'T'+origStart+':00');
+    let origEndDt=new Date(origDate+'T'+origEnd+':00');
+    if(oeh*60+oem < osh*60+osm) origEndDt.setDate(origEndDt.getDate()+1);
+    const bufferBefore=new Date(origStartDt.getTime()-2*60*60*1000);
+    const bufferAfter=new Date(origEndDt.getTime()+2*60*60*1000);
+    const newDate=document.getElementById('ed-date').value;
+    const newStart=document.getElementById('ed-start').value;
+    const newEnd=document.getElementById('ed-end').value;
+    if(newDate&&newStart&&newEnd){
+      const [nsh,nsm]=newStart.split(':').map(Number);
+      const [neh,nem]=newEnd.split(':').map(Number);
+      const newStartDt=new Date(newDate+'T'+newStart+':00');
+      let newEndDt=new Date(newDate+'T'+newEnd+':00');
+      if(neh*60+nem < nsh*60+nsm) newEndDt.setDate(newEndDt.getDate()+1);
+      if(newStartDt<bufferBefore||newEndDt>bufferAfter){
+        showPermissionMessage('time_range');
+        return;
+      }
+    }
+    // Manager: save only time fields, not name/paid/etc
+    S.ev.date=newDate||S.ev.date;
+    S.ev.startTime=newStart||S.ev.startTime;
+    S.ev.endTime=newEnd||S.ev.endTime;
+    saveEvent();
+    fbSaveEvent({code:S.ev.code,date:S.ev.date,startTime:S.ev.startTime,endTime:S.ev.endTime});
+    // Audit log
+    db.collection('events').doc(S.ev.code).collection('auditLog').add({
+      action:'time_changed',eventCode:S.ev.code,
+      userId:mpCurrentUser?mpCurrentUser.uid:'',
+      role:MANAGER_ROLE,timestamp:new Date().toISOString(),
+      details:{date:S.ev.date,startTime:S.ev.startTime,endTime:S.ev.endTime}
+    }).catch(()=>{});
+    toast('✓ זמני האירוע עודכנו');
+    back();
+    return;
+  }
   const newDate=document.getElementById('ed-newdate').value;
   if(newDate&&newDate!==S.ev.date){DB.notifications.push({type:'postpone',event:S.ev.code,oldDate:S.ev.date,newDate,ts:new Date().toISOString()});toast('📨 בקשת דחייה נשלחה למנהל');}
-  S.ev.name=document.getElementById('ed-name').value;
+  S.ev.name=document.getElementById('ed-name')?.value||S.ev.name;
   S.ev.date=document.getElementById('ed-date').value;
   S.ev.startTime=document.getElementById('ed-start').value;
   S.ev.endTime=document.getElementById('ed-end').value;
@@ -2269,10 +2431,18 @@ function renderGallery(){
 function _renderGalleryPhotos(photos){
   // אורח רואה רק את התמונות שלו (לפי שם + נייד)
   let displayPhotos=photos;
-  if(S.isGuest&&!isAdminSession()){
+  if(S.isGuest&&!isAdminSession()&&!isManagerSession()){
+    // Security fix: filter by uploaderUid (unique), not uploaderName (not unique)
+    const myUid=mpCurrentUser?mpCurrentUser.uid:null;
     const myName=S.guestName||localStorage.getItem('mp_guest_name')||'';
-    displayPhotos=photos.filter(p=>p.uploaderName&&p.uploaderName===myName);
+    if(myUid){
+      displayPhotos=photos.filter(p=>p.uploaderUid===myUid);
+    } else {
+      // Fallback: filter by name if UID not available
+      displayPhotos=photos.filter(p=>p.uploaderName&&p.uploaderName===myName);
+    }
   }
+  // Manager sees all photos (no filter)
 
   const images = displayPhotos.filter(p=>p.type!=='video');
   const videos = displayPhotos.filter(p=>p.type==='video');
@@ -3090,6 +3260,109 @@ function updateCell(cellIdx, theme, eventType){
   },650);
 }
 
+// ── Event Manager Invite — Phase 1 ──────────────────────────
+function createManagerInvite(){
+  if(!isAdminSession()&&!(DB.currentUser&&DB.currentUser.role==='owner')){
+    toast('⚠ רק בעל האירוע יכול ליצור הזמנת מנהל');return;
+  }
+  if(!S.ev||!S.ev.code){toast('⚠ אין אירוע פעיל');return;}
+  const inviteCode='MGR-'+Math.random().toString(36).substr(2,8).toUpperCase();
+  const inviteId='inv_'+Date.now();
+  const payload={
+    code:inviteCode,
+    eventCode:S.ev.code,
+    createdBy:mpCurrentUser?mpCurrentUser.uid:'',
+    createdAt:new Date().toISOString(),
+    claimed:false,
+    claimedBy:null,
+    claimedAt:null,
+    expiresAt:new Date(Date.now()+24*60*60*1000).toISOString()
+  };
+  db.collection('events').doc(S.ev.code).collection('invites').doc(inviteId)
+    .set(payload)
+    .then(()=>{
+      toast('✓ קוד הזמנה נוצר: '+inviteCode);
+      // Show QR or copy code
+      const shareUrl=window.location.origin+window.location.pathname+'?manager_invite='+inviteCode+'&ev='+S.ev.code;
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(shareUrl).then(()=>toast('✓ קישור הועתק: '+shareUrl));
+      }
+      // Audit log
+      db.collection('events').doc(S.ev.code).collection('auditLog').add({
+        action:'manager_assigned',eventCode:S.ev.code,
+        userId:mpCurrentUser?mpCurrentUser.uid:'',
+        role:'owner',timestamp:new Date().toISOString(),
+        details:{inviteCode,inviteId}
+      }).catch(()=>{});
+    })
+    .catch(e=>toast('⚠ שגיאה ביצירת הזמנה: '+e.message));
+}
+
+function claimManagerInvite(inviteCode, eventCode){
+  if(!mpCurrentUser||mpCurrentUser.isAnonymous){
+    toast('⚠ נדרשת כניסה לתביעת הזמנת מנהל');return;
+  }
+  if(!eventCode){toast('⚠ חסר קוד אירוע');return;}
+  // Find invite by code
+  db.collection('events').doc(eventCode).collection('invites')
+    .where('code','==',inviteCode)
+    .where('claimed','==',false)
+    .limit(1)
+    .get()
+    .then(snap=>{
+      if(snap.empty){toast('⚠ קוד הזמנה לא נמצא או כבר נוצל');return;}
+      const inviteDoc=snap.docs[0];
+      // Check expiry
+      const expires=new Date(inviteDoc.data().expiresAt);
+      if(new Date()>expires){toast('⚠ פג תוקף קוד ההזמנה');return;}
+      // Claim atomically
+      return db.runTransaction(tx=>{
+        return tx.get(inviteDoc.ref).then(doc=>{
+          if(!doc.exists||doc.data().claimed){
+            throw new Error('already_claimed');
+          }
+          tx.update(inviteDoc.ref,{
+            claimed:true,
+            claimedBy:mpCurrentUser.uid,
+            claimedAt:new Date().toISOString()
+          });
+          // Create manager record
+          const managerRef=db.collection('events').doc(eventCode)
+            .collection('managers').doc(mpCurrentUser.uid);
+          tx.set(managerRef,{
+            uid:mpCurrentUser.uid,
+            email:mpCurrentUser.email||'',
+            name:mpCurrentUser.displayName||DB.currentUser?.name||'מנהל אירוע',
+            active:true,
+            assignedBy:doc.data().createdBy,
+            claimedAt:new Date().toISOString(),
+            inviteCode
+          });
+        });
+      });
+    })
+    .then(()=>{
+      // Re-resolve from Firestore to set S._managerActive (source of truth)
+      return resolveManagerRole(eventCode);
+    })
+    .then(function(isManager){
+      if(isManager){
+        saveDB();
+        toast('✓ נכנסת כמנהל אירוע!');
+      }
+      // Audit log
+      db.collection('events').doc(eventCode).collection('auditLog').add({
+        action:'manager_claimed',eventCode,
+        userId:mpCurrentUser.uid,role:MANAGER_ROLE,
+        timestamp:new Date().toISOString(),details:{inviteCode}
+      }).catch(()=>{});
+    })
+    .catch(e=>{
+      if(e.message==='already_claimed') toast('⚠ קוד הזמנה זה כבר נוצל');
+      else toast('⚠ שגיאה בתביעת הזמנה: '+e.message);
+    });
+}
+
 // -- Feature: New Photo Flash Effect (Phase A) --
 function projFlashNewPhoto(){
   try{
@@ -3497,6 +3770,8 @@ function renderDL(){
 }
 
 async function doDL(){
+  // Manager cannot download ZIP
+  if(isManagerSession()){showPermissionMessage('download');return;}
   if(typeof JSZip==='undefined'){
     toast('⚠ טוען ספריית דחיסה...');
     return;
@@ -3763,6 +4038,10 @@ function hydrateEvFromFirestore(code){
       scenarios:  fbEv.scenarios  || [],
       projectionEnded: fbEv.projectionEnded || false,
       projectionLayout: fbEv.projectionLayout || '3x2',
+      // Event Manager Phase 1: original time fields for buffer calculation
+      originalDate:      fbEv.originalDate      || fbEv.date       || '',
+      originalStartTime: fbEv.originalStartTime || fbEv.startTime  || '',
+      originalEndTime:   fbEv.originalEndTime   || fbEv.endTime    || '',
     };
     // Update local cache
     DB.events = DB.events.filter(function(e){return e.code!==code;});
@@ -3770,7 +4049,9 @@ function hydrateEvFromFirestore(code){
     saveDB();
     localStorage.setItem('st_last_code', code);
     console.log('[MP hydrateEvFromFirestore] ev.date='+S.ev.date+' start='+S.ev.startTime+' end='+S.ev.endTime+' paid='+S.ev.paid);
-    return {ok:true};
+    // Event Manager Phase 1: resolve manager role from Firestore after hydration
+    // This ensures manager is recognized after page reload without re-claiming
+    return resolveManagerRole(code).then(function(){ return {ok:true}; });
   }).catch(function(e){
     console.warn('[MP hydrateEvFromFirestore] error:',e);
     return {ok:false,reason:'שגיאת חיבור. נסה שוב.'};
@@ -3874,11 +4155,12 @@ function isEventActive(){
 // Owner/Admin: always allowed.
 // Returns true if capture is permitted, false otherwise.
 function canCaptureNow(){
-  // Admin/owner bypass
+  // Admin/owner bypass — time window not enforced
   if(isAdminSession()) return true;
   if(DB.currentUser&&DB.currentUser.role==='admin') return true;
   if(!S.isGuest&&DB.currentUser&&DB.currentUser.role==='owner') return true;
-  // Guest: enforce event time window
+  // Manager: no bypass — enforces time window like Guest
+  // Guest: enforces time window
   return isEventActive();
 }
 
@@ -5305,6 +5587,25 @@ function handleDeepLink(){
       };
       tryFb();
     }
+    return;
+  }
+
+  // כניסת מנהל עם invite
+  const mgr_invite=params.get('manager_invite');
+  const mgr_ev=params.get('ev');
+  if(mgr_invite&&mgr_ev){
+    const waitForFb=()=>{
+      if(typeof db==='undefined'){setTimeout(waitForFb,300);return;}
+      ensureGuestAuth().then(()=>{
+        hydrateEvFromFirestore(mgr_ev).then(result=>{
+          if(!result.ok){nav('guest');return;}
+          S.isGuest=false;
+          claimManagerInvite(mgr_invite,mgr_ev);
+          nav('welcome');
+        });
+      });
+    };
+    waitForFb();
     return;
   }
 

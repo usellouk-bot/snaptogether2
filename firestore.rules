@@ -1,30 +1,139 @@
+// MomenPix — Firestore Security Rules v2
+// Event Manager Phase 1 | June 2026
+// Deploy: Firebase Console → Firestore → Rules → Publish
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Default: deny everything ──────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // ── Helper: is current user active manager of this event ──
+    function isActiveManager(eventCode) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/events/$(eventCode)/managers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/events/$(eventCode)/managers/$(request.auth.uid)).data.active == true;
+    }
+
+    // ── Helper: is current user event owner ───────────────────
+    function isOwner(eventCode) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/events/$(eventCode)).data.ownerId == request.auth.uid;
+    }
+
+    // ── Helper: is non-anonymous user ─────────────────────────
+    function isNonAnonymous() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // ── Events collection ──────────────────────────────────────
     match /events/{eventCode} {
+
+      // Read: any authenticated user (guest anonymous, owner, manager, admin)
       allow read: if request.auth != null;
-      allow create: if request.auth != null
-                    && request.auth.token.firebase.sign_in_provider != 'anonymous'
+
+      // Create: non-anonymous, ownerId must match uid
+      allow create: if isNonAnonymous()
                     && request.resource.data.ownerId == request.auth.uid;
+
+      // Update — Owner: can update any field except paid cannot go false→true (payment only)
+      // Manager: can only update date/startTime/endTime (operational fields)
       allow update: if request.auth != null
-                    && request.auth.uid == resource.data.ownerId
-                    && request.resource.data.paid == resource.data.paid;
+                    && (
+                      // Owner updates — paid field cannot be changed by client
+                      (request.auth.uid == resource.data.ownerId
+                       && request.resource.data.paid == resource.data.paid)
+                      ||
+                      // Manager updates — ONLY date/startTime/endTime allowed
+                      (isActiveManager(eventCode)
+                       && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['date','startTime','endTime','updatedAt']))
+                    );
+
+      // Delete: owner only
       allow delete: if request.auth != null
                     && request.auth.uid == resource.data.ownerId;
 
-      match /photos/{photoId} {
+      // ── Managers subcollection ─────────────────────────────
+      match /managers/{uid} {
+        // Manager can read own record (for resolveManagerRole)
+        allow read: if request.auth != null
+                    && request.auth.uid == uid;
+
+        // Owner can read all managers for their event
+        allow read: if isOwner(eventCode);
+
+        // Owner creates/updates manager records
+        allow create, update, delete: if isOwner(eventCode);
+      }
+
+      // ── Invites subcollection ──────────────────────────────
+      match /invites/{inviteId} {
+        // Any authenticated user can read (to check if already claimed)
         allow read: if request.auth != null;
+
+        // Only owner can create invite
+        allow create: if isOwner(eventCode);
+
+        // Claim: only allowed if not yet claimed + claimedBy matches uid
+        allow update: if request.auth != null
+                      && resource.data.claimed == false
+                      && request.resource.data.claimed == true
+                      && request.resource.data.claimedBy == request.auth.uid
+                      // Cannot change other fields during claim
+                      && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasOnly(['claimed','claimedBy','claimedAt']);
+
+        // Owner can delete unused invites
+        allow delete: if isOwner(eventCode);
+      }
+
+      // ── Photos subcollection ───────────────────────────────
+      match /photos/{photoId} {
+
+        // Read: any authenticated user who knows the event code
+        allow read: if request.auth != null;
+
+        // Create: any authenticated user, uploaderUid must match
         allow create: if request.auth != null
                       && request.resource.data.uploaderUid == request.auth.uid;
+
+        // Update — two paths:
+        // 1. Uploader updates own photo metadata
+        // 2. Manager/Owner hides photo from projection (only allowed fields)
         allow update: if request.auth != null
-                      && request.auth.uid == resource.data.uploaderUid;
-        allow delete: if request.auth != null
-                      && get(/databases/$(database)/documents/events/$(eventCode)).data.ownerId == request.auth.uid;
+                      && (
+                        // Uploader updates own photo
+                        request.auth.uid == resource.data.uploaderUid
+                        ||
+                        // Manager hides/unhides from projection only
+                        (isActiveManager(eventCode)
+                         && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['hiddenFromProjection','hiddenBy','hiddenAt','hiddenReason']))
+                        ||
+                        // Owner can update any photo field
+                        isOwner(eventCode)
+                      );
+
+        // Delete: owner only (not manager, not guest)
+        allow delete: if isOwner(eventCode);
+      }
+
+      // ── Audit Log subcollection ────────────────────────────
+      match /auditLog/{logId} {
+        // Owner and Manager can read audit log
+        allow read: if isOwner(eventCode) || isActiveManager(eventCode);
+
+        // Owner and Manager can create audit log entries
+        allow create: if request.auth != null
+                      && (isOwner(eventCode) || isActiveManager(eventCode));
+
+        // No updates or deletes to audit log
+        allow update, delete: if false;
       }
     }
   }
