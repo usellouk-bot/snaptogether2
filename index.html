@@ -555,7 +555,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 </head>
 <body>
 <div class="app" id="app">
-<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">security-regression-fix-v3</div>
+<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">responsibility-cleanup-v1</div>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lb" onclick="closeLB()">
   <div style="position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:1;">✕</div>
@@ -3839,6 +3839,19 @@ function isEventActive(){
   return false;
 }
 
+// ── canCaptureNow() — single gate for all capture entry points ──
+// Guest: only inside event window.
+// Owner/Admin: always allowed.
+// Returns true if capture is permitted, false otherwise.
+function canCaptureNow(){
+  // Admin/owner bypass
+  if(isAdminSession()) return true;
+  if(DB.currentUser&&DB.currentUser.role==='admin') return true;
+  if(!S.isGuest&&DB.currentUser&&DB.currentUser.role==='owner') return true;
+  // Guest: enforce event time window
+  return isEventActive();
+}
+
 async function startCam(){
   // FIX: Event name shown in camera bar
   document.getElementById('cam-nm').textContent=S.ev.name||'Momenpix';
@@ -3849,7 +3862,7 @@ async function startCam(){
   const pwm=document.getElementById('preview-watermark');
   if(pwm) pwm.style.display=S.ev.free?'block':'none';
 
-  if(!isEventActive()){
+  if(!canCaptureNow()){
     const ico=document.getElementById('cam-ico');
     ico.style.display='flex';
     ico.innerHTML=`<span style="font-size:40px;">🚫</span><span style="font-size:12px;color:rgba(255,255,255,0.5);text-align:center;padding:0 20px;margin-top:8px;">הצילום יהיה פעיל עם תחילת האירוע</span>`;
@@ -3871,6 +3884,11 @@ async function startCam(){
 }
 
 async function openCameraStream(){
+  // Block stream for guests outside event window — prevents raw camera access even if UI bypassed
+  if(!canCaptureNow()){
+    console.warn('[MP] openCameraStream blocked — canCaptureNow()=false');
+    return;
+  }
   try{
     if(S.camStream)S.camStream.getTracks().forEach(t=>t.stop());
 
@@ -4094,13 +4112,13 @@ function applyNightSafe(ctx, width, height){
 
 // ── TAKE PHOTO ──
 function takePhoto(){
-  if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים');return;}
+  if(!canCaptureNow()){toast('⏰ האירוע הסתיים');return;}
   if(S.photos>=getPhotoLimit()){toast('הגעת למגבלת התמונות');return;}
   if(typeof getTimerSecs==='function'&&getTimerSecs()>0&&!burstInt){runTimerThenShoot();return;}
   takePhotoNow();
 }
 function takePhotoNow(){
-  if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים');return;}
+  if(!canCaptureNow()){toast('⏰ האירוע הסתיים');return;}
   if(S.photos>=getPhotoLimit()){toast('הגעת למגבלת התמונות');return;}
   if(flashOn&&torchTrack){
     torchTrack.applyConstraints({advanced:[{torch:true}]}).then(()=>{setTimeout(()=>torchTrack.applyConstraints({advanced:[{torch:false}]}),600);}).catch(()=>{});
@@ -4150,8 +4168,7 @@ function deletePreviewPhoto(){
 }
 
 function approvePhotoNow(){
-  // Guest time-window enforcement — approve blocked if event expired
-  if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים — לא ניתן לשמור תמונה');return;}
+  if(!canCaptureNow()){toast('⏰ האירוע הסתיים — לא ניתן לשמור תמונה');return;}
   clearInterval(previewCountdownInt);previewCountdownInt=null;
   const canvas=document.getElementById('preview-canvas');
   const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
@@ -4235,9 +4252,9 @@ window.addEventListener('online',()=>{
 });
 
 async function uploadPhoto(dataURL,meta){
-  // Final safety gate — guest cannot upload outside event window regardless of UI state
-  if(!isEventActive()&&!isAdminSession()){
-    console.warn('[MomenPix] uploadPhoto blocked — event expired for guest');
+  // Final safety gate — single source of truth via canCaptureNow()
+  if(!canCaptureNow()){
+    console.warn('[MomenPix] uploadPhoto blocked — canCaptureNow()=false');
     return;
   }
   S.photos++;
@@ -4345,8 +4362,7 @@ function getSupportedMimeType(){
 }
 function toggleRec(){
   if(!S.recTimer){
-    // Guest time-window enforcement — recording blocked if event expired
-    if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים — לא ניתן להקליט וידאו');return;}
+    if(!canCaptureNow()){toast('⏰ האירוע הסתיים — לא ניתן להקליט וידאו');return;}
     if(S.camStream&&window.MediaRecorder){
       try{
         const mimeType=getSupportedMimeType();
@@ -4498,7 +4514,7 @@ function runTimerThenShoot(){
 let burstTimer=null;let burstInt=null;let isBursting=false;
 function startBurst(e){
   if(S.camMode!=='photo')return;
-  if(!isEventActive()&&!isAdminSession()){toast('⏰ האירוע הסתיים');return;}
+  if(!canCaptureNow()){toast('⏰ האירוע הסתיים');return;}
   burstTimer=setTimeout(()=>{
     isBursting=true;
     toast('📸 רצף — שחרר לעצור');
@@ -4515,7 +4531,7 @@ function stopBurst(){
   if(isBursting){toast('✓ רצף הסתיים');isBursting=false;}
 }
 function takePhotoSilent(){
-  if(!isEventActive()&&!isAdminSession())return;
+  if(!canCaptureNow())return;
   if(S.photos>=getPhotoLimit())return;
   const vid=document.getElementById('cam-vid');
   const canvas=document.createElement('canvas');
@@ -4614,7 +4630,8 @@ function isAdminSession(){
     console.log('[MP isAdminSession] -> true (email match)'); return true;
   }
   if(_ssSess==='1'){console.log('[MP isAdminSession] -> true (sessionStorage)'); return true;}
-  if(_lsSess==='1'){console.log('[MP isAdminSession] -> true (localStorage STALE?)'); return true;}
+  // localStorage grant removed — stale localStorage must not grant admin access
+  // if(_lsSess==='1') was here — removed in responsibility cleanup
   if(DB.currentUser&&DB.currentUser.role==='admin'){console.log('[MP isAdminSession] -> true (DB role)'); return true;}
   console.log('[MP isAdminSession] -> false');
   return false;
@@ -5195,7 +5212,7 @@ document.addEventListener('visibilitychange', async () => {
     }
     torchTrack=null;
     // בדוק האם האירוע עדיין פעיל
-    if(!isEventActive()&&!isAdminSession()){
+    if(!canCaptureNow()){
       toast('⏰ האירוע הסתיים — מועבר לגלריה');
       // עבור למסך מתאים
       const dest=S.isGuest?'gallery':'gallery';
@@ -5269,11 +5286,12 @@ function handleDeepLink(){
       // Anonymous Auth ואז ל-welcome
       ensureGuestAuth().then(function(){nav('welcome');});
     } else {
-      // לא נמצא מקומית — חפש ב-Firebase
+      // לא נמצא מקומית — אמת auth קודם, אחר כך חפש ב-Firebase
       const tryFb=()=>{
         if(typeof fbGetEvent!=='function'||typeof db==='undefined'){
           setTimeout(tryFb,300);return;
         }
+        ensureGuestAuth().then(function(){
         fbGetEvent(upperCode).then(fbEv=>{
           if(fbEv&&!fbEv.deleted&&(fbEv.paid||fbEv.adminCreated)){
             S.ev=fbEv;
@@ -5298,6 +5316,7 @@ function handleDeepLink(){
             if(err){err.textContent='⚠ קוד אירוע לא נמצא';err.style.display='flex';}
           },300);
         });
+        }).catch(()=>{nav('guest');});
       };
       tryFb();
     }
