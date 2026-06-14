@@ -555,7 +555,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 </head>
 <body>
 <div class="app" id="app">
-<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">ev-hydration-v1</div>
+<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">admin-login-fix-v1</div>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lb" onclick="closeLB()">
   <div style="position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:1;">✕</div>
@@ -1173,6 +1173,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <div style="font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;">מנהל מערכת</div>
     <div class="card" style="width:100%;max-width:360px;margin:0;">
       <div class="card-label">כניסה מאובטחת</div>
+      <div class="field"><label>אימייל</label><input type="email" id="adm-email" placeholder="admin@example.com" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
       <div class="field"><label>סיסמה</label><input type="password" id="adm-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
       <div id="adm-err" class="note note-warn" style="display:none;margin-bottom:8px;">סיסמה שגויה</div>
       <button class="btn-primary" style="margin:10px 0 0;width:100%;" onclick="doAdmLogin()">כניסה →</button>
@@ -1724,9 +1725,14 @@ function submitCreate(){
   if(!name||!o1n||!o1p||!date||!start||!end){w.style.display='flex';return;}
   w.style.display='none';
 
-  // OwnerID — שלב 2
-  const ownerUid=mpCurrentUser?mpCurrentUser.uid:('admin-legacy-'+Date.now());
-  const ownerEmail=mpCurrentUser?mpCurrentUser.email:'';
+  // OwnerID — דורש משתמש מאומת (לא anonymous)
+  // Firestore Rule: create requires non-anonymous auth + ownerId == request.auth.uid
+  if(!mpCurrentUser || mpCurrentUser.isAnonymous){
+    toast('⚠ נדרשת כניסה כבעל אירוע ליצירת אירוע');
+    return;
+  }
+  const ownerUid=mpCurrentUser.uid;
+  const ownerEmail=mpCurrentUser.email||'';
   const ownerName=mpCurrentUser?(mpCurrentUser.displayName||'מנהל'):'מנהל';
 
   S.ev={...S.ev,name,date,startTime:start,endTime:end,
@@ -1745,7 +1751,9 @@ function submitCreate(){
   if(S.ev.adminCreated||(DB.currentUser&&DB.currentUser.role==='admin')){
     S.ev.adminCreated=true;S.ev.paid=true;
     saveEvent();
-    fbSaveEvent(S.ev).then(()=>{}).catch(()=>{});
+    fbSaveEvent(S.ev)
+      .then(()=>{ console.log('[MP] event saved to Firestore:',S.ev.code); })
+      .catch(e=>{ console.warn('[MP] fbSaveEvent failed:',e.message); toast('⚠ לא הצלחנו לשמור ב-Firestore'); });
     toast('✓ אירוע נוצר! קוד: '+S.ev.code);
     nav('share');
     return;
@@ -1753,6 +1761,7 @@ function submitCreate(){
 
   // משתמש רגיל — שמור טיוטה ועבור לחבילה
   saveEvent();
+  fbSaveEvent(S.ev).catch(()=>{});
   nav('package');
 }
 function toggleOtherType(sel){
@@ -4831,8 +4840,13 @@ function doAdmLogin(){
   const p=document.getElementById('adm-pass').value;
   const errEl=document.getElementById('adm-err');
 
-  // נסה Firebase Email/Password קודם
-  signInWithEmail(ADMIN_EMAIL, p)
+  // קרא email מהשדה — ADMIN_EMAIL הוסר מהקוד מטעמי אבטחה
+  const emailInp=document.getElementById('adm-email');
+  const email=emailInp?emailInp.value.trim():'';
+  if(!email||!p){if(errEl)errEl.style.display='flex';return;}
+
+  // Firebase Email/Password Auth
+  signInWithEmail(email, p)
     .then(function(result){
       mpCurrentUser=result.user;
       activateAdminSession();
@@ -4842,8 +4856,7 @@ function doAdmLogin(){
       admTab('events',document.querySelector('.admin-tab'));
     })
     .catch(function(fbErr){
-      // Client-side password fallback removed — Security Sprint 1
-      // Admin must authenticate via Firebase Auth only
+      console.warn('[MP doAdmLogin] Firebase Auth failed:',fbErr.code);
       if(errEl)errEl.style.display='flex';
     });
 }
