@@ -555,7 +555,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 </head>
 <body>
 <div class="app" id="app">
-<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">security-regression-fix-v2</div>
+<div id="mp-build-ver" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">security-regression-fix-v3</div>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lb" onclick="closeLB()">
   <div style="position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:1;">✕</div>
@@ -3732,38 +3732,42 @@ function enterEvent(){
   localStorage.removeItem('mp_admin_email');
   sessionStorage.removeItem('mp_admin_session');
   sessionStorage.removeItem('mp_admin_email');
-  // חיפוש ב-localStorage קודם
-  let found=DB.events.find(e=>e.code===code&&!e.deleted&&(e.paid||e.adminCreated));
-  if(found){
-    S.ev=found;
-    S.isGuest=true;
-    localStorage.setItem('st_last_code',code);
-    err.style.display='none';
-    stopQRScan();
-    // Anonymous Auth לאורח
-    ensureGuestAuth().then(function(){nav('welcome');});
-    return;
-  }
-  // חיפוש ב-Firebase
-  fbGetEvent(code).then(fbEv=>{
-    if(fbEv&&!fbEv.deleted&&(fbEv.paid||fbEv.adminCreated)){
-      S.ev=fbEv;
+  // Fix: authenticate FIRST, then search Firestore
+  // Firestore Rules require auth — fbGetEvent without auth returns PERMISSION_DENIED
+  ensureGuestAuth().then(function(){
+    // חיפוש ב-localStorage קודם (לא דורש auth)
+    let found=DB.events.find(e=>e.code===code&&!e.deleted&&(e.paid||e.adminCreated));
+    if(found){
+      S.ev=found;
       S.isGuest=true;
-      // שמור מקומית
-      DB.events=DB.events.filter(e=>e.code!==code);
-      DB.events.push(fbEv);
-      saveDB();
       localStorage.setItem('st_last_code',code);
       err.style.display='none';
       stopQRScan();
-      // Anonymous Auth לאורח
-      ensureGuestAuth().then(function(){nav('welcome');});
-    } else {
+      nav('welcome');
+      return;
+    }
+    // חיפוש ב-Firebase — עכשיו כשיש auth
+    fbGetEvent(code).then(fbEv=>{
+      if(fbEv&&!fbEv.deleted&&(fbEv.paid||fbEv.adminCreated)){
+        S.ev=fbEv;
+        S.isGuest=true;
+        DB.events=DB.events.filter(e=>e.code!==code);
+        DB.events.push(fbEv);
+        saveDB();
+        localStorage.setItem('st_last_code',code);
+        err.style.display='none';
+        stopQRScan();
+        nav('welcome');
+      } else {
+        err.textContent='⚠ קוד אירוע לא נמצא. בדוק שהקלדת נכון.';
+        err.style.display='flex';
+      }
+    }).catch(()=>{
       err.textContent='⚠ קוד אירוע לא נמצא. בדוק שהקלדת נכון.';
       err.style.display='flex';
-    }
+    });
   }).catch(()=>{
-    err.textContent='⚠ קוד אירוע לא נמצא. בדוק שהקלדת נכון.';
+    err.textContent='⚠ שגיאת חיבור. נסה שוב.';
     err.style.display='flex';
   });
 }
@@ -4649,26 +4653,31 @@ window.addEventListener('message', (e)=>{
   }
 });
 
-// Admin URL token removed — Security Sprint 1
-// admin.html sets sessionStorage.mp_admin_session='1' before opening this page
-// checkAdminURL reads that flag — no URL token, no hardcoded password
+// Admin navigation via ?screen=admin — safe, no token, no password
+// URL parameter only chooses which screen to show AFTER auth is verified
+// If not authenticated as admin → shows login screen, not dashboard
 function checkAdminURL(){
-  const _ss=sessionStorage.getItem('mp_admin_session');
-  const _params=new URLSearchParams(window.location.search);
-  console.log('[MP checkAdminURL] ss='+_ss+' url_params='+window.location.search);
-  if(_ss==='1'){
-    // valid admin session established by admin.html — navigate to dashboard
+  const params=new URLSearchParams(window.location.search);
+  const screen=params.get('screen');
+  console.log('[MP checkAdminURL] screen='+screen+' ss='+sessionStorage.getItem('mp_admin_session'));
+  if(screen==='admin'){
+    // Navigate to admin screen — auth check happens inside nav/render
+    // isAdminSession() determines whether to show dashboard or login
     setTimeout(()=>{
       document.getElementById('s-'+S.cur).classList.remove('active');
       S.hist=['admin']; S.cur='admin';
       document.getElementById('s-admin').classList.add('active');
       window.scrollTo(0,0);
-      const adlv=document.getElementById('adm-login-view');
-      const addash=document.getElementById('adm-dash');
-      if(adlv)adlv.style.display='none';
-      if(addash)addash.style.display='flex';
-      const firstTab=document.querySelector('.admin-tab');
-      if(firstTab)admTab('events',firstTab);
+      // Show dashboard only if already authenticated, otherwise show login
+      if(isAdminSession()){
+        const adlv=document.getElementById('adm-login-view');
+        const addash=document.getElementById('adm-dash');
+        if(adlv)adlv.style.display='none';
+        if(addash)addash.style.display='flex';
+        const firstTab=document.querySelector('.admin-tab');
+        if(firstTab)admTab('events',firstTab);
+      }
+      // If not admin — login view remains visible, user must authenticate
     },300);
   }
 }
