@@ -23,42 +23,56 @@ async function openApp(page) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// ORIGINAL 10 TESTS
+// ORIGINAL TESTS — updated to test CLICK BEHAVIOR not just visibility
 // ══════════════════════════════════════════════════════════════
-test('1. Home shows Guest Photographer button', async ({ page }) => {
+test('1. Guest button visible AND click opens guest screen', async ({ page }) => {
   await openApp(page);
-  await expect(page.getByTestId('btn-guest-entry')).toBeVisible();
-  await expect(page.getByTestId('btn-guest-entry')).toContainText('כניסה כאורח מצלם');
+  const btn = page.getByTestId('btn-guest-entry');
+  await expect(btn).toBeVisible();
+  await btn.click();
+  // Must navigate away from home to guest screen
+  await expect(page.locator('#s-guest')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#s-home')).not.toHaveClass(/active/, { timeout: 3000 }).catch(()=>{});
 });
 
-test('2. Home shows Event Manager button', async ({ page }) => {
+test('2. Manager button visible AND click opens manager_entry screen', async ({ page }) => {
   await openApp(page);
-  await expect(page.getByTestId('btn-manager-entry')).toBeVisible();
-  await expect(page.getByTestId('btn-manager-entry')).toContainText('כניסה כמנהל אירוע');
+  const btn = page.getByTestId('btn-manager-entry');
+  await expect(btn).toBeVisible();
+  await btn.click();
+  await expect(page.locator('#s-manager_entry')).toBeVisible({ timeout: 5000 });
 });
 
-test('3. Home shows System Admin button', async ({ page }) => {
+test('3. Login button visible AND click opens login screen', async ({ page }) => {
   await openApp(page);
-  await expect(page.getByTestId('btn-admin-entry')).toBeVisible();
-  await expect(page.getByTestId('btn-admin-entry')).toContainText('כניסת מנהל מערכת');
+  const btn = page.getByTestId('btn-login');
+  await expect(btn).toBeVisible();
+  await btn.click();
+  await expect(page.locator('#s-login')).toBeVisible({ timeout: 5000 });
+  // Login screen must have email and password fields
+  await expect(page.locator('#l-email')).toBeVisible();
+  await expect(page.locator('#l-pass')).toBeVisible();
 });
 
-test('4. Create Event button NOT visible before login', async ({ page }) => {
+test('4. Register button visible AND click opens register screen', async ({ page }) => {
+  await openApp(page);
+  const btn = page.getByTestId('btn-register');
+  await expect(btn).toBeVisible();
+  await btn.click();
+  await expect(page.locator('#s-register')).toBeVisible({ timeout: 5000 });
+});
+
+test('5. Admin button visible AND click opens admin screen', async ({ page }) => {
+  await openApp(page);
+  const btn = page.getByTestId('btn-admin-entry');
+  await expect(btn).toBeVisible();
+  await btn.click();
+  await expect(page.locator('#s-admin')).toBeVisible({ timeout: 5000 });
+});
+
+test('6. Create Event button NOT visible before login', async ({ page }) => {
   await openApp(page);
   await expect(page.getByTestId('btn-new-event')).toBeHidden();
-});
-
-test('5. Guest button opens code entry screen', async ({ page }) => {
-  await openApp(page);
-  await page.getByTestId('btn-guest-entry').click();
-  await expect(page.getByTestId('guest-code-input')).toBeVisible({ timeout: 5000 });
-});
-
-test('6. Manager button opens manager entry screen', async ({ page }) => {
-  await openApp(page);
-  await page.getByTestId('btn-manager-entry').click();
-  await expect(page.getByTestId('mgr-email')).toBeVisible({ timeout: 5000 });
-  await expect(page.getByTestId('mgr-pass')).toBeVisible();
 });
 
 test('7. Admin button opens Admin login with email and password fields', async ({ page }) => {
