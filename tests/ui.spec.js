@@ -120,10 +120,15 @@ test('13. manager_entry pre-fills invite code from URL', async ({ page }) => {
   await page.goto(BASE_URL + '?manager_invite=MGR-AUTOTEST&ev=STAUTO1',
     { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
-  // Wait for handleDeepLink setTimeout(400) + Firebase init
-  await page.waitForTimeout(2000);
-  const inviteField = page.locator('#mgr-invite-code');
-  const inviteVal = await inviteField.inputValue();
+  // Wait until the hidden field is populated (up to 5 seconds)
+  await page.waitForFunction(
+    () => {
+      const el = document.getElementById('mgr-invite-code');
+      return el && el.value === 'MGR-AUTOTEST';
+    },
+    { timeout: 5000 }
+  ).catch(() => {}); // don't fail here — let expect below report
+  const inviteVal = await page.locator('#mgr-invite-code').inputValue();
   expect(inviteVal).toBe('MGR-AUTOTEST');
 });
 
@@ -131,9 +136,15 @@ test('14. manager_entry pre-fills event code from URL', async ({ page }) => {
   await page.goto(BASE_URL + '?manager_invite=MGR-AUTOTEST&ev=STAUTO1',
     { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
-  await page.waitForTimeout(2000);
-  const evField = page.locator('#mgr-event-code');
-  const evVal = await evField.inputValue();
+  // Wait until the hidden field is populated (up to 5 seconds)
+  await page.waitForFunction(
+    () => {
+      const el = document.getElementById('mgr-event-code');
+      return el && el.value === 'STAUTO1';
+    },
+    { timeout: 5000 }
+  ).catch(() => {});
+  const evVal = await page.locator('#mgr-event-code').inputValue();
   expect(evVal).toBe('STAUTO1');
 });
 
@@ -171,6 +182,3 @@ test('17. ?screen=admin link still works — not broken', async ({ page }) => {
   await expect(adminScreen).toBeVisible({ timeout: 5000 });
 });
 
-// ══════════════════════════════════════════════════════════════
-// TEST 1 — Home screen: all three entry buttons visible
-// ══════════════════════════════════════════════════════════════
