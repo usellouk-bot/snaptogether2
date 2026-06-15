@@ -3400,9 +3400,7 @@ function copyManagerLink(){
 
 function shareManagerLinkWA(){
   if(!_currentMgrLink){toast('⚠ אין קישור לשיתוף');return;}
-  const msg=encodeURIComponent('הוזמנת לנהל את האירוע ב-MomenPix!
-לחץ על הקישור כדי להיכנס:
-'+_currentMgrLink);
+  const msg=encodeURIComponent('הוזמנת לנהל את האירוע ב-MomenPix! לחץ על הקישור כדי להיכנס: '+_currentMgrLink);
   window.open('https://wa.me/?text='+msg,'_blank');
 }
 
