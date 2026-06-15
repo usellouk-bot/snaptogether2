@@ -120,8 +120,8 @@ test('13. manager_entry pre-fills invite code from URL', async ({ page }) => {
   await page.goto(BASE_URL + '?manager_invite=MGR-AUTOTEST&ev=STAUTO1',
     { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
-  await page.waitForTimeout(600);
-  // Invite code should be pre-filled in hidden field
+  // Wait for handleDeepLink setTimeout(400) + Firebase init
+  await page.waitForTimeout(2000);
   const inviteField = page.locator('#mgr-invite-code');
   const inviteVal = await inviteField.inputValue();
   expect(inviteVal).toBe('MGR-AUTOTEST');
@@ -131,8 +131,7 @@ test('14. manager_entry pre-fills event code from URL', async ({ page }) => {
   await page.goto(BASE_URL + '?manager_invite=MGR-AUTOTEST&ev=STAUTO1',
     { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
-  await page.waitForTimeout(600);
-  // Event code should be pre-filled in hidden field
+  await page.waitForTimeout(2000);
   const evField = page.locator('#mgr-event-code');
   const evVal = await evField.inputValue();
   expect(evVal).toBe('STAUTO1');
