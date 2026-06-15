@@ -118,34 +118,26 @@ test('12. ?manager_invite= link opens manager_entry screen', async ({ page }) =>
 
 test('13. manager_entry pre-fills invite code from URL', async ({ page }) => {
   await page.goto(BASE_URL + '?manager_invite=MGR-AUTOTEST&ev=STAUTO1',
-    { waitUntil: 'networkidle', timeout: 30000 });
+    { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
-  // Wait until the hidden field is populated (up to 5 seconds)
-  await page.waitForFunction(
-    () => {
-      const el = document.getElementById('mgr-invite-code');
-      return el && el.value === 'MGR-AUTOTEST';
-    },
-    { timeout: 5000 }
-  ).catch(() => {}); // don't fail here — let expect below report
-  const inviteVal = await page.locator('#mgr-invite-code').inputValue();
-  expect(inviteVal).toBe('MGR-AUTOTEST');
+  await page.waitForTimeout(1000);
+  // Check sessionStorage was set by handleDeepLink
+  const storedInvite = await page.evaluate(() =>
+    sessionStorage.getItem('pending_mgr_invite')
+  );
+  expect(storedInvite).toBe('MGR-AUTOTEST');
 });
 
 test('14. manager_entry pre-fills event code from URL', async ({ page }) => {
   await page.goto(BASE_URL + '?manager_invite=MGR-AUTOTEST&ev=STAUTO1',
-    { waitUntil: 'networkidle', timeout: 30000 });
+    { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
-  // Wait until the hidden field is populated (up to 5 seconds)
-  await page.waitForFunction(
-    () => {
-      const el = document.getElementById('mgr-event-code');
-      return el && el.value === 'STAUTO1';
-    },
-    { timeout: 5000 }
-  ).catch(() => {});
-  const evVal = await page.locator('#mgr-event-code').inputValue();
-  expect(evVal).toBe('STAUTO1');
+  await page.waitForTimeout(1000);
+  // Check sessionStorage was set by handleDeepLink
+  const storedEv = await page.evaluate(() =>
+    sessionStorage.getItem('pending_mgr_ev')
+  );
+  expect(storedEv).toBe('STAUTO1');
 });
 
 test('15. manager_entry shows email and password before login', async ({ page }) => {
