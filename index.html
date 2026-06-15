@@ -591,10 +591,10 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <button class="btn-ghost" onclick="nav('guest')" data-testid="btn-guest-entry" style="border-color:rgba(0,255,136,0.3);color:var(--neon);margin-bottom:6px;">📷 כניסה כאורח מצלם</button>
     <button class="btn-ghost" onclick="nav('manager_entry')" data-testid="btn-manager-entry" style="border-color:rgba(100,160,255,0.4);color:#7ab3ff;margin-bottom:6px;">🎯 כניסה כמנהל אירוע</button>
     <button class="btn-ghost" onclick="startNew()" id="btn-new-event" data-testid="btn-new-event" style="display:none;">+ צור אירוע חדש</button>
-    <!-- כפתורי רישום/כניסה — מוסתרים עד אחרי הפיילוט -->
-    <div id="auth-btns" style="display:none;">
-      <button class="btn-ghost" onclick="nav('login')" style="margin-top:6px;">כניסה →</button>
-      <button class="btn-ghost" onclick="nav('register')" style="margin-top:6px;">הרשמה →</button>
+    <!-- כניסה והרשמה — גלוי לכולם -->
+    <div id="auth-btns" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+      <button class="btn-ghost" onclick="nav('login')" data-testid="btn-login" style="border-color:rgba(255,255,255,0.2);color:var(--text2);">🔑 כניסה לחשבון</button>
+      <button class="btn-ghost" onclick="nav('register')" data-testid="btn-register" style="border-color:rgba(0,255,136,0.2);color:var(--neon);">✨ הרשמה חינם</button>
     </div>
     <div class="stats-row">
       <div class="stat-box"><div class="stat-n">∞</div><div class="stat-l">אירועים</div></div>
@@ -1571,9 +1571,15 @@ function doRegister(){
 // HOME
 // ═══════════════════════════════════════════════════════════
 function renderHome(){
-  // הצג כפתור יצירת אירוע רק למנהל מערכת
+  // הצג כפתור יצירת אירוע לכל משתמש מאומת (לא אנונימי) — לא רק Admin
   const newEvBtn=document.getElementById('btn-new-event');
-  if(newEvBtn) newEvBtn.style.display=isAdminSession()?'':'none';
+  const canCreateEvent=mpCurrentUser&&!mpCurrentUser.isAnonymous&&!isManagerSession();
+  if(newEvBtn) newEvBtn.style.display=canCreateEvent?'':'none';
+  // הצג/הסתר כפתורי כניסה/הרשמה לפי מצב auth
+  const authBtns=document.getElementById('auth-btns');
+  if(authBtns){
+    authBtns.style.display=(mpCurrentUser&&!mpCurrentUser.isAnonymous)?'none':'flex';
+  }
   const el=document.getElementById('home-saved-events');
   // וודא שה-S.ev הנוכחי שמור ב-DB
   if(S.ev&&S.ev.code&&S.ev.name){
@@ -1583,18 +1589,20 @@ function renderHome(){
   }
   const isAdmin=isAdminSession();
   const currentUid=mpCurrentUser?mpCurrentUser.uid:null;
+  const isLoggedIn=mpCurrentUser&&!mpCurrentUser.isAnonymous;
   const userEvents=DB.events.filter(function(e){
     if(e.deleted||!e.name) return false;
     if(isAdmin) return true;
     if(e.ownerId&&currentUid&&e.ownerId===currentUid) return true;
     if(!e.ownerId&&PILOT_CODES.includes(e.code)) return true;
-    if(e.adminCreated&&isAdmin) return true;
     return false;
   });
   if(userEvents.length>0){
     _renderEventsList(el, userEvents);
+  } else if(isLoggedIn){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">אין לך אירועים עדיין — לחץ על "צור אירוע חדש" כדי להתחיל</div>';
   } else {
-    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">⏳ טוען אירועים...</div>';
+    el.innerHTML='';
   }
   // תמיד מזג מ-Firebase (ברקע)
   _loadEventsFromFirebase(el);
@@ -1907,21 +1915,19 @@ function submitCreate(){
     originalEndTime:end};
 
   // מנהל — עוקף תשלום, שומר ישר
-  if(S.ev.adminCreated||(DB.currentUser&&DB.currentUser.role==='admin')){
-    S.ev.adminCreated=true;S.ev.paid=true;
-    saveEvent();
-    fbSaveEvent(S.ev)
-      .then(()=>{ console.log('[MP] event saved to Firestore:',S.ev.code); })
-      .catch(e=>{ console.warn('[MP] fbSaveEvent failed:',e.message); toast('⚠ לא הצלחנו לשמור ב-Firestore'); });
-    toast('✓ אירוע נוצר! קוד: '+S.ev.code);
-    nav('share');
-    return;
+  // כל משתמש מאומת שאינו אנונימי — שמור ישירות ועבור לשיתוף
+  // Admin מקבל adminCreated=true + paid=true
+  // Owner רגיל מקבל paid=true (גרסת פיילוט — ללא תשלום)
+  if(isAdminSession()||(DB.currentUser&&DB.currentUser.role==='admin')){
+    S.ev.adminCreated=true;
   }
-
-  // משתמש רגיל — שמור טיוטה ועבור לחבילה
+  S.ev.paid=true; // גרסת פיילוט — כל אירוע פעיל
   saveEvent();
-  fbSaveEvent(S.ev).catch(()=>{});
-  nav('package');
+  fbSaveEvent(S.ev)
+    .then(()=>{ console.log('[MP] event saved to Firestore:',S.ev.code); })
+    .catch(e=>{ console.warn('[MP] fbSaveEvent failed:',e.message); toast('⚠ לא הצלחנו לשמור ב-Firestore'); });
+  toast('✓ אירוע נוצר! קוד: '+S.ev.code);
+  nav('share');
 }
 function toggleOtherType(sel){
   const f=document.getElementById('other-type-field');
