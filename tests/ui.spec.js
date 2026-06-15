@@ -162,13 +162,12 @@ test('15. manager_entry shows email and password before login', async ({ page })
 
 test('16. Guest ?code= link still works — not broken', async ({ page }) => {
   await page.goto(BASE_URL + '?code=STTEST1',
-    { waitUntil: 'networkidle', timeout: 30000 });
+    { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
-  await page.waitForTimeout(800);
-  // Should navigate to guest or welcome screen (not manager_entry or error)
-  const managerScreen = page.locator('#s-manager_entry.active');
-  const isManagerActive = await managerScreen.count();
-  expect(isManagerActive).toBe(0); // guest link must NOT open manager screen
+  await page.waitForTimeout(1000);
+  // Guest link must NOT open manager_entry screen
+  const managerActive = await page.locator('#s-manager_entry.active').count();
+  expect(managerActive).toBe(0);
 });
 
 test('17. ?screen=admin link still works — not broken', async ({ page }) => {
