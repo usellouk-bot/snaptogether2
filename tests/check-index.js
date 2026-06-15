@@ -1,6 +1,9 @@
 /**
  * MomenPix — Static Regression Tests
  * node tests/check-index.js
+ *
+ * בודק שה-index.html מכיל את כל הרכיבים הקריטיים.
+ * חייב לעבור 45/45 לפני כל שינוי.
  */
 
 const fs = require('fs');
@@ -30,7 +33,7 @@ function check(description, condition) {
   }
 }
 
-// ── 1. תשתית בסיסית
+// ── 1. תשתית בסיסית ──────────────────────────────────────────
 console.log('\n[1] תשתית בסיסית');
 check('DOCTYPE html קיים',            html.includes('<!DOCTYPE html>'));
 check('charset UTF-8',                html.includes('charset="UTF-8"'));
@@ -40,7 +43,7 @@ check('PWA manifest קיים',            html.includes('pwa-manifest'));
 check('apple-touch-icon קיים',        html.includes('apple-mobile-web-app-capable'));
 check('theme-color קיים',             html.includes('theme-color'));
 
-// ── 2. Firebase
+// ── 2. Firebase ───────────────────────────────────────────────
 console.log('\n[2] Firebase');
 check('Firebase App compat נטען',     html.includes('firebase-app-compat.js'));
 check('Firebase Firestore נטען',      html.includes('firebase-firestore-compat.js'));
@@ -56,11 +59,11 @@ check('fbGetEvent קיים',              html.includes('async function fbGetEve
 check('fbSavePhoto קיים',             html.includes('async function fbSavePhoto('));
 check('fbGetPhotos קיים',             html.includes('async function fbGetPhotos('));
 
-// ── 3. Cloudinary
+// ── 3. Cloudinary ─────────────────────────────────────────────
 console.log('\n[3] Cloudinary');
 check('CLOUD_NAME = dufzgvkzi',       html.includes("CLOUD_NAME = 'dufzgvkzi'"));
 
-// ── 4. מסכים
+// ── 4. מסכים (screens) ───────────────────────────────────────
 console.log('\n[4] מסכים');
 const screens = [
   'home','login','register','guest','welcome',
@@ -73,7 +76,7 @@ screens.forEach(s => {
   check('מסך ' + s + ' קיים', html.includes('id="s-' + s + '"'));
 });
 
-// ── 5. אלמנטים קריטיים
+// ── 5. אלמנטים קריטיים ───────────────────────────────────────
 console.log('\n[5] אלמנטים קריטיים');
 check('toast element קיים',           html.includes('id="toast"'));
 check('app container קיים',           html.includes('id="app"'));
@@ -85,7 +88,7 @@ check('home-saved-events קיים',       html.includes('id="home-saved-events"'
 check('qr-canvas קיים',               html.includes('id="qr-canvas"'));
 check('scenarios-list קיים',          html.includes('id="scenarios-list"'));
 
-// ── 6. פונקציות ניווט
+// ── 6. פונקציות ניווט ────────────────────────────────────────
 console.log('\n[6] פונקציות ניווט');
 check('function nav() קיימת',         html.includes('function nav(s)'));
 check('function back() קיימת',        html.includes('function back()'));
@@ -94,11 +97,11 @@ check('function toast() קיימת',       html.includes('function toast('));
 check('GUEST_ALLOWED קיים',           html.includes("const GUEST_ALLOWED=["));
 check('ADMIN_SCREENS קיים',           html.includes("const ADMIN_SCREENS=["));
 
-// ── 7. זכויות יוצרים
+// ── 7. זכויות יוצרים ─────────────────────────────────────────
 console.log('\n[7] זכויות יוצרים');
 check('copyright 2026 Momenpix',      html.includes('© 2026 Momenpix'));
 
-// ── 8. בדיקות אבטחה
+// ── 8. בדיקות אבטחה — רגרסיות קריטיות ───────────────────────
 console.log('\n[8] בדיקות אבטחה');
 check('ADMIN_EMAIL לא hardcoded כ-const',
   !html.includes("const ADMIN_EMAIL='") && !html.includes('const ADMIN_EMAIL="'));
@@ -118,7 +121,103 @@ check('ensureGuestAuth() נקרא לפני fbGetEvent ב-enterEvent',
     return authIdx !== -1 && (fbIdx === -1 || authIdx < fbIdx);
   })());
 
-// ── סיכום
+// ── 9. Event Manager — בדיקות אבטחה ─────────────────────────
+console.log('\n[9] Event Manager');
+// ST-MGR-001: MANAGER_ROLE קיים
+check('ST-MGR-001: MANAGER_ROLE קיים',
+  html.includes("MANAGER_ROLE") || html.includes("'manager'") || html.includes('"manager"'));
+// ST-MGR-002: doDL() חוסמת Manager
+check('ST-MGR-002: doDL() חוסמת Manager',
+  (()=>{
+    const dlIdx = html.indexOf('async function doDL()');
+    const nextFn = html.indexOf('\nasync function ', dlIdx+1);
+    const block = html.slice(dlIdx, nextFn > dlIdx ? nextFn : dlIdx+2000);
+    return block.includes('manager') || block.includes('Manager');
+  })());
+// ST-MGR-003: submitCreate() חוסמת Manager
+check('ST-MGR-003: submitCreate() חוסמת Manager',
+  (()=>{
+    const scIdx = html.indexOf('function submitCreate()');
+    const nextFn = html.indexOf('\nfunction ', scIdx+1);
+    const block = html.slice(scIdx, nextFn > scIdx ? nextFn : scIdx+3000);
+    return block.includes('manager') || block.includes('Manager') || block.includes('isManagerSession');
+  })());
+// ST-MGR-004: nav() חוסמת Manager ממסכי payment/package/storage/download/scenarios
+check('ST-MGR-004: MANAGER_BLOCKED array קיים',
+  html.includes('MANAGER_BLOCKED') || html.includes('isManagerSession'));
+// ST-MGR-005: hideFromProjection() קיימת
+check('ST-MGR-005: hideFromProjection() קיימת',
+  html.includes('function hideFromProjection'));
+// ST-MGR-006: Gallery מסנן Guest לפי uploaderUid (לא uploaderName)
+check('ST-MGR-006: Gallery מסנן Guest לפי uploaderUid',
+  (()=>{
+    const galIdx = html.indexOf('function _renderGalleryPhotos(');
+    const nextFn = html.indexOf('\nfunction ', galIdx+1);
+    const block = html.slice(galIdx, nextFn > galIdx ? nextFn : galIdx+1200);
+    // Must have uploaderUid as primary filter AND uploaderName only as fallback
+    const hasUid = block.includes('uploaderUid===myUid');
+    const nameIsOnlyFallback = block.includes('Fallback') || block.includes('fallback');
+    return hasUid && nameIsOnlyFallback;
+  })());
+// ST-MGR-007: canCaptureNow() לא נותן bypass ל-Manager
+check('ST-MGR-007: canCaptureNow() לא מתיר bypass ל-Manager',
+  (()=>{
+    const fnIdx = html.indexOf('function canCaptureNow()');
+    const nextFn = html.indexOf('\nfunction ', fnIdx+1);
+    const block = html.slice(fnIdx, nextFn > fnIdx ? nextFn : fnIdx+500);
+    // חוק: manager חייב להיות ב-isEventActive() path — לא ב-bypass
+    // אם מנהל מקבל true ישירות כמו admin — זה כישלון
+    const adminBypass = block.includes("role==='admin'") || block.includes('isAdminSession()');
+    const managerBypass = block.includes("role==='manager'") && !block.includes('isEventActive');
+    return adminBypass && !managerBypass;
+  })());
+
+// ── 10. Manager Invite UX ─────────────────────────────────────
+console.log('\n[10] Manager Invite UX');
+check('ST-INV-001: כפתור הזמן מנהל אירוע קיים במסך share',
+  (()=>{
+    const shareIdx = html.indexOf('id="s-share"');
+    const nextScreen = html.indexOf('\n<!-- ', shareIdx+1);
+    const block = html.slice(shareIdx, nextScreen);
+    return block.includes('הזמן מנהל אירוע');
+  })());
+check('ST-INV-002: mgr-invite-panel קיים',
+  html.includes('id="mgr-invite-panel"'));
+check('ST-INV-003: mgr-invite-link-display קיים',
+  html.includes('id="mgr-invite-link-display"'));
+check('ST-INV-004: כפתור העתק קישור קיים',
+  html.includes('copyManagerLink()') && html.includes('העתק קישור'));
+check('ST-INV-005: כפתור שתף בוואטסאפ קיים',
+  html.includes('shareManagerLinkWA()') && html.includes('וואטסאפ'));
+check('ST-INV-006: מסך manager_entry עם שדות login קיים',
+  html.includes('id="s-manager_entry"') &&
+  html.includes('data-testid="mgr-email"') &&
+  html.includes('data-testid="mgr-pass"'));
+check('ST-INV-007: קודים כ-hidden fields — Manager לא מקליד ידנית',
+  (()=>{
+    const screenIdx = html.indexOf('id="s-manager_entry"');
+    const nextScreen = html.indexOf('\n<!-- ', screenIdx+1);
+    const block = html.slice(screenIdx, nextScreen);
+    return block.includes('type="hidden"') &&
+           block.includes('id="mgr-invite-code"') &&
+           block.includes('id="mgr-event-code"');
+  })());
+check('ST-INV-008: כפתור אשר כניסה כמנהל אירוע קיים',
+  html.includes('אשר כניסה כמנהל אירוע'));
+check('ST-INV-009: handleDeepLink מטפל ב-?manager_invite=',
+  html.includes("params.get('manager_invite')") &&
+  html.includes("sessionStorage.setItem('pending_mgr_invite'"));
+check('ST-INV-010: ?code= לאורח לא נשבר',
+  (()=>{
+    const dlIdx = html.indexOf('function handleDeepLink()');
+    const block = html.slice(dlIdx, dlIdx+6000);
+    return block.includes("params.get('code')") && block.includes('hydrateEvFromFirestore');
+  })());
+check('ST-INV-011: ?screen=admin לא נשבר',
+  html.includes('function checkAdminURL') &&
+  html.includes("params.get('screen')"));
+
+// ── סיכום ────────────────────────────────────────────────────
 const total = passed + failed;
 console.log('\n' + '─'.repeat(44));
 console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');

@@ -7,7 +7,7 @@
  *
  * CI: runs automatically on every push via GitHub Actions
  *
- * Tests: 10 UI visibility and navigation tests
+ * Tests: 17 UI visibility and navigation tests (10 original + 7 manager invite)
  * No Firebase login required for visibility tests.
  */
 
@@ -19,84 +19,55 @@ const EXPECTED_BUILD = 'admin-login-fix-v1';
 // ── helpers ───────────────────────────────────────────────────
 async function openApp(page) {
   await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 30000 });
-  // Wait for app to initialize
   await page.waitForSelector('#app', { timeout: 10000 });
 }
 
 // ══════════════════════════════════════════════════════════════
-// TEST 1 — Home screen: all three entry buttons visible
+// ORIGINAL 10 TESTS
 // ══════════════════════════════════════════════════════════════
 test('1. Home shows Guest Photographer button', async ({ page }) => {
   await openApp(page);
-  const btn = page.getByTestId('btn-guest-entry');
-  await expect(btn).toBeVisible();
-  await expect(btn).toContainText('כניסה כאורח מצלם');
+  await expect(page.getByTestId('btn-guest-entry')).toBeVisible();
+  await expect(page.getByTestId('btn-guest-entry')).toContainText('כניסה כאורח מצלם');
 });
 
 test('2. Home shows Event Manager button', async ({ page }) => {
   await openApp(page);
-  const btn = page.getByTestId('btn-manager-entry');
-  await expect(btn).toBeVisible();
-  await expect(btn).toContainText('כניסה כמנהל אירוע');
+  await expect(page.getByTestId('btn-manager-entry')).toBeVisible();
+  await expect(page.getByTestId('btn-manager-entry')).toContainText('כניסה כמנהל אירוע');
 });
 
 test('3. Home shows System Admin button', async ({ page }) => {
   await openApp(page);
-  const btn = page.getByTestId('btn-admin-entry');
-  await expect(btn).toBeVisible();
-  await expect(btn).toContainText('כניסת מנהל מערכת');
+  await expect(page.getByTestId('btn-admin-entry')).toBeVisible();
+  await expect(page.getByTestId('btn-admin-entry')).toContainText('כניסת מנהל מערכת');
 });
 
-// ══════════════════════════════════════════════════════════════
-// TEST 4 — Create Event hidden before login
-// ══════════════════════════════════════════════════════════════
 test('4. Create Event button NOT visible before login', async ({ page }) => {
   await openApp(page);
-  const btn = page.getByTestId('btn-new-event');
-  // Button exists but must be hidden
-  await expect(btn).toBeHidden();
+  await expect(page.getByTestId('btn-new-event')).toBeHidden();
 });
 
-// ══════════════════════════════════════════════════════════════
-// TEST 5 — Guest Photographer click → opens code entry
-// ══════════════════════════════════════════════════════════════
 test('5. Guest button opens code entry screen', async ({ page }) => {
   await openApp(page);
   await page.getByTestId('btn-guest-entry').click();
-  // Should show guest screen with code input
-  const codeInput = page.getByTestId('guest-code-input');
-  await expect(codeInput).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('guest-code-input')).toBeVisible({ timeout: 5000 });
 });
 
-// ══════════════════════════════════════════════════════════════
-// TEST 6 — Event Manager click → opens manager claim screen
-// ══════════════════════════════════════════════════════════════
 test('6. Manager button opens manager entry screen', async ({ page }) => {
   await openApp(page);
   await page.getByTestId('btn-manager-entry').click();
-  // Should show manager entry screen with email + invite fields
-  const emailInput = page.getByTestId('mgr-email');
-  await expect(emailInput).toBeVisible({ timeout: 5000 });
-  const passInput = page.getByTestId('mgr-pass');
-  await expect(passInput).toBeVisible();
+  await expect(page.getByTestId('mgr-email')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('mgr-pass')).toBeVisible();
 });
 
-// ══════════════════════════════════════════════════════════════
-// TEST 7 — Admin button → opens Admin login with email + password
-// ══════════════════════════════════════════════════════════════
 test('7. Admin button opens Admin login with email and password fields', async ({ page }) => {
   await openApp(page);
   await page.getByTestId('btn-admin-entry').click();
-  // Should show admin login view
-  const emailField = page.getByTestId('adm-email');
-  await expect(emailField).toBeVisible({ timeout: 5000 });
-  const passField = page.getByTestId('adm-pass');
-  await expect(passField).toBeVisible();
+  await expect(page.getByTestId('adm-email')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('adm-pass')).toBeVisible();
 });
 
-// ══════════════════════════════════════════════════════════════
-// TEST 8 — Build version visible and matches expected
-// ══════════════════════════════════════════════════════════════
 test('8. Build version is visible and matches expected', async ({ page }) => {
   await openApp(page);
   const versionEl = page.getByTestId('build-version');
@@ -105,35 +76,102 @@ test('8. Build version is visible and matches expected', async ({ page }) => {
   expect(versionText.trim()).toBe(EXPECTED_BUILD);
 });
 
-// ══════════════════════════════════════════════════════════════
-// TEST 9 — Guest cannot navigate to admin/manager screens
-// ══════════════════════════════════════════════════════════════
 test('9. Guest cannot access admin screen directly', async ({ page }) => {
-  await openApp(page);
-  // Try direct URL with ?screen=admin — should not show dashboard without auth
   await page.goto(BASE_URL + '?screen=admin', { waitUntil: 'networkidle' });
   await page.waitForSelector('#app', { timeout: 10000 });
-  // Admin dashboard should NOT be visible (login view should be shown instead)
   const dashboard = page.locator('#adm-dash');
-  // Either hidden or not showing dashboard content
   const isHidden = await dashboard.isHidden().catch(() => true);
   expect(isHidden).toBeTruthy();
 });
 
-// ══════════════════════════════════════════════════════════════
-// TEST 10 — Home screen has correct structure
-// ══════════════════════════════════════════════════════════════
 test('10. Home screen renders correctly', async ({ page }) => {
   await openApp(page);
-  // App container visible
   await expect(page.locator('#app')).toBeVisible();
-  // Home screen active
   await expect(page.locator('#s-home')).toBeVisible();
-  // All three entry buttons in correct order
-  const guestBtn   = page.getByTestId('btn-guest-entry');
-  const managerBtn = page.getByTestId('btn-manager-entry');
-  const adminBtn   = page.getByTestId('btn-admin-entry');
-  await expect(guestBtn).toBeVisible();
-  await expect(managerBtn).toBeVisible();
-  await expect(adminBtn).toBeVisible();
+  await expect(page.getByTestId('btn-guest-entry')).toBeVisible();
+  await expect(page.getByTestId('btn-manager-entry')).toBeVisible();
+  await expect(page.getByTestId('btn-admin-entry')).toBeVisible();
 });
+
+// ══════════════════════════════════════════════════════════════
+// MANAGER INVITE UX — 7 NEW TESTS (Tests 11-17)
+// ══════════════════════════════════════════════════════════════
+
+test('11. Manager invite panel hidden on page load', async ({ page }) => {
+  await openApp(page);
+  // Navigate to share screen first (not logged in, so we simulate via URL hash or direct check)
+  // Panel must exist but be hidden by default
+  const panel = page.getByTestId('mgr-invite-panel');
+  // Panel exists in DOM but hidden
+  await expect(panel).toBeHidden();
+});
+
+test('12. ?manager_invite= link opens manager_entry screen', async ({ page }) => {
+  await page.goto(BASE_URL + '?manager_invite=MGR-TESTCODE&ev=STTEST1',
+    { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForSelector('#app', { timeout: 10000 });
+  // Should navigate to manager_entry screen
+  await page.waitForTimeout(600); // wait for setTimeout in handleDeepLink
+  const managerScreen = page.locator('#s-manager_entry');
+  await expect(managerScreen).toBeVisible({ timeout: 5000 });
+});
+
+test('13. manager_entry pre-fills invite code from URL', async ({ page }) => {
+  await page.goto(BASE_URL + '?manager_invite=MGR-AUTOTEST&ev=STAUTO1',
+    { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForSelector('#app', { timeout: 10000 });
+  await page.waitForTimeout(600);
+  // Invite code should be pre-filled in hidden field
+  const inviteField = page.locator('#mgr-invite-code');
+  const inviteVal = await inviteField.inputValue();
+  expect(inviteVal).toBe('MGR-AUTOTEST');
+});
+
+test('14. manager_entry pre-fills event code from URL', async ({ page }) => {
+  await page.goto(BASE_URL + '?manager_invite=MGR-AUTOTEST&ev=STAUTO1',
+    { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForSelector('#app', { timeout: 10000 });
+  await page.waitForTimeout(600);
+  // Event code should be pre-filled in hidden field
+  const evField = page.locator('#mgr-event-code');
+  const evVal = await evField.inputValue();
+  expect(evVal).toBe('STAUTO1');
+});
+
+test('15. manager_entry shows email and password before login', async ({ page }) => {
+  await page.goto(BASE_URL + '?manager_invite=MGR-TEST&ev=STTEST1',
+    { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForSelector('#app', { timeout: 10000 });
+  await page.waitForTimeout(600);
+  // Login card visible
+  await expect(page.locator('#mgr-login-card')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('mgr-email')).toBeVisible();
+  await expect(page.getByTestId('mgr-pass')).toBeVisible();
+  // Confirm card hidden (before login)
+  await expect(page.getByTestId('mgr-confirm-card')).toBeHidden();
+});
+
+test('16. Guest ?code= link still works — not broken', async ({ page }) => {
+  await page.goto(BASE_URL + '?code=STTEST1',
+    { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForSelector('#app', { timeout: 10000 });
+  await page.waitForTimeout(800);
+  // Should navigate to guest or welcome screen (not manager_entry or error)
+  const managerScreen = page.locator('#s-manager_entry.active');
+  const isManagerActive = await managerScreen.count();
+  expect(isManagerActive).toBe(0); // guest link must NOT open manager screen
+});
+
+test('17. ?screen=admin link still works — not broken', async ({ page }) => {
+  await page.goto(BASE_URL + '?screen=admin',
+    { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForSelector('#app', { timeout: 10000 });
+  await page.waitForTimeout(400);
+  // Admin screen should be active (login view shown, not broken)
+  const adminScreen = page.locator('#s-admin');
+  await expect(adminScreen).toBeVisible({ timeout: 5000 });
+});
+
+// ══════════════════════════════════════════════════════════════
+// TEST 1 — Home screen: all three entry buttons visible
+// ══════════════════════════════════════════════════════════════
