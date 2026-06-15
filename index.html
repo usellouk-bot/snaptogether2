@@ -588,8 +588,6 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     </div>
     <div id="home-saved-events"></div>
     <div class="sec-header">כניסה מהירה</div>
-    <!-- DIAGNOSTIC: home-buttons-click-fix-v2 -->
-    <div id="diag-onclick" style="font-size:10px;color:rgba(255,200,0,0.7);text-align:center;margin-bottom:6px;padding:4px;background:rgba(255,200,0,0.08);border-radius:4px;">home buttons onclick: בודק...</div>
     <button class="btn-ghost" onclick="console.log('[MP CLICK] guest');nav('guest')" data-testid="btn-guest-entry" style="border-color:rgba(0,255,136,0.3);color:var(--neon);margin-bottom:6px;position:relative;z-index:10;">📷 כניסה כאורח מצלם</button>
     <button class="btn-ghost" onclick="console.log('[MP CLICK] manager');nav('manager_entry')" data-testid="btn-manager-entry" style="border-color:rgba(100,160,255,0.4);color:#7ab3ff;margin-bottom:6px;position:relative;z-index:10;">🎯 כניסה כמנהל אירוע</button>
     <button class="btn-ghost" onclick="startNew()" id="btn-new-event" data-testid="btn-new-event" style="display:none;position:relative;z-index:10;">+ צור אירוע חדש</button>
@@ -1573,17 +1571,6 @@ function doRegister(){
 // HOME
 // ═══════════════════════════════════════════════════════════
 function renderHome(){
-  // DIAGNOSTIC: confirm onclick attached
-  setTimeout(function(){
-    const diagEl=document.getElementById('diag-onclick');
-    if(!diagEl) return;
-    const btns=['btn-guest-entry','btn-manager-entry','btn-login','btn-register'];
-    const allOk=btns.every(function(id){
-      const el=document.querySelector('[data-testid="'+id+'"]');
-      return el && el.onclick;
-    });
-    diagEl.textContent='home buttons onclick attached: '+(allOk?'✅ yes':'❌ no — check console');
-  },500);
   // הצג כפתור יצירת אירוע לכל משתמש מאומת (לא אנונימי) — לא רק Admin
   const newEvBtn=document.getElementById('btn-new-event');
   const canCreateEvent=mpCurrentUser&&!mpCurrentUser.isAnonymous&&!isManagerSession();
