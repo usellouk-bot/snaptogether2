@@ -1575,10 +1575,11 @@ function renderHome(){
   const newEvBtn=document.getElementById('btn-new-event');
   const canCreateEvent=mpCurrentUser&&!mpCurrentUser.isAnonymous&&!isManagerSession();
   if(newEvBtn) newEvBtn.style.display=canCreateEvent?'':'none';
-  // הצג/הסתר כפתורי כניסה/הרשמה לפי מצב auth
+  // הצג/הסתר כפתורי כניסה/הרשמה — מוסתר רק אחרי כניסה אמיתית (לא anonymous)
   const authBtns=document.getElementById('auth-btns');
+  const isRealUser=mpCurrentUser&&!mpCurrentUser.isAnonymous;
   if(authBtns){
-    authBtns.style.display=(mpCurrentUser&&!mpCurrentUser.isAnonymous)?'none':'flex';
+    authBtns.style.display=isRealUser?'none':'flex';
   }
   const el=document.getElementById('home-saved-events');
   // וודא שה-S.ev הנוכחי שמור ב-DB
