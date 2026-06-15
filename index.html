@@ -789,6 +789,23 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
     <button class="btn-primary" style="background:transparent;border:2px solid var(--neon);color:var(--neon);" onclick="nav('camera')">📷 צלם גם אתה</button>
     <button class="btn-ghost" onclick="nav('live')">📺 הפעל הקרנה לייב</button>
     <button class="btn-ghost" onclick="nav('scenarios')">🎬 נהל תרחישים</button>
+    <button class="btn-ghost" onclick="showManagerInviteUI()" data-testid="btn-invite-manager" style="border-color:rgba(100,160,255,0.4);color:#7ab3ff;">🎯 הזמן מנהל אירוע</button>
+    <!-- Manager invite panel — hidden until button clicked -->
+    <div id="mgr-invite-panel" data-testid="mgr-invite-panel" style="display:none;margin:0 0 8px;">
+      <div class="card" style="border-color:rgba(100,160,255,0.3);">
+        <div class="card-label" style="color:#7ab3ff;">הזמנת מנהל אירוע</div>
+        <div id="mgr-invite-status" style="font-size:12px;color:var(--text3);margin-bottom:12px;text-align:right;">לחץ על "צור הזמנה" כדי לייצר קישור חד-פעמי למנהל האירוע.</div>
+        <div id="mgr-invite-link-row" style="display:none;margin-bottom:10px;">
+          <div style="background:var(--dark3);border:1px solid rgba(100,160,255,0.3);border-radius:var(--r2);padding:10px 12px;font-size:11px;color:#7ab3ff;word-break:break-all;text-align:right;" id="mgr-invite-link-display" data-testid="mgr-invite-link-display"></div>
+        </div>
+        <div id="mgr-invite-actions" style="display:none;gap:8px;display:none;flex-direction:column;">
+          <button class="copy-btn" style="width:100%;padding:10px;background:rgba(100,160,255,0.15);border:1px solid rgba(100,160,255,0.4);color:#7ab3ff;border-radius:var(--r2);font-size:13px;" onclick="copyManagerLink()" data-testid="btn-copy-mgr-link">📋 העתק קישור</button>
+          <button class="share-btn wa" style="width:100%;" onclick="shareManagerLinkWA()" data-testid="btn-wa-mgr-link">📱 שתף בוואטסאפ</button>
+        </div>
+        <button class="btn-primary" style="margin-top:10px;width:100%;background:rgba(100,160,255,0.2);border:1px solid rgba(100,160,255,0.5);color:#7ab3ff;" onclick="createManagerInviteUI()" id="mgr-create-btn">+ צור הזמנה</button>
+        <div id="mgr-invite-note" style="display:none;font-size:10px;color:var(--text3);text-align:center;margin-top:8px;">⏱ קישור בתוקף ל-24 שעות · חד פעמי</div>
+      </div>
+    </div>
     <button class="btn-ghost" onclick="nav('edit_event')" style="border-color:rgba(255,184,0,0.3);color:var(--amber);">✏️ ערוך פרטי אירוע</button>
     <button class="btn-ghost btn-danger" onclick="confirmDeleteEvent()">🗑 מחק אירוע</button>
   </div>
@@ -1172,21 +1189,28 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   <div class="topbar"><button class="back-btn" onclick="back()">‹</button><div class="topbar-title">כניסה כמנהל אירוע</div></div>
   <div class="scroll" style="padding:20px 0 80px;">
     <div style="padding:0 18px;">
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-label">פרטי כניסה</div>
+      <!-- Step indicator -->
+      <div class="card" style="background:rgba(100,160,255,0.08);border-color:rgba(100,160,255,0.25);margin-bottom:16px;">
+        <div style="font-size:12px;color:#7ab3ff;text-align:right;line-height:1.7;" id="mgr-entry-status">התחבר עם האימייל והסיסמה שלך כדי להיכנס כמנהל האירוע.</div>
+      </div>
+      <!-- Login card -->
+      <div class="card" style="margin-bottom:16px;" id="mgr-login-card">
+        <div class="card-label">כניסה לחשבון</div>
         <div class="field"><label>אימייל</label><input type="email" id="mgr-email" data-testid="mgr-email" placeholder="your@email.com"/></div>
         <div class="field"><label>סיסמה</label><input type="password" id="mgr-pass" data-testid="mgr-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doManagerLogin()"/></div>
         <div id="mgr-auth-err" class="note note-warn" style="display:none;margin-bottom:8px;">אימייל או סיסמה שגויים</div>
-        <button class="btn-primary" style="margin-top:10px;width:100%;" onclick="doManagerLogin()">כניסה →</button>
+        <button class="btn-primary" style="margin-top:10px;width:100%;" onclick="doManagerLogin()" id="mgr-login-btn">כניסה →</button>
       </div>
-      <div class="card">
-        <div class="card-label">קוד הזמנה</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-align:right;">לאחר הכניסה — הכנס את קוד ההזמנה שקיבלת מבעל האירוע</div>
-        <input class="code-inp" id="mgr-invite-code" placeholder="MGR-·····" oninput="this.value=this.value.toUpperCase()"/>
-        <input class="code-inp" id="mgr-event-code" placeholder="קוד אירוע ST·····" oninput="this.value=this.value.toUpperCase()" style="margin-top:8px;"/>
+      <!-- Confirm claim card — shown after login -->
+      <div class="card" id="mgr-confirm-card" data-testid="mgr-confirm-card" style="display:none;border-color:rgba(100,160,255,0.4);">
+        <div class="card-label" style="color:#7ab3ff;">אישור כניסה כמנהל</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px;text-align:right;" id="mgr-confirm-msg">לחץ לאישור כניסה כמנהל האירוע.</div>
+        <button class="btn-primary" style="width:100%;background:rgba(100,160,255,0.25);border:1px solid rgba(100,160,255,0.5);color:#7ab3ff;" onclick="doClaimInvite()" data-testid="btn-confirm-manager">✓ אשר כניסה כמנהל אירוע</button>
         <div id="mgr-claim-err" class="note note-warn" style="display:none;margin-top:8px;"></div>
-        <button class="btn-ghost" style="margin-top:10px;width:100%;border-color:rgba(100,160,255,0.4);color:#7ab3ff;" onclick="doClaimInvite()">תבע הזמנה →</button>
       </div>
+      <!-- Hidden fields — pre-filled from URL -->
+      <input type="hidden" id="mgr-invite-code"/>
+      <input type="hidden" id="mgr-event-code"/>
     </div>
     <button class="btn-ghost" onclick="back()" style="margin-top:10px;">‹ חזרה</button>
     <div class="footer">© 2026 Momenpix · כל הזכויות שמורות</div>
@@ -3288,6 +3312,80 @@ function updateCell(cellIdx, theme, eventType){
 }
 
 // ── Event Manager Invite — Phase 1 ──────────────────────────
+// Current manager invite link (set after creation)
+let _currentMgrLink='';
+
+function showManagerInviteUI(){
+  const panel=document.getElementById('mgr-invite-panel');
+  if(panel) panel.style.display=panel.style.display==='none'?'block':'none';
+}
+
+function createManagerInviteUI(){
+  if(!isAdminSession()&&!(DB.currentUser&&DB.currentUser.role==='owner')){
+    toast('⚠ רק בעל האירוע יכול ליצור הזמנת מנהל');return;
+  }
+  if(!S.ev||!S.ev.code){toast('⚠ אין אירוע פעיל');return;}
+  const btn=document.getElementById('mgr-create-btn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ יוצר הזמנה...';}
+  const statusEl=document.getElementById('mgr-invite-status');
+  if(statusEl) statusEl.textContent='יוצר קישור הזמנה...';
+
+  const inviteCode='MGR-'+Math.random().toString(36).substr(2,8).toUpperCase();
+  const inviteId='inv_'+Date.now();
+  const shareUrl=window.location.origin+window.location.pathname
+    +'?manager_invite='+inviteCode+'&ev='+S.ev.code;
+  const payload={
+    code:inviteCode,eventCode:S.ev.code,
+    createdBy:mpCurrentUser?mpCurrentUser.uid:'',
+    createdAt:new Date().toISOString(),
+    claimed:false,claimedBy:null,claimedAt:null,
+    expiresAt:new Date(Date.now()+24*60*60*1000).toISOString()
+  };
+  db.collection('events').doc(S.ev.code).collection('invites').doc(inviteId)
+    .set(payload)
+    .then(()=>{
+      _currentMgrLink=shareUrl;
+      // Show link + actions
+      const linkDisplay=document.getElementById('mgr-invite-link-display');
+      if(linkDisplay) linkDisplay.textContent=shareUrl;
+      const linkRow=document.getElementById('mgr-invite-link-row');
+      if(linkRow) linkRow.style.display='block';
+      const actions=document.getElementById('mgr-invite-actions');
+      if(actions){actions.style.display='flex';}
+      const note=document.getElementById('mgr-invite-note');
+      if(note) note.style.display='block';
+      if(statusEl) statusEl.textContent='הקישור מוכן לשליחה. בתוקף 24 שעות, לשימוש חד-פעמי.';
+      if(btn){btn.textContent='+ צור הזמנה חדשה';btn.disabled=false;}
+      // Audit log
+      db.collection('events').doc(S.ev.code).collection('auditLog').add({
+        action:'manager_assigned',eventCode:S.ev.code,
+        userId:mpCurrentUser?mpCurrentUser.uid:'',role:'owner',
+        timestamp:new Date().toISOString(),details:{inviteCode,inviteId}
+      }).catch(()=>{});
+    })
+    .catch(e=>{
+      toast('⚠ שגיאה ביצירת הזמנה: '+e.message);
+      if(btn){btn.textContent='+ צור הזמנה';btn.disabled=false;}
+    });
+}
+
+function copyManagerLink(){
+  if(!_currentMgrLink){toast('⚠ אין קישור להעתקה');return;}
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(_currentMgrLink)
+      .then(()=>toast('✓ קישור הועתק!'))
+      .catch(()=>{const t=document.createElement('textarea');t.value=_currentMgrLink;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('✓ הועתק!');});
+  }
+}
+
+function shareManagerLinkWA(){
+  if(!_currentMgrLink){toast('⚠ אין קישור לשיתוף');return;}
+  const msg=encodeURIComponent('הוזמנת לנהל את האירוע ב-MomenPix!
+לחץ על הקישור כדי להיכנס:
+'+_currentMgrLink);
+  window.open('https://wa.me/?text='+msg,'_blank');
+}
+
 function createManagerInvite(){
   if(!isAdminSession()&&!(DB.currentUser&&DB.currentUser.role==='owner')){
     toast('⚠ רק בעל האירוע יכול ליצור הזמנת מנהל');return;
@@ -5176,36 +5274,58 @@ function doManagerLogin(){
   const errEl=document.getElementById('mgr-auth-err');
   if(!email||!pass){errEl.style.display='flex';return;}
   errEl.style.display='none';
+  const btn=document.getElementById('mgr-login-btn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ מתחבר...';}
   signInWithEmail(email,pass)
     .then(function(result){
       mpCurrentUser=result.user;
-      toast('✓ מחובר — הכנס קוד הזמנה');
+      // Show confirm card, hide login card
+      const loginCard=document.getElementById('mgr-login-card');
+      const confirmCard=document.getElementById('mgr-confirm-card');
+      const statusEl=document.getElementById('mgr-entry-status');
+      if(loginCard) loginCard.style.display='none';
+      if(confirmCard) confirmCard.style.display='block';
+      if(statusEl) statusEl.textContent='מחובר כ-'+email+'. לחץ לאישור הכניסה כמנהל האירוע.';
+      // Update confirm message with event name
+      const confirmMsg=document.getElementById('mgr-confirm-msg');
+      const evName=S.ev&&S.ev.name?S.ev.name:'האירוע';
+      if(confirmMsg) confirmMsg.textContent='מוכן להיכנס כמנהל '+evName+'?';
     })
     .catch(function(){
       errEl.style.display='flex';
+      if(btn){btn.disabled=false;btn.textContent='כניסה →';}
     });
 }
 
 function doClaimInvite(){
-  const inviteCode=document.getElementById('mgr-invite-code').value.trim();
-  const eventCode=document.getElementById('mgr-event-code').value.trim().toUpperCase();
+  // Read codes from hidden fields (pre-filled from URL) or sessionStorage
+  const inviteInp=document.getElementById('mgr-invite-code');
+  const evInp=document.getElementById('mgr-event-code');
+  const inviteCode=(inviteInp?inviteInp.value.trim():'')||sessionStorage.getItem('pending_mgr_invite')||'';
+  const eventCode=((evInp?evInp.value.trim():'')||sessionStorage.getItem('pending_mgr_ev')||'').toUpperCase();
   const errEl=document.getElementById('mgr-claim-err');
   if(!mpCurrentUser||mpCurrentUser.isAnonymous){
-    errEl.textContent='⚠ יש להתחבר קודם עם אימייל וסיסמה';
-    errEl.style.display='flex';return;
+    if(errEl){errEl.textContent='⚠ יש להתחבר קודם עם אימייל וסיסמה';errEl.style.display='flex';}
+    return;
   }
   if(!inviteCode||!eventCode){
-    errEl.textContent='⚠ נא למלא קוד הזמנה וקוד אירוע';
-    errEl.style.display='flex';return;
+    if(errEl){errEl.textContent='⚠ קוד הזמנה חסר — פתח מחדש את הקישור שקיבלת';errEl.style.display='flex';}
+    return;
   }
-  errEl.style.display='none';
+  if(errEl) errEl.style.display='none';
+  const btn=document.querySelector('#mgr-confirm-card button');
+  if(btn){btn.disabled=true;btn.textContent='⏳ מאמת הזמנה...';}
   hydrateEvFromFirestore(eventCode).then(function(result){
     if(!result.ok){
-      errEl.textContent='⚠ '+result.reason;
-      errEl.style.display='flex';return;
+      if(errEl){errEl.textContent='⚠ '+result.reason;errEl.style.display='flex';}
+      if(btn){btn.disabled=false;btn.textContent='✓ אשר כניסה כמנהל אירוע';}
+      return;
     }
     S.isGuest=false;
     claimManagerInvite(inviteCode,eventCode);
+    // Clear pending invite
+    sessionStorage.removeItem('pending_mgr_invite');
+    sessionStorage.removeItem('pending_mgr_ev');
   });
 }
 
@@ -5657,20 +5777,27 @@ function handleDeepLink(){
     return;
   }
 
-  // כניסת מנהל עם invite
+  // כניסת מנהל עם invite — הצג מסך login, אל תתבע כ-anonymous
   const mgr_invite=params.get('manager_invite');
   const mgr_ev=params.get('ev');
   if(mgr_invite&&mgr_ev){
     const waitForFb=()=>{
       if(typeof db==='undefined'){setTimeout(waitForFb,300);return;}
-      ensureGuestAuth().then(()=>{
-        hydrateEvFromFirestore(mgr_ev).then(result=>{
-          if(!result.ok){nav('guest');return;}
-          S.isGuest=false;
-          claimManagerInvite(mgr_invite,mgr_ev);
-          nav('welcome');
-        });
-      });
+      // Store invite params for after login
+      sessionStorage.setItem('pending_mgr_invite',mgr_invite);
+      sessionStorage.setItem('pending_mgr_ev',mgr_ev);
+      // Navigate to manager entry screen with pre-filled event code
+      setTimeout(()=>{
+        nav('manager_entry');
+        // Pre-fill codes so Manager does not type manually
+        const inviteInp=document.getElementById('mgr-invite-code');
+        const evInp=document.getElementById('mgr-event-code');
+        if(inviteInp) inviteInp.value=mgr_invite;
+        if(evInp) evInp.value=mgr_ev;
+        // Update status label
+        const statusEl=document.getElementById('mgr-entry-status');
+        if(statusEl) statusEl.textContent='התחבר עם האימייל והסיסמה שלך ולאחר מכן לחץ על "אשר כניסה כמנהל אירוע"';
+      },400);
     };
     waitForFb();
     return;
