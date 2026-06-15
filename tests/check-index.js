@@ -217,6 +217,64 @@ check('ST-INV-011: ?screen=admin לא נשבר',
   html.includes('function checkAdminURL') &&
   html.includes("params.get('screen')"));
 
+// ── 11. Home Screen Flow ──────────────────────────────────────
+console.log('\n[11] Home Screen Flow');
+check('ST-FLOW-001: כפתור כניסה לחשבון גלוי בדף הבית',
+  (()=>{
+    const homeIdx = html.indexOf('id="s-home"');
+    const next = html.indexOf('\n<!-- ', homeIdx+1);
+    const block = html.slice(homeIdx, next);
+    return block.includes('btn-login') || (block.includes("nav('login')") && !block.includes('display:none') && block.includes('auth-btns'));
+  })());
+check('ST-FLOW-002: כפתור הרשמה גלוי בדף הבית',
+  (()=>{
+    const homeIdx = html.indexOf('id="s-home"');
+    const next = html.indexOf('\n<!-- ', homeIdx+1);
+    const block = html.slice(homeIdx, next);
+    return block.includes('btn-register') || block.includes("nav('register')");
+  })());
+check('ST-FLOW-003: auth-btns לא display:none קבוע',
+  (()=>{
+    const homeIdx = html.indexOf('id="s-home"');
+    const next = html.indexOf('\n<!-- ', homeIdx+1);
+    const block = html.slice(homeIdx, next);
+    // auth-btns must NOT have hardcoded display:none
+    const authBtnsIdx = block.indexOf('id="auth-btns"');
+    const authBtnsLine = block.slice(authBtnsIdx, authBtnsIdx+80);
+    return !authBtnsLine.includes('display:none');
+  })());
+check('ST-FLOW-004: renderHome מציג צור אירוע לכל מאומת (לא רק Admin)',
+  (()=>{
+    const rhIdx = html.indexOf('function renderHome()');
+    const next = html.indexOf('\nfunction ', rhIdx+1);
+    const block = html.slice(rhIdx, next);
+    // Must NOT restrict to isAdminSession only
+    return block.includes('canCreateEvent') || block.includes('!mpCurrentUser.isAnonymous');
+  })());
+check('ST-FLOW-005: submitCreate שומר ישירות לכל Owner (לא רק Admin)',
+  (()=>{
+    const scIdx = html.indexOf('function submitCreate()');
+    const next = html.indexOf('\nfunction ', scIdx+1);
+    const block = html.slice(scIdx, next);
+    // paid=true must be set for all (pilot mode) not only adminCreated
+    return block.includes('S.ev.paid=true') && block.includes("nav('share')");
+  })());
+check('ST-FLOW-006: ownerId = mpCurrentUser.uid ב-submitCreate',
+  (()=>{
+    const scIdx = html.indexOf('function submitCreate()');
+    const next = html.indexOf('\nfunction ', scIdx+1);
+    const block = html.slice(scIdx, next);
+    return block.includes('ownerUid=mpCurrentUser.uid') || block.includes('mpCurrentUser.uid');
+  })());
+check('ST-FLOW-007: כפתור הזמן מנהל אירוע במסך share',
+  (()=>{
+    const shareIdx = html.indexOf('id="s-share"');
+    const next = html.indexOf('\n<!-- ', shareIdx+1);
+    const block = html.slice(shareIdx, next);
+    return block.includes('הזמן מנהל אירוע');
+  })());
+
+
 // ── סיכום ────────────────────────────────────────────────────
 const total = passed + failed;
 console.log('\n' + '─'.repeat(44));
