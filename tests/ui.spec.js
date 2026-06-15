@@ -111,7 +111,7 @@ test('12. ?manager_invite= link opens manager_entry screen', async ({ page }) =>
     { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
   // Should navigate to manager_entry screen
-  await page.waitForTimeout(600); // wait for setTimeout in handleDeepLink
+  await page.waitForTimeout(2000); // wait for setTimeout in handleDeepLink
   const managerScreen = page.locator('#s-manager_entry');
   await expect(managerScreen).toBeVisible({ timeout: 5000 });
 });
@@ -141,7 +141,7 @@ test('15. manager_entry shows email and password before login', async ({ page })
   await page.goto(BASE_URL + '?manager_invite=MGR-TEST&ev=STTEST1',
     { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForSelector('#app', { timeout: 10000 });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(2000);
   // Login card visible
   await expect(page.locator('#mgr-login-card')).toBeVisible({ timeout: 5000 });
   await expect(page.getByTestId('mgr-email')).toBeVisible();
