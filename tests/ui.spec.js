@@ -14,7 +14,7 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = 'https://usellouk-bot.github.io/snaptogether2/';
-const EXPECTED_BUILD = 'admin-login-fix-v1';
+const EXPECTED_BUILD = 'home-buttons-click-fix-v2';
 
 // ── helpers ───────────────────────────────────────────────────
 async function openApp(page) {
