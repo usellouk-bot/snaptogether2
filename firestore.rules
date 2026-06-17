@@ -139,11 +139,10 @@ service cloud.firestore {
 
     // ── Users collection (self-service owner profiles) ─────────
     match /users/{uid} {
-      // Owner reads/writes own record
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-      // Admin reads all users (checked client-side via isAdminSession)
-      // Note: true admin check requires Firebase Custom Claims — for now allow any auth read
-      // This is acceptable as user records contain non-sensitive profile data
+      // Only non-anonymous authenticated users can read/write own record
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid
+                         && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
   }
 }
