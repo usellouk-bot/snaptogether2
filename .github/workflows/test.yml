@@ -9,13 +9,15 @@ on:
 jobs:
   # ── Phase 1a: Static checks ───────────────────────────────────
   static:
-    name: Static Tests (71 checks)
+    name: Static Tests (108 checks + syntax)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: JS Syntax check — prevent broken JS from deploying
+        run: node tests/syntax-check.js
       - name: Run static checks
         run: node tests/check-index.js
 
