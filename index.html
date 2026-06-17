@@ -3478,8 +3478,7 @@ function shareManagerLinkWA(){
     'לכניסה לניהול האירוע:',
     _currentMgrLink
   ];
-  const msg=encodeURIComponent(lines.join('
-'));
+  const msg=encodeURIComponent(lines.join('\n'));
   window.open('https://wa.me/?text='+msg,'_blank');
 }
 
