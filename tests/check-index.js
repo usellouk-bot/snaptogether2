@@ -366,6 +366,58 @@ check('ST-SELF-007: renderHome מציג owner-btns למשתמש אמיתי בל�
     return block.includes('owner-btns') && block.includes('isRealUser');
   })());
 
+// ── 14. Manager Invite Flow ───────────────────────────────────
+console.log('\n[14] Manager Invite Flow');
+check('ST-MGR-INV-001: claimManagerInvite מנווט לgallery אחרי הצלחה',
+  (()=>{
+    const idx = html.indexOf('function claimManagerInvite(');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes("nav('gallery')");
+  })());
+check('ST-MGR-INV-002: loadEv מנווט Manager לgallery (לא share)',
+  (()=>{
+    const idx = html.indexOf('function loadEv(');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('isManagerSession()') && block.includes("nav('gallery')");
+  })());
+check('ST-MGR-INV-003: renderHome מסנן Manager לאירוע מוקצה בלבד',
+  (()=>{
+    const idx = html.indexOf('function renderHome()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('_managerVerifiedCode') && block.includes('isManagerSession()');
+  })());
+check('ST-MGR-INV-004: הודעת וואטסאפ כוללת שם אירוע',
+  (()=>{
+    const idx = html.indexOf('function shareManagerLinkWA()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('evName') && block.includes('S.ev.name');
+  })());
+check('ST-MGR-INV-005: הודעת וואטסאפ כוללת אזהרת קישור חד-פעמי',
+  (()=>{
+    const idx = html.indexOf('function shareManagerLinkWA()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('חד-פעמי') && block.includes('אישי');
+  })());
+check('ST-MGR-INV-006: הודעת וואטסאפ מציינת מה אסור (תשלום/הורדה/מחיקה)',
+  (()=>{
+    const idx = html.indexOf('function shareManagerLinkWA()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('תשלום') && block.includes('מחיקת') && block.includes('הורדת גלריה');
+  })());
+check('ST-MGR-INV-007: הודעת "כבר מומש" כאשר invite נתבע שוב',
+  (()=>{
+    const idx = html.indexOf('function doClaimInvite()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('כבר מומש') || block.includes('already_claimed');
+  })());
+
 // ── סיכום ────────────────────────────────────────────────────
 const total = passed + failed;
 console.log('\n' + '─'.repeat(44));

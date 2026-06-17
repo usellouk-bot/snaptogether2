@@ -291,3 +291,42 @@ describe('RU-USR-003 — Anonymous cannot create user record', () => {
       })
     ));
 });
+
+// ══════════════════════════════════════════════════════════════
+// MANAGER INVITE SECURITY — 3 NEW TESTS
+// ══════════════════════════════════════════════════════════════
+
+describe('RU-INV-001 — Claimed invite cannot be claimed again', () => {
+  test('❌ second user cannot claim already-claimed invite', () =>
+    assertFails(
+      manager2().firestore()
+        .collection('events').doc('STTEST1')
+        .collection('invites').doc('invite-claimed')
+        .update({
+          claimed: true,
+          claimedBy: MANAGER2_UID,
+          claimedAt: new Date().toISOString()
+        })
+    ));
+});
+
+describe('RU-INV-002 — Manager cannot delete photos', () => {
+  test('❌ manager cannot delete photo (must use hide only)', () =>
+    assertFails(
+      photo(manager()).delete()
+    ));
+});
+
+describe('RU-INV-003 — Manager can only update hiddenFromProjection fields', () => {
+  test('✅ manager can hide photo from projection',
+    () => assertSucceeds(photo(manager()).update({
+      hiddenFromProjection: true,
+      hiddenBy: MANAGER_UID,
+      hiddenAt: new Date().toISOString(),
+      hiddenReason: 'test'
+    })));
+  test('❌ manager cannot update url or other fields',
+    () => assertFails(photo(manager()).update({
+      url: 'https://evil.com/hack.jpg'
+    })));
+});
