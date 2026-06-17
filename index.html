@@ -1220,6 +1220,41 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
   </div>
 </div>
 
+<!-- MANAGER DASHBOARD -->
+<div class="screen" id="s-manager_dashboard">
+  <div class="topbar">
+    <button class="back-btn" onclick="home()">⌂</button>
+    <div class="topbar-title">ניהול אירוע</div>
+  </div>
+  <div class="scroll" style="padding:16px 0 80px;">
+    <div class="card card-neon" style="margin-bottom:16px;">
+      <div style="font-family:var(--fd);font-size:20px;color:var(--text1);margin-bottom:4px;" id="mgrdash-name"></div>
+      <div style="font-size:11px;color:var(--text3);" id="mgrdash-date"></div>
+      <div style="font-size:10px;color:rgba(100,160,255,0.8);margin-top:6px;">🎯 אתה מנהל האירוע</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:0 18px;">
+      <button class="btn-primary" onclick="nav('camera')" style="position:relative;z-index:10;">📷 צלם באירוע</button>
+      <button class="btn-ghost" onclick="nav('gallery')" style="position:relative;z-index:10;">🖼 גלריה מלאה</button>
+      <button class="btn-ghost" onclick="nav('live')" style="border-color:rgba(0,255,136,0.4);color:var(--neon);position:relative;z-index:10;">📺 הקרנה לייב</button>
+      <button class="btn-ghost" onclick="nav('edit_event')" style="position:relative;z-index:10;">⏱ עריכת זמני האירוע</button>
+      <button class="btn-ghost" onclick="showGuestSharePanel()" style="position:relative;z-index:10;">🔗 שתף קוד לאורחים</button>
+    </div>
+    <div id="mgrdash-guest-share" style="display:none;margin:12px 18px 0;">
+      <div class="card" style="border-color:rgba(0,255,136,0.3);">
+        <div class="card-label">שיתוף קוד לאורחים</div>
+        <div style="font-size:22px;font-family:var(--fd);color:var(--neon);text-align:center;letter-spacing:4px;padding:10px 0;" id="mgrdash-code"></div>
+        <button class="copy-btn" onclick="copyGuestCode()" style="width:100%;padding:10px;">📋 העתק קישור לאורחים</button>
+      </div>
+    </div>
+    <div style="margin:16px 18px 0;padding:12px;background:rgba(100,160,255,0.06);border:1px solid rgba(100,160,255,0.2);border-radius:var(--r2);">
+      <div style="font-size:10px;color:rgba(100,160,255,0.6);text-align:right;line-height:1.8;">
+        <div>✅ צלם, גלריה, הקרנה, עריכת זמנים</div>
+        <div>❌ לא מורשה: תשלום, חבילות, הורדת גלריה, מחיקה</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN -->
 <div class="screen" id="s-admin">
   <div id="adm-login-view" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:2rem;min-height:100dvh;">
@@ -1397,7 +1432,7 @@ const CLOUD_APPS=[{id:'gdrive',ic:'📁',nm:'Google Drive'},{id:'icloud',ic:'�
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════
 const GUEST_ALLOWED=['camera','gallery','welcome','guest'];
-const ADMIN_SCREENS=['share','admin','create','home','package','payment','cloud','edit_event','scenarios','live','filter','album','clip','storage','download','manager_entry'];
+const ADMIN_SCREENS=['share','admin','create','home','package','payment','cloud','edit_event','scenarios','live','filter','album','clip','storage','download','manager_entry','manager_dashboard'];
 function nav(s){
   // אורח — חסום ניווט למסכים לא מותרים
   if(S.isGuest&&!GUEST_ALLOWED.includes(s)){
@@ -1464,7 +1499,7 @@ function enter(s){
     filter:renderFilter,live:renderLive,album:renderAlbum,clip:renderClip,
     storage:renderStor,download:renderDL,scenarios:renderScenarios,
     welcome:renderWlc,camera:startCam,admin:()=>{},
-    payment:renderPay,cloud:renderCloud,edit_event:renderEditEvent,
+    payment:renderPay,cloud:renderCloud,edit_event:renderEditEvent,manager_dashboard:renderManagerDashboard,
     register:()=>{},login:()=>{},guest:enterGuest,manager_entry:()=>{}}[s]||function(){})();
 }
 
@@ -1868,9 +1903,9 @@ function loadEv(code){
         S.ev.scenarios=[];
       }
     }
-    // Manager cannot access share screen — send to gallery instead
+    // Manager → manager_dashboard (own landing). Owner/Admin → share.
     if(isManagerSession()){
-      nav('gallery');
+      nav('manager_dashboard');
     } else {
       nav('share');
     }
@@ -2595,23 +2630,26 @@ function _renderGalleryPhotos(photos){
   }
 
   const isAdmin=isAdminSession();
+  const canHide=isAdmin||isManagerSession()||(DB.currentUser&&DB.currentUser.role==='owner');
 
   document.getElementById('gal-grid').innerHTML=displayPhotos.map((p,i)=>{
     const time=new Date(p.ts).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
     const displayUrl = p.cloudUrl || p.url;
     const delBtn=isAdmin?'<button onclick="event.stopPropagation();deleteGalleryPhoto('+i+')" style="position:absolute;top:4px;right:4px;background:rgba(220,50,50,0.85);border:none;border-radius:50%;width:24px;height:24px;color:white;font-size:13px;cursor:pointer;z-index:15;line-height:24px;text-align:center;">✕</button>':'';
+    const hideBtn=canHide&&p.id?'<button onclick="event.stopPropagation();hideFromProjection(\''+p.id+'\',\'\')" title="הסתר מהקרנה" style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,200,0,0.5);border-radius:50%;width:24px;height:24px;color:#ffcc00;font-size:13px;cursor:pointer;z-index:15;line-height:24px;text-align:center;">'+(p.hiddenFromProjection?'👁':'🙈')+'</button>':'';
+
     if(p.type==='video'){
       return '<div class="g-cell" style="padding:0;overflow:hidden;position:relative;" onclick="openVideoLB(\''+displayUrl+'\')">'
         +'<video src="'+displayUrl+'" style="width:100%;height:100%;object-fit:cover;" muted playsinline></video>'
         +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);"><div style="font-size:28px;">▶</div></div>'
         +'<div class="g-time">🎬 '+time+'</div>'
-        +delBtn
+        +delBtn+hideBtn
         +'</div>';
     }
     return '<div class="g-cell" style="padding:0;overflow:hidden;position:relative;" onclick="openPhotoLB('+i+')">'
       +'<img src="'+displayUrl+'" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.parentElement.innerHTML=\'<div style=font-size:30px;text-align:center;padding-top:30%;>📷</div>\'"/>'
       +'<div class="g-time">'+time+'</div>'
-      +delBtn
+      +delBtn+hideBtn
       +'</div>';
   }).join('');
 }
@@ -3389,6 +3427,33 @@ function updateCell(cellIdx, theme, eventType){
   },650);
 }
 
+// ── Manager Dashboard ────────────────────────────────────────
+function renderManagerDashboard(){
+  const ev=S.ev||{};
+  const nameEl=document.getElementById('mgrdash-name');
+  const dateEl=document.getElementById('mgrdash-date');
+  const codeEl=document.getElementById('mgrdash-code');
+  if(nameEl) nameEl.textContent=ev.name||'אירוע';
+  if(dateEl) dateEl.textContent=(ev.date||'')+(ev.startTime?' · '+ev.startTime:'')+(ev.endTime?' — '+ev.endTime:'');
+  if(codeEl) codeEl.textContent=ev.code||'';
+}
+
+function showGuestSharePanel(){
+  const panel=document.getElementById('mgrdash-guest-share');
+  if(panel) panel.style.display=panel.style.display==='none'?'block':'none';
+}
+
+function copyGuestCode(){
+  const code=S.ev&&S.ev.code;
+  if(!code){toast('⚠ אין קוד אירוע');return;}
+  const url=window.location.origin+window.location.pathname+'?code='+code;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>toast('✓ קישור לאורחים הועתק!'));
+  } else {
+    toast('קוד האירוע: '+code);
+  }
+}
+
 // ── Event Manager Invite — Phase 1 ──────────────────────────
 // Current manager invite link (set after creation)
 let _currentMgrLink='';
@@ -3596,7 +3661,7 @@ function claimManagerInvite(inviteCode, eventCode){
         hydrateEvFromFirestore(eventCode).then(function(result){
           if(result.ok){
             toast('✓ נכנסת כמנהל אירוע "'+( S.ev.name||eventCode)+'"!');
-            nav('gallery');
+            nav('manager_dashboard');
           } else {
             toast('✓ נרשמת כמנהל אירוע. חפש את האירוע ברשימה.');
           }
@@ -5448,7 +5513,7 @@ function doClaimInvite(){
           // If same user who claimed it — allow them to re-enter
           if(mpCurrentUser&&claimedBy===mpCurrentUser.uid){
             hydrateEvFromFirestore(eventCode).then(function(r){
-              if(r.ok){nav('gallery');}
+              if(r.ok){nav('manager_dashboard');}
             });
           } else {
             if(errEl){errEl.textContent='⚠ קישור מנהל האירוע כבר מומש ואינו תקף יותר.';errEl.style.display='flex';}
