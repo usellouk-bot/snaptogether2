@@ -242,3 +242,52 @@ describe('RU-MGR-009 — Owner can revoke Manager', () => {
   test('❌ manager cannot revoke themselves',
     () => assertFails(mgr(manager(), MANAGER_UID).update({ active:false })));
 });
+
+// ══════════════════════════════════════════════════════════════
+// USERS COLLECTION — 3 NEW TESTS (RU-USR-001 to RU-USR-003)
+// ══════════════════════════════════════════════════════════════
+
+describe('RU-USR-001 — User can write own users/{uid}', () => {
+  test('✅ owner can create own user record', () =>
+    assertSucceeds(
+      owner().firestore().collection('users').doc(OWNER_UID).set({
+        uid: OWNER_UID, fullName: 'Test Owner', email: 'owner@test.com',
+        phone: '050-0000000', createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(), role: 'owner', eventsCreated: 0
+      })
+    ));
+  test('✅ owner can update own lastLoginAt', () =>
+    assertSucceeds(
+      owner().firestore().collection('users').doc(OWNER_UID).set(
+        { lastLoginAt: new Date().toISOString() }, { merge: true }
+      )
+    ));
+});
+
+describe('RU-USR-002 — User cannot read/write another users/{uid}', () => {
+  test('❌ other user cannot read owner user record', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().collection('users').doc(OWNER_UID).set({
+        uid: OWNER_UID, email: 'owner@test.com', role: 'owner'
+      });
+    });
+    await assertFails(
+      other().firestore().collection('users').doc(OWNER_UID).get()
+    );
+  });
+  test('❌ other user cannot write to owner user record', () =>
+    assertFails(
+      other().firestore().collection('users').doc(OWNER_UID).set({
+        uid: OWNER_UID, email: 'hacked@test.com'
+      })
+    ));
+});
+
+describe('RU-USR-003 — Anonymous cannot create user record', () => {
+  test('❌ anonymous cannot write users/{uid}', () =>
+    assertFails(
+      anon().firestore().collection('users').doc(ANON_UID).set({
+        uid: ANON_UID, email: 'anon@test.com', role: 'owner'
+      })
+    ));
+});

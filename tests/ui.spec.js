@@ -14,7 +14,7 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = 'https://usellouk-bot.github.io/snaptogether2/';
-const EXPECTED_BUILD = 'home-buttons-click-fix-v2';
+const EXPECTED_BUILD = 'self-service-v4';
 
 // ── helpers ───────────────────────────────────────────────────
 async function openApp(page) {
@@ -25,41 +25,52 @@ async function openApp(page) {
 // ══════════════════════════════════════════════════════════════
 // ORIGINAL TESTS — updated to test CLICK BEHAVIOR not just visibility
 // ══════════════════════════════════════════════════════════════
-test('1. Guest button visible AND click opens guest screen', async ({ page }) => {
+// ── Home Button Order ─────────────────────────────────────────
+// Required order: הרשמה, כניסה, אורח, מנהל
+test('1. Signup button is FIRST and clickable — opens register screen', async ({ page }) => {
   await openApp(page);
-  const btn = page.getByTestId('btn-guest-entry');
+  const btn = page.getByTestId('btn-register');
   await expect(btn).toBeVisible();
+  // Verify it appears before login button in DOM
+  const registerBox = await btn.boundingBox();
+  const loginBox = await page.getByTestId('btn-login').boundingBox();
+  expect(registerBox.y).toBeLessThan(loginBox.y); // signup above login
   await btn.click();
-  // Must navigate away from home to guest screen
-  await expect(page.locator('#s-guest')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('#s-home')).not.toHaveClass(/active/, { timeout: 3000 }).catch(()=>{});
+  await expect(page.locator('#s-register')).toBeVisible({ timeout: 5000 });
 });
 
-test('2. Manager button visible AND click opens manager_entry screen', async ({ page }) => {
-  await openApp(page);
-  const btn = page.getByTestId('btn-manager-entry');
-  await expect(btn).toBeVisible();
-  await btn.click();
-  await expect(page.locator('#s-manager_entry')).toBeVisible({ timeout: 5000 });
-});
-
-test('3. Login button visible AND click opens login screen', async ({ page }) => {
+test('2. Login button is SECOND and clickable — opens login screen', async ({ page }) => {
   await openApp(page);
   const btn = page.getByTestId('btn-login');
   await expect(btn).toBeVisible();
+  // Verify it appears before guest button in DOM
+  const loginBox = await btn.boundingBox();
+  const guestBox = await page.getByTestId('btn-guest-entry').boundingBox();
+  expect(loginBox.y).toBeLessThan(guestBox.y); // login above guest
   await btn.click();
   await expect(page.locator('#s-login')).toBeVisible({ timeout: 5000 });
-  // Login screen must have email and password fields
   await expect(page.locator('#l-email')).toBeVisible();
   await expect(page.locator('#l-pass')).toBeVisible();
 });
 
-test('4. Register button visible AND click opens register screen', async ({ page }) => {
+test('3. Guest button is THIRD and clickable — opens guest screen', async ({ page }) => {
   await openApp(page);
-  const btn = page.getByTestId('btn-register');
+  const btn = page.getByTestId('btn-guest-entry');
   await expect(btn).toBeVisible();
   await btn.click();
-  await expect(page.locator('#s-register')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#s-guest')).toBeVisible({ timeout: 5000 });
+});
+
+test('4. Manager button is FOURTH and clickable — opens manager_entry screen', async ({ page }) => {
+  await openApp(page);
+  const btn = page.getByTestId('btn-manager-entry');
+  await expect(btn).toBeVisible();
+  // Must appear after guest
+  const managerBox = await btn.boundingBox();
+  const guestBox = await page.getByTestId('btn-guest-entry').boundingBox();
+  expect(managerBox.y).toBeGreaterThan(guestBox.y); // manager below guest
+  await btn.click();
+  await expect(page.locator('#s-manager_entry')).toBeVisible({ timeout: 5000 });
 });
 
 test('5. Admin button visible AND click opens admin screen', async ({ page }) => {

@@ -275,6 +275,97 @@ check('ST-FLOW-007: כפתור הזמן מנהל אירוע במסך share',
   })());
 
 
+// ── 12. Owner Registration Flow ───────────────────────────────
+console.log('\n[12] Owner Registration Flow');
+check('ST-OWN-001: doRegister קורא Firebase createUserWithEmailAndPassword',
+  (()=>{
+    const idx = html.indexOf('function doRegister()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('createUserWithEmailAndPassword');
+  })());
+check('ST-OWN-002: doLogin קורא signInWithEmail (Firebase)',
+  (()=>{
+    const idx = html.indexOf('function doLogin()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('signInWithEmail');
+  })());
+check('ST-OWN-003: submitCreate משתמש ב-mpCurrentUser.uid כ-ownerId',
+  (()=>{
+    const idx = html.indexOf('function submitCreate()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('mpCurrentUser.uid');
+  })());
+check('ST-OWN-004: renderHome מציג צור אירוע לכל מאומת שאינו anonymous',
+  (()=>{
+    const idx = html.indexOf('function renderHome()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('!mpCurrentUser.isAnonymous') && block.includes('canCreateEvent');
+  })());
+check('ST-OWN-005: submitCreate לא מפנה לpackage בגרסת פיילוט',
+  (()=>{
+    const idx = html.indexOf('function submitCreate()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    const goesToShare = block.includes("nav('share')");
+    const goesToPackage = block.includes("nav('package')");
+    return goesToShare && !goesToPackage;
+  })());
+
+// ── 13. Self-Service Owner Flow ───────────────────────────────
+console.log('\n[13] Self-Service Owner Flow');
+check('ST-SELF-001: הרשמה חינם הוא הכפתור הראשון בדף הבית',
+  (()=>{
+    const homeIdx = html.indexOf('id="s-home"');
+    const next = html.indexOf('\n<!-- ', homeIdx+1);
+    const block = html.slice(homeIdx, next);
+    const registerIdx = block.indexOf('btn-register');
+    const loginIdx = block.indexOf('btn-login');
+    const guestIdx = block.indexOf('btn-guest-entry');
+    return registerIdx < loginIdx && loginIdx < guestIdx;
+  })());
+check('ST-SELF-002: startNew() לא מגביל ל-Admin בלבד',
+  (()=>{
+    const idx = html.indexOf('function startNew()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return !block.includes("'יצירת אירוע זמינה למנהל בלבד'") &&
+           block.includes('mpCurrentUser');
+  })());
+check('ST-SELF-003: doRegister קורא createUserWithEmailAndPassword',
+  (()=>{
+    const idx = html.indexOf('function doRegister()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('createUserWithEmailAndPassword');
+  })());
+check('ST-SELF-004: doRegister כותב ל-Firestore users/{uid}',
+  (()=>{
+    const idx = html.indexOf('function doRegister()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes("collection('users')") && block.includes('fbUser.uid');
+  })());
+check('ST-SELF-005: doLogin מעדכן lastLoginAt ב-Firestore',
+  (()=>{
+    const idx = html.indexOf('function doLogin()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('lastLoginAt') && block.includes("collection('users')");
+  })());
+check('ST-SELF-006: owner-btns div קיים בדף הבית',
+  html.includes('id="owner-btns"'));
+check('ST-SELF-007: renderHome מציג owner-btns למשתמש אמיתי בלבד',
+  (()=>{
+    const idx = html.indexOf('function renderHome()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('owner-btns') && block.includes('isRealUser');
+  })());
+
 // ── סיכום ────────────────────────────────────────────────────
 const total = passed + failed;
 console.log('\n' + '─'.repeat(44));
