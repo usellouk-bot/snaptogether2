@@ -368,19 +368,20 @@ check('ST-SELF-007: renderHome מציג owner-btns למשתמש אמיתי בל�
 
 // ── 14. Manager Invite Flow ───────────────────────────────────
 console.log('\n[14] Manager Invite Flow');
-check('ST-MGR-INV-001: claimManagerInvite מנווט לgallery אחרי הצלחה',
+check('ST-MGR-INV-001: claimManagerInvite מנווט למסך מנהל אחרי הצלחה',
   (()=>{
     const idx = html.indexOf('function claimManagerInvite(');
     const next = html.indexOf('\nfunction ', idx+1);
     const block = html.slice(idx, next);
-    return block.includes("nav('gallery')");
+    return block.includes("nav('manager_dashboard')") || block.includes("nav('gallery')");
   })());
-check('ST-MGR-INV-002: loadEv מנווט Manager לgallery (לא share)',
+check('ST-MGR-INV-002: loadEv מנווט Manager למסך מנהל (לא share)',
   (()=>{
     const idx = html.indexOf('function loadEv(');
     const next = html.indexOf('\nfunction ', idx+1);
     const block = html.slice(idx, next);
-    return block.includes('isManagerSession()') && block.includes("nav('gallery')");
+    return block.includes('isManagerSession()') &&
+           (block.includes("nav('manager_dashboard')") || block.includes("nav('gallery')"));
   })());
 check('ST-MGR-INV-003: renderHome מסנן Manager לאירוע מוקצה בלבד',
   (()=>{
@@ -416,6 +417,69 @@ check('ST-MGR-INV-007: הודעת "כבר מומש" כאשר invite נתבע ש�
     const next = html.indexOf('\nfunction ', idx+1);
     const block = html.slice(idx, next);
     return block.includes('כבר מומש') || block.includes('already_claimed');
+  })());
+
+// ── 15. Manager Dashboard ─────────────────────────────────────
+console.log('\n[15] Manager Dashboard');
+check('ST-DASH-001: מסך s-manager_dashboard קיים',
+  html.includes('id="s-manager_dashboard"'));
+check('ST-DASH-002: כפתור צלם באירוע קיים בדשבורד',
+  (()=>{
+    const idx = html.indexOf('id="s-manager_dashboard"');
+    const next = html.indexOf('\n<!-- ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes("nav('camera')") && block.includes('צלם');
+  })());
+check('ST-DASH-003: כפתור גלריה מלאה קיים בדשבורד',
+  (()=>{
+    const idx = html.indexOf('id="s-manager_dashboard"');
+    const next = html.indexOf('\n<!-- ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes("nav('gallery')");
+  })());
+check('ST-DASH-004: כפתור הקרנה לייב קיים בדשבורד',
+  (()=>{
+    const idx = html.indexOf('id="s-manager_dashboard"');
+    const next = html.indexOf('\n<!-- ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes("nav('live')");
+  })());
+check('ST-DASH-005: כפתור עריכת זמנים קיים בדשבורד',
+  (()=>{
+    const idx = html.indexOf('id="s-manager_dashboard"');
+    const next = html.indexOf('\n<!-- ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes("nav('edit_event')");
+  })());
+check('ST-DASH-006: כפתור שתף קוד לאורחים קיים בדשבורד',
+  (()=>{
+    const idx = html.indexOf('id="s-manager_dashboard"');
+    const next = html.indexOf('\n<!-- ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('showGuestSharePanel') || block.includes('שתף קוד');
+  })());
+check('ST-DASH-007: renderManagerDashboard() קיימת',
+  html.includes('function renderManagerDashboard()'));
+check('ST-DASH-008: canCaptureNow() לא נותן bypass למנהל',
+  (()=>{
+    const idx = html.indexOf('function canCaptureNow()');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return !block.includes("role==='manager'") || block.includes('isEventActive');
+  })());
+check('ST-DASH-009: כפתור הסתרה מהקרנה קיים בגלריה למנהל',
+  (()=>{
+    const idx = html.indexOf('function _renderGalleryPhotos(');
+    const next = html.indexOf('\nfunction ', idx+1);
+    const block = html.slice(idx, next);
+    return block.includes('canHide') && block.includes('hideFromProjection') && block.includes('isManagerSession()');
+  })());
+check('ST-DASH-010: מנהל לא יכול להוריד ZIP — doDL חוסם',
+  (()=>{
+    const idx = html.indexOf('async function doDL()');
+    const next = html.indexOf('\nasync function ', idx+1);
+    const block = html.slice(idx, next > idx ? next : idx+300);
+    return block.includes('isManagerSession()') && block.includes('download');
   })());
 
 // ── סיכום ────────────────────────────────────────────────────
