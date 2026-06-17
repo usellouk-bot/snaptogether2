@@ -555,7 +555,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 </head>
 <body>
 <div class="app" id="app">
-<div id="mp-build-ver" data-testid="build-version" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">home-buttons-click-fix-v2</div>
+<div id="mp-build-ver" data-testid="build-version" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">self-service-v4</div>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lb" onclick="closeLB()">
   <div style="position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:1;">✕</div>
@@ -587,14 +587,16 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <div class="mc" style="padding:0;"><img src="https://images.unsplash.com/photo-1544078751-58fee2d8a03b?w=300&q=80" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='👰'" alt="כלה"/></div>
     </div>
     <div id="home-saved-events"></div>
-    <div class="sec-header">כניסה מהירה</div>
-    <button class="btn-ghost" onclick="console.log('[MP CLICK] guest');nav('guest')" data-testid="btn-guest-entry" style="border-color:rgba(0,255,136,0.3);color:var(--neon);margin-bottom:6px;position:relative;z-index:10;">📷 כניסה כאורח מצלם</button>
-    <button class="btn-ghost" onclick="console.log('[MP CLICK] manager');nav('manager_entry')" data-testid="btn-manager-entry" style="border-color:rgba(100,160,255,0.4);color:#7ab3ff;margin-bottom:6px;position:relative;z-index:10;">🎯 כניסה כמנהל אירוע</button>
-    <button class="btn-ghost" onclick="startNew()" id="btn-new-event" data-testid="btn-new-event" style="display:none;position:relative;z-index:10;">+ צור אירוע חדש</button>
-    <!-- כניסה והרשמה — גלוי לכולם -->
-    <div id="auth-btns" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
-      <button class="btn-ghost" onclick="console.log('[MP CLICK] login');nav('login')" data-testid="btn-login" style="border-color:rgba(255,255,255,0.2);color:var(--text2);position:relative;z-index:10;">🔑 כניסה לחשבון</button>
-      <button class="btn-ghost" onclick="console.log('[MP CLICK] signup');nav('register')" data-testid="btn-register" style="border-color:rgba(0,255,136,0.2);color:var(--neon);position:relative;z-index:10;">✨ הרשמה חינם</button>
+    <!-- כניסה/הרשמה — גלוי לאנונימיים בלבד (Order: signup, login, guest, manager) -->
+    <div id="auth-btns" style="display:flex;flex-direction:column;gap:6px;">
+      <button class="btn-primary" onclick="nav('register')" data-testid="btn-register" style="position:relative;z-index:10;">✨ הרשמה חינם</button>
+      <button class="btn-ghost" onclick="nav('login')" data-testid="btn-login" style="position:relative;z-index:10;">🔑 כניסה לחשבון</button>
+      <button class="btn-ghost" onclick="nav('guest')" data-testid="btn-guest-entry" style="border-color:rgba(0,255,136,0.3);color:var(--neon);position:relative;z-index:10;">📷 כניסה כאורח מצלם</button>
+      <button class="btn-ghost" onclick="nav('manager_entry')" data-testid="btn-manager-entry" style="border-color:rgba(100,160,255,0.4);color:#7ab3ff;position:relative;z-index:10;">🎯 כניסה כמנהל אירוע</button>
+    </div>
+    <!-- כפתורי Owner — גלוי רק אחרי כניסה אמיתית -->
+    <div id="owner-btns" style="display:none;flex-direction:column;gap:6px;">
+      <button class="btn-primary" onclick="startNew()" id="btn-new-event" data-testid="btn-new-event" style="position:relative;z-index:10;">+ פתח אירוע חדש</button>
     </div>
     <div class="stats-row">
       <div class="stat-box"><div class="stat-n">∞</div><div class="stat-l">אירועים</div></div>
@@ -641,6 +643,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <div class="card-label">יצירת חשבון חדש</div>
       <div class="field"><label>שם מלא *</label><input id="r-name" placeholder="ישראל ישראלי"/></div>
       <div class="field"><label>אימייל *</label><input type="email" id="r-email" placeholder="your@email.com"/></div>
+      <div class="field"><label>טלפון</label><input type="tel" id="r-phone" placeholder="050-0000000"/></div>
       <div class="field"><label>סיסמה *</label><input type="password" id="r-pass" placeholder="לפחות 6 תווים"/></div>
       <div class="field"><label>אימות סיסמה *</label><input type="password" id="r-pass2" placeholder="חזור על הסיסמה"/></div>
       <div id="r-err" class="note note-warn" style="display:none;margin:8px 0 0;"></div>
@@ -1534,53 +1537,114 @@ function doLogin(){
   const p=document.getElementById('l-pass').value;
   const err=document.getElementById('l-err');
   if(!e||!p){err.style.display='flex';return;}
-  const user=DB.users.find(u=>u.email===e&&u.pass===p);
-  if(!user){err.textContent='⚠ אימייל או סיסמה שגויים';err.style.display='flex';return;}
   err.style.display='none';
-  DB.currentUser=user||{name:'מנהל',email:e,role:'admin'};
-  S.isGuest=false;
-  saveDB(); toast('✓ ברוך הבא '+DB.currentUser.name+'!');
-  if(DB.currentUser.role==='admin'){
-    activateAdminSession();
-    document.getElementById('s-'+S.cur).classList.remove('active');
-    S.hist=['admin']; S.cur='admin';
-    document.getElementById('s-admin').classList.add('active');
-    window.scrollTo(0,0);
-    const firstTab=document.querySelector('.admin-tab');
-    if(firstTab) admTab('events',firstTab);
-  } else {
-    home();
-  }
+  const btn=document.querySelector('#s-login .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='⏳ מתחבר...';}
+  signInWithEmail(e,p)
+    .then(function(result){
+      const fbUser=result.user;
+      const now=new Date().toISOString();
+      S.isGuest=false;
+      // Update lastLoginAt in Firestore
+      if(typeof db!=='undefined'){
+        db.collection('users').doc(fbUser.uid).set({
+          uid:fbUser.uid,email:e,
+          fullName:fbUser.displayName||DB.users.find(function(u){return u.email===e;})||e,
+          lastLoginAt:now,role:'owner'
+        },{merge:true}).catch(function(e2){console.warn('[MP] Firestore lastLogin update failed:',e2.message);});
+      }
+      const dbUser=DB.users.find(function(u){return u.email===e;})||
+        {name:fbUser.displayName||e,fullName:fbUser.displayName||e,email:e,role:'owner',uid:fbUser.uid};
+      DB.currentUser=dbUser;
+      saveDB();
+      if(btn){btn.disabled=false;btn.textContent='כניסה ←';}
+      toast('✓ ברוך הבא '+(dbUser.name||e)+'!');
+      // Admin: check session
+      if(isAdminSession()){
+        document.getElementById('s-'+S.cur).classList.remove('active');
+        S.hist=['admin'];S.cur='admin';
+        document.getElementById('s-admin').classList.add('active');
+        window.scrollTo(0,0);
+        const firstTab=document.querySelector('.admin-tab');
+        if(firstTab) admTab('events',firstTab);
+      } else {
+        home();
+      }
+    })
+    .catch(function(e2){
+      if(btn){btn.disabled=false;btn.textContent='כניסה ←';}
+      err.textContent='⚠ אימייל או סיסמה שגויים';
+      err.style.display='flex';
+    });
 }
 function doRegister(){
   const name=document.getElementById('r-name').value.trim();
   const email=document.getElementById('r-email').value.trim();
+  const phone=(document.getElementById('r-phone')||{}).value||'';
   const pass=document.getElementById('r-pass').value;
   const pass2=document.getElementById('r-pass2').value;
   const err=document.getElementById('r-err');
   if(!name||!email||!pass){err.textContent='⚠ מלא את כל השדות';err.style.display='flex';return;}
   if(pass.length<6){err.textContent='⚠ סיסמה חייבת לפחות 6 תווים';err.style.display='flex';return;}
   if(pass!==pass2){err.textContent='⚠ הסיסמאות אינן זהות';err.style.display='flex';return;}
-  if(DB.users.find(u=>u.email===email)){err.textContent='⚠ אימייל כבר קיים';err.style.display='flex';return;}
-  const user={name,email,pass,role:'owner',events:[],createdAt:new Date().toISOString()};
-  DB.users.push(user); DB.currentUser=user; saveDB();
-  toast('✓ החשבון נוצר! ברוך הבא '+name+'!'); home();
+  err.style.display='none';
+  const btn=document.querySelector('#s-register .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='⏳ יוצר חשבון...';}
+  auth.createUserWithEmailAndPassword(email,pass)
+    .then(function(result){
+      const fbUser=result.user;
+      const now=new Date().toISOString();
+      // Update Firebase display name
+      fbUser.updateProfile({displayName:name});
+      // Save to Firestore users/{uid}
+      if(typeof db!=='undefined'){
+        db.collection('users').doc(fbUser.uid).set({
+          uid:fbUser.uid,fullName:name,email:email,phone:phone||'',
+          createdAt:now,lastLoginAt:now,role:'owner',eventsCreated:0
+        }).catch(function(e2){console.warn('[MP] Firestore users write failed:',e2.message);});
+      }
+      // Cache in DB.users
+      const userRecord={name:name,fullName:name,email:email,phone:phone,
+        role:'owner',events:[],createdAt:now,uid:fbUser.uid};
+      const existing=DB.users.findIndex(function(u){return u.email===email;});
+      if(existing>=0) DB.users[existing]=userRecord;
+      else DB.users.push(userRecord);
+      DB.currentUser=userRecord;
+      saveDB();
+      S.isGuest=false;
+      if(btn){btn.disabled=false;btn.textContent='צור חשבון ←';}
+      toast('✓ החשבון נוצר! ברוך הבא '+name+'!');
+      home();
+    })
+    .catch(function(e){
+      if(btn){btn.disabled=false;btn.textContent='צור חשבון ←';}
+      if(e.code==='auth/email-already-in-use'){
+        err.textContent='⚠ אימייל כבר רשום — נסה להתחבר';
+      } else if(e.code==='auth/weak-password'){
+        err.textContent='⚠ סיסמה חלשה מדי';
+      } else {
+        err.textContent='⚠ שגיאה: '+e.message;
+      }
+      err.style.display='flex';
+    });
 }
 
 // ═══════════════════════════════════════════════════════════
 // HOME
 // ═══════════════════════════════════════════════════════════
 function renderHome(){
-  // הצג כפתור יצירת אירוע לכל משתמש מאומת (לא אנונימי) — לא רק Admin
-  const newEvBtn=document.getElementById('btn-new-event');
-  const canCreateEvent=mpCurrentUser&&!mpCurrentUser.isAnonymous&&!isManagerSession();
-  if(newEvBtn) newEvBtn.style.display=canCreateEvent?'':'none';
-  // הצג/הסתר כפתורי כניסה/הרשמה — מוסתר רק אחרי כניסה אמיתית (לא anonymous)
-  const authBtns=document.getElementById('auth-btns');
+  // Real user = authenticated via Firebase, not anonymous
   const isRealUser=mpCurrentUser&&!mpCurrentUser.isAnonymous;
-  if(authBtns){
-    authBtns.style.display=isRealUser?'none':'flex';
-  }
+  // auth-btns: signup/login/guest/manager — visible only when not logged in
+  const authBtns=document.getElementById('auth-btns');
+  if(authBtns) authBtns.style.display=isRealUser?'none':'flex';
+  // owner-btns: create event etc — visible only when logged in as real user
+  const ownerBtns=document.getElementById('owner-btns');
+  const canCreateEvent=isRealUser&&!isManagerSession();
+  if(ownerBtns) ownerBtns.style.display=canCreateEvent?'flex':'none';
+  // keep btn-new-event in sync (legacy)
+  const newEvBtn=document.getElementById('btn-new-event');
+  if(newEvBtn) newEvBtn.style.display=canCreateEvent?'':'none';
   const el=document.getElementById('home-saved-events');
   // וודא שה-S.ev הנוכחי שמור ב-DB
   if(S.ev&&S.ev.code&&S.ev.name){
@@ -1804,10 +1868,12 @@ function loadEv(code){
   }
 }
 function startNew(){
-  if(!isAdminSession()){
-    toast('יצירת אירוע זמינה למנהל בלבד');
+  if(!mpCurrentUser||mpCurrentUser.isAnonymous){
+    toast('⚠ כדי לפתוח אירוע יש להירשם או להתחבר לחשבון.');
+    nav('register');
     return;
   }
+  if(isManagerSession()){showPermissionMessage('create');return;}
   S.isGuest=false;
   S.scList=[];
   S.ev={code:makeCode(),paid:false,free:false,usedGB:0,scenarios:[]};
@@ -1916,17 +1982,13 @@ function submitCreate(){
     originalEndTime:end};
 
   // מנהל — עוקף תשלום, שומר ישר
-  // כל משתמש מאומת שאינו אנונימי — שמור ישירות ועבור לשיתוף
-  // Admin מקבל adminCreated=true + paid=true
-  // Owner רגיל מקבל paid=true (גרסת פיילוט — ללא תשלום)
-  if(isAdminSession()||(DB.currentUser&&DB.currentUser.role==='admin')){
-    S.ev.adminCreated=true;
-  }
-  S.ev.paid=true; // גרסת פיילוט — כל אירוע פעיל
+  // גרסת פיילוט — כל משתמש מאומת שאינו אנונימי יוצר אירוע ישירות
+  if(isAdminSession()) S.ev.adminCreated=true;
+  S.ev.paid=true;
   saveEvent();
   fbSaveEvent(S.ev)
-    .then(()=>{ console.log('[MP] event saved to Firestore:',S.ev.code); })
-    .catch(e=>{ console.warn('[MP] fbSaveEvent failed:',e.message); toast('⚠ לא הצלחנו לשמור ב-Firestore'); });
+    .then(function(){ console.log('[MP] event saved to Firestore:',S.ev.code); })
+    .catch(function(err){ console.warn('[MP] fbSaveEvent failed:',err.message); toast('⚠ לא הצלחנו לשמור ב-Firestore'); });
   toast('✓ אירוע נוצר! קוד: '+S.ev.code);
   nav('share');
 }
@@ -5397,13 +5459,59 @@ function _admTabRender(t,btn){
         </div>`).join('');
     }
   } else if(t==='clients'){
-    h+=`<div class="card"><div class="card-label">לקוחות (${users.length})</div>
-      ${users.length===0?'<div style="text-align:center;padding:20px;color:var(--text3);">אין לקוחות עדיין</div>':
-      users.map(u=>`<div class="table-row" style="cursor:pointer;" onclick="admShowClient('${u.email}')">
-        <div><div style="font-size:13px;color:var(--text1);">${u.name}</div><div style="font-size:10px;color:var(--text3);">${u.email}</div></div>
-        <button onclick="event.stopPropagation();deleteUser('${u.email}')" style="background:none;border:none;color:var(--red);cursor:pointer;">🗑</button>
-      </div>`).join('')}
-    </div>`;
+    // Load from Firestore for rich data
+    if(typeof db!=='undefined'){
+      db.collection('users').get().then(function(snap){
+        const fsUsers=[];
+        snap.forEach(function(doc){fsUsers.push(doc.data());});
+        // Merge with DB.users cache
+        fsUsers.forEach(function(fu){
+          const idx=DB.users.findIndex(function(u){return u.email===fu.email;});
+          const merged={...fu,name:fu.fullName||fu.name||fu.email};
+          if(idx>=0) DB.users[idx]=merged; else DB.users.push(merged);
+        });
+        saveDB();
+        const allUsers=DB.users;
+        const admEl=document.getElementById('adm-content');
+        if(!admEl) return;
+        let ch=`<div class="card"><div class="card-label">לקוחות רשומים (${allUsers.length})</div>`;
+        if(allUsers.length===0){
+          ch+='<div style="text-align:center;padding:20px;color:var(--text3);">אין לקוחות עדיין</div>';
+        } else {
+          ch+=allUsers.map(function(u){
+            const lastLogin=u.lastLoginAt?new Date(u.lastLoginAt).toLocaleDateString('he-IL'):'לא ידוע';
+            const created=u.createdAt?new Date(u.createdAt).toLocaleDateString('he-IL'):'';
+            const evCount=DB.events.filter(function(e){return e.ownerId===u.uid;}).length;
+            return `<div class="table-row" style="cursor:pointer;" onclick="admShowClient('${u.email}')">
+              <div style="flex:1;">
+                <div style="font-size:13px;color:var(--text1);">${u.name||u.fullName||u.email}</div>
+                <div style="font-size:10px;color:var(--text3);">${u.email} · ${u.phone||'ללא טלפון'}</div>
+                <div style="font-size:10px;color:var(--text3);">נרשם: ${created} · כניסה אחרונה: ${lastLogin} · אירועים: ${evCount}</div>
+              </div>
+              <button onclick="event.stopPropagation();deleteUser('${u.email}')" style="background:none;border:none;color:var(--red);cursor:pointer;">🗑</button>
+            </div>`;
+          }).join('');
+        }
+        ch+='</div>';
+        admEl.innerHTML+=ch;
+      }).catch(function(){
+        // Fallback to DB.users
+        const allUsers=DB.users;
+        const admEl=document.getElementById('adm-content');
+        if(!admEl) return;
+        let ch=`<div class="card"><div class="card-label">לקוחות (${allUsers.length})</div>`;
+        ch+=allUsers.length===0?'<div style="text-align:center;padding:20px;color:var(--text3);">אין לקוחות עדיין</div>':
+          allUsers.map(function(u){return `<div class="table-row"><div><div style="font-size:13px;color:var(--text1);">${u.name||u.email}</div><div style="font-size:10px;color:var(--text3);">${u.email}</div></div></div>`;}).join('');
+        ch+='</div>';
+        admEl.innerHTML+=ch;
+      });
+      h+='<div id="adm-content"></div>';
+    } else {
+      h+=`<div class="card"><div class="card-label">לקוחות (${users.length})</div>
+        ${users.length===0?'<div style="text-align:center;padding:20px;color:var(--text3);">אין לקוחות עדיין</div>':
+        users.map(u=>`<div class="table-row"><div><div style="font-size:13px;">${u.name||u.email}</div></div></div>`).join('')}
+      </div>`;
+    }
   } else if(t==='revenue'){
     h+=`<div class="card">
       <div class="sum-row"><span>הכנסות סה״כ</span><span style="color:var(--neon);font-family:var(--fd);font-size:20px;">₪${totalRev.toLocaleString()}</span></div>
