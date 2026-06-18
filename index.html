@@ -47,11 +47,13 @@ auth.onAuthStateChanged(function(user){
   mpCurrentUser=user;
   mpAuthReady=true;
   if(user){
-    // שמור uid ב-localStorage לשימוש בהמשך (uploaderUid)
     localStorage.setItem('mp_firebase_uid', user.uid);
     if(user.isAnonymous){
       localStorage.setItem('mp_anon_uid', user.uid);
     }
+    // Note: Admin session is NOT restored from localStorage.
+    // Admin must re-authenticate each browser session for security.
+    // sessionStorage is cleared on tab/browser close by design.
   }
 });
 
@@ -5304,27 +5306,45 @@ window.addEventListener('message', (e)=>{
 function checkAdminURL(){
   const params=new URLSearchParams(window.location.search);
   const screen=params.get('screen');
-  console.log('[MP checkAdminURL] screen='+screen+' ss='+sessionStorage.getItem('mp_admin_session'));
-  if(screen==='admin'){
-    // Navigate to admin screen — auth check happens inside nav/render
-    // isAdminSession() determines whether to show dashboard or login
-    setTimeout(()=>{
-      document.getElementById('s-'+S.cur).classList.remove('active');
-      S.hist=['admin']; S.cur='admin';
-      document.getElementById('s-admin').classList.add('active');
-      window.scrollTo(0,0);
-      // Show dashboard only if already authenticated, otherwise show login
-      if(isAdminSession()){
-        const adlv=document.getElementById('adm-login-view');
-        const addash=document.getElementById('adm-dash');
-        if(adlv)adlv.style.display='none';
-        if(addash)addash.style.display='flex';
-        const firstTab=document.querySelector('.admin-tab');
-        if(firstTab)admTab('events',firstTab);
-      }
-      // If not admin — login view remains visible, user must authenticate
-    },300);
+  if(screen!=='admin') return;
+  console.log('[MP ADMIN ROUTE] waiting for auth...');
+  _openAdminWhenReady(0);
+}
+
+function _openAdminWhenReady(attempts){
+  // Wait for Firebase Auth to resolve (mpAuthReady set in onAuthStateChanged)
+  if(!mpAuthReady){
+    if(attempts>20){
+      // Timeout after 4s — show login screen anyway
+      console.warn('[MP ADMIN ROUTE] auth timeout — showing login');
+      _showAdminScreen(false);
+      return;
+    }
+    setTimeout(function(){ _openAdminWhenReady(attempts+1); }, 200);
+    return;
   }
+  console.log('[MP ADMIN ROUTE] auth ready — user:', mpCurrentUser?mpCurrentUser.email:'none');
+  const isAdmin = isAdminSession();
+  console.log('[MP ADMIN ROUTE]', isAdmin ? 'opening dashboard' : 'showing login');
+  _showAdminScreen(isAdmin);
+}
+
+function _showAdminScreen(showDashboard){
+  const cur=document.getElementById('s-'+S.cur);
+  if(cur) cur.classList.remove('active');
+  S.hist=['admin']; S.cur='admin';
+  const adminEl=document.getElementById('s-admin');
+  if(adminEl) adminEl.classList.add('active');
+  window.scrollTo(0,0);
+  if(showDashboard){
+    const adlv=document.getElementById('adm-login-view');
+    const addash=document.getElementById('adm-dash');
+    if(adlv) adlv.style.display='none';
+    if(addash) addash.style.display='flex';
+    const firstTab=document.querySelector('.admin-tab');
+    if(firstTab) admTab('events',firstTab);
+  }
+  // If not admin — login view remains visible, user must authenticate
 }
 
 // ── admBack ──
