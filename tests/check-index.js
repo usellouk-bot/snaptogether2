@@ -484,6 +484,41 @@ check('ST-DASH-010: מנהל לא יכול להוריד ZIP — doDL חוסם',
 
 // ── סיכום ────────────────────────────────────────────────────
 const total = passed + failed;
+// ── Sprint Reliability + Memory Signals (June 2026) ──────────────────────────
+
+check('ST-VER-001: APP_VERSION constant קיימת',
+  () => html.includes("const APP_VERSION='self-service-v4'"));
+
+check('ST-VER-002: BUILD_DATE constant קיימת',
+  () => html.includes("const BUILD_DATE='2026-06'"));
+
+check('ST-R-01: startPhotographing לא דורש phone — if(!name) בלבד',
+  () => {
+    const idx = html.indexOf('function startPhotographing()');
+    const block = html.slice(idx, idx + 600);
+    return block.includes("if(!name)") && !block.includes("if(!name||!phone)");
+  });
+
+check('ST-R-02: saveEditEvent לא מכיל DB.notifications.push',
+  () => !html.includes("DB.notifications.push"));
+
+check('ST-R-03: changeAdmPass function קיימת',
+  () => html.includes("function changeAdmPass()"));
+
+check('ST-R-04: disconnectProjection לא מכיל לצמיתות',
+  () => !html.includes('לצמיתות'));
+
+check('ST-M-01: _sessionStart global מוגדר',
+  () => html.includes("let _sessionStart=null;"));
+
+check('ST-M-03: getPhotoMetadata מחזיר sequenceInSession',
+  () => {
+    const idx = html.indexOf("function getPhotoMetadata()");
+    const block = html.slice(idx, idx + 600);
+    return block.includes("sequenceInSession") && block.includes("minutesIntoEvent") && block.includes("appVersion");
+  });
+
+
 console.log('\n' + '─'.repeat(44));
 console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');
 
