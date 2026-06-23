@@ -35,6 +35,9 @@ const FB_CONFIG={
 firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();
 const auth=firebase.auth();
+// ── Build Identity ─────────────────────────────────────────
+const APP_VERSION='self-service-v4';
+const BUILD_DATE='2026-06';
 
 // ── Auth State ──
 // ADMIN_UID — set this after first Firebase Auth login
@@ -1820,7 +1823,15 @@ function _loadEventsFromFirebase(el){
   if(typeof db==='undefined') return;
   const isAdmin=isAdminSession();
   const currentUid=mpCurrentUser?mpCurrentUser.uid:null;
-  db.collection('events').get().then(function(snap){
+  // R-08: Use filtered query for non-admin owners so Firestore Rules are satisfied
+  // Admin reads all events; Owner queries only own events by ownerId
+  const eventsQuery=isAdmin
+    ? db.collection('events')
+    : (currentUid
+        ? db.collection('events').where('ownerId','==',currentUid)
+        : null);
+  if(!eventsQuery)return;
+  eventsQuery.get().then(function(snap){
     let changed=false;
     snap.forEach(function(doc){
       const ev=doc.data();
@@ -2025,7 +2036,10 @@ function submitCreate(){
     // Event Manager Phase 1: store original time for buffer enforcement
     originalDate:date,
     originalStartTime:start,
-    originalEndTime:end};
+    originalEndTime:end,
+    // M-05: Build identity and timezone
+    timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Jerusalem',
+    createdWithVersion:APP_VERSION};
 
   // מנהל — עוקף תשלום, שומר ישר
   // גרסת פיילוט — כל משתמש מאומת שאינו אנונימי יוצר אירוע ישירות
@@ -2352,7 +2366,7 @@ function saveEditEvent(){
     return;
   }
   const newDate=document.getElementById('ed-newdate').value;
-  if(newDate&&newDate!==S.ev.date){DB.notifications.push({type:'postpone',event:S.ev.code,oldDate:S.ev.date,newDate,ts:new Date().toISOString()});toast('📨 בקשת דחייה נשלחה למנהל');}
+  // R-02: removed fake delivery toast — no actual notification is sent
   S.ev.name=document.getElementById('ed-name')?.value||S.ev.name;
   S.ev.date=document.getElementById('ed-date').value;
   S.ev.startTime=document.getElementById('ed-start').value;
@@ -2775,7 +2789,7 @@ function renderLive(){
     var btn=document.getElementById('live-btn');
     if(btn){btn.textContent='🔒 הקרנה נותקה';btn.disabled=true;btn.style.opacity='0.45';}
     var inp2=document.getElementById('live-link-inp');
-    if(inp2){inp2.value='';inp2.placeholder='הקרנה נותקה לצמיתות';}
+    if(inp2){inp2.value='';inp2.placeholder='הקרנה נותקה';}
     var note2=document.getElementById('live-link-note');
     if(note2)note2.style.display='none';
     renderLiveGrid();
@@ -3871,7 +3885,7 @@ function toggleLive(){
   if(!S.ev||!S.ev.code){toast('⚠ לא נבחר אירוע');return;}
   if(!S.liveActive){
     // חסום הפעלה אחרי ניתוק סופי
-    if(S.ev.projectionEnded===true){toast('⚠ הקרנה זו נותקה לצמיתות');return;}
+    if(S.ev.projectionEnded===true){toast('⚠ הקרנה זו נותקה');return;}
     S.liveActive=true;
     const url='https://usellouk-bot.github.io/snaptogether2/?live='+S.ev.code;
     document.getElementById('live-btn').textContent='⏹ עצור הקרנה';
@@ -3930,7 +3944,7 @@ function clearProjectionFilter(){
 }
 
 function disconnectProjection(){
-  if(!confirm('לנתק את ההקרנה לצמיתות?\nהקישור שנשלח לאולם לא יהיה פעיל יותר.'))return;
+  if(!confirm('לנתק את ההקרנה?'))return;
   S.liveActive=false;
   // עדכן S.ev מקומית כדי ש-toggleLive לא יאפס את projectionEnded
   if(S.ev){S.ev.projectionEnded=true;saveEvent();}
@@ -3939,7 +3953,7 @@ function disconnectProjection(){
   document.getElementById('live-btn').style.opacity='0.45';
   document.getElementById('live-btn').disabled=true;
   document.getElementById('live-link-inp').value='';
-  document.getElementById('live-link-inp').placeholder='הקרנה נותקה לצמיתות';
+  document.getElementById('live-link-inp').placeholder='הקרנה נותקה';
   document.getElementById('live-link-note').style.display='none';
   document.getElementById('live-status-note').style.display='none';
   document.getElementById('live-disconnect-btn').style.display='none';
@@ -4239,16 +4253,13 @@ function startPhotographing(){
 
   // בעל אירוע/מנהל לא צריך שם
   if(!isAdminSession()&&!(DB.currentUser&&DB.currentUser.role==='owner')){
-    if(!name||!phone){
+    if(!name){
       if(err){
         err.style.display='flex';
         err.querySelector('.note-dot') && (err.querySelector('.note-dot').style.display='block');
-        err.childNodes[err.childNodes.length-1].textContent=!name?'נא להזין שם מלא ומספר נייד לפני הצילום':'נא להזין מספר נייד';
+        err.childNodes[err.childNodes.length-1].textContent='נא להזין שם מלא לפני הצילום';
       }
-      // גלול לשדות
-      if(nameInp) nameInp.scrollIntoView({behavior:'smooth',block:'center'});
-      if(!name&&nameInp) nameInp.focus();
-      else if(!phone&&phoneInp) phoneInp.focus();
+      if(nameInp){nameInp.scrollIntoView({behavior:'smooth',block:'center'});nameInp.focus();}
       return;
     }
     if(err)err.style.display='none';
@@ -4360,6 +4371,9 @@ function hydrateEvFromFirestore(code){
       originalDate:      fbEv.originalDate      || fbEv.date       || '',
       originalStartTime: fbEv.originalStartTime || fbEv.startTime  || '',
       originalEndTime:   fbEv.originalEndTime   || fbEv.endTime    || '',
+      // M-05: Build identity and timezone
+      timezone:          fbEv.timezone          || 'Asia/Jerusalem',
+      createdWithVersion:fbEv.createdWithVersion || '',
     };
     // Update local cache
     DB.events = DB.events.filter(function(e){return e.code!==code;});
@@ -4367,6 +4381,14 @@ function hydrateEvFromFirestore(code){
     saveDB();
     localStorage.setItem('st_last_code', code);
     console.log('[MP hydrateEvFromFirestore] ev.date='+S.ev.date+' start='+S.ev.startTime+' end='+S.ev.endTime+' paid='+S.ev.paid);
+    // R-05: Restore owner role on any device — compare Firebase UID to event ownerId
+    // DB.currentUser.role may be missing on new device (empty localStorage)
+    if(mpCurrentUser&&!mpCurrentUser.isAnonymous&&S.ev.ownerId&&mpCurrentUser.uid===S.ev.ownerId){
+      if(!DB.currentUser)DB.currentUser={};
+      DB.currentUser.role='owner';
+      DB.currentUser.name=mpCurrentUser.displayName||DB.currentUser.name||'בעל אירוע';
+      saveDB();
+    }
     // Event Manager Phase 1: resolve manager role from Firestore after hydration
     // This ensures manager is recognized after page reload without re-claiming
     return resolveManagerRole(code).then(function(){ return {ok:true}; });
@@ -4409,6 +4431,10 @@ let flashOn=false;
 let torchTrack=null; // FIX: Real torch support
 let previewCountdownInt=null;
 let capturedDataURLs=[]; // local capture buffer
+// ── Memory Signal tracking (M-01) ───────────────────────────────────────────
+let _sessionStart=null;      // timestamp when camera opened
+let _lastPhotoAt=null;       // timestamp of last capture
+let _sessionPhotoCount=0;    // photos taken in this session
 
 function isEventActive(){
   // Production debug
@@ -4483,6 +4509,10 @@ function canCaptureNow(){
 }
 
 async function startCam(){
+  // M-02: init session tracking
+  _sessionStart=new Date();
+  _lastPhotoAt=null;
+  _sessionPhotoCount=0;
   // FIX: Event name shown in camera bar
   document.getElementById('cam-nm').textContent=S.ev.name||'Momenpix';
 
@@ -4750,6 +4780,7 @@ function takePhoto(){
 function takePhotoNow(){
   if(!canCaptureNow()){toast('⏰ האירוע הסתיים');return;}
   if(S.photos>=getPhotoLimit()){toast('הגעת למגבלת התמונות');return;}
+  _lastPhotoAt=new Date(); // M-04
   if(flashOn&&torchTrack){
     torchTrack.applyConstraints({advanced:[{torch:true}]}).then(()=>{setTimeout(()=>torchTrack.applyConstraints({advanced:[{torch:false}]}),600);}).catch(()=>{});
   } else if(flashOn){
@@ -5163,6 +5194,7 @@ function stopBurst(){
 function takePhotoSilent(){
   if(!canCaptureNow())return;
   if(S.photos>=getPhotoLimit())return;
+  _lastPhotoAt=new Date(); // M-04
   const vid=document.getElementById('cam-vid');
   const canvas=document.createElement('canvas');
   canvas.width=vid.videoWidth||640;canvas.height=vid.videoHeight||480;
@@ -5221,6 +5253,7 @@ function getEntrySource(){
 
 function getPhotoMetadata(){
   const activeSc=getActiveScenario();
+  const now=Date.now();
   return {
     eventCode: S.ev.code||'',
     uploaderId: getUploaderId(),
@@ -5235,7 +5268,13 @@ function getPhotoMetadata(){
     mode: S.camMode,
     cloudUrl: null,
     scenarioId: activeSc.id,
-    scenarioName: activeSc.n
+    scenarioName: activeSc.n,
+    // M-03: Human Memory Signals
+    sequenceInSession: ++_sessionPhotoCount,
+    timeSinceLastPhoto: _lastPhotoAt ? Math.round((now-_lastPhotoAt.getTime())/1000) : null,
+    minutesIntoEvent:   _sessionStart  ? Math.round((now-_sessionStart.getTime())/60000)  : null,
+    captureMethod:      S.isBursting   ? 'burst' : 'single',
+    appVersion:         APP_VERSION
   };
 }
 
@@ -5529,7 +5568,13 @@ function doClaimInvite(){
       .where('code','==',inviteCode).limit(1).get()
       .then(function(snap){
         if(!snap.empty&&snap.docs[0].data().claimed){
-          const claimedBy=snap.docs[0].data().claimedBy;
+          const invData=snap.docs[0].data();
+          // R-07: Check expiry before allowing re-entry
+          if(invData.expiresAt&&new Date()>new Date(invData.expiresAt)){
+            if(errEl){errEl.textContent='⚠ פג תוקף קוד ההזמנה';errEl.style.display='flex';}
+            return;
+          }
+          const claimedBy=invData.claimedBy;
           // If same user who claimed it — allow them to re-enter
           if(mpCurrentUser&&claimedBy===mpCurrentUser.uid){
             hydrateEvFromFirestore(eventCode).then(function(r){
@@ -5730,6 +5775,18 @@ function _admTabRender(t,btn){
 function deleteAdminEvent(code){if(confirm('מחק?')){DB.events=DB.events.map(e=>e.code===code?{...e,deleted:true}:e);saveDB();db.collection('events').doc(code).set({deleted:true},{merge:true}).catch(()=>{});admTab('events',document.querySelector('.admin-tab.active'));toast('✓ נמחק');}}
 function deleteUser(email){if(confirm('מחק משתמש?')){DB.users=DB.users.filter(u=>u.email!==email);saveDB();admTab('clients',null);toast('✓ נמחק');}}
 function exportReport(name){toast('📊 מייצר דוח '+name+'...');setTimeout(()=>{toast('✓ דוח הורד!');},2000);}
+function changeAdmPass(){
+  // R-03: Admin password change via Firebase Auth
+  const newPass=document.getElementById('adm-newpass')?document.getElementById('adm-newpass').value.trim():'';
+  const oldPass=document.getElementById('adm-oldpass')?document.getElementById('adm-oldpass').value.trim():'';
+  if(!newPass||newPass.length<6){toast('⚠ סיסמה חייבת להכיל לפחות 6 תווים');return;}
+  if(!mpCurrentUser){toast('⚠ לא מחובר');return;}
+  const credential=firebase.auth.EmailAuthProvider.credential(mpCurrentUser.email,oldPass||'');
+  mpCurrentUser.reauthenticateWithCredential(credential)
+    .then(function(){return mpCurrentUser.updatePassword(newPass);})
+    .then(function(){toast('✓ סיסמה עודכנה בהצלחה');})
+    .catch(function(e){toast('⚠ שגיאה: '+(e.code==='auth/wrong-password'?'סיסמה נוכחית שגויה':e.message));});
+}
 function admBackOrLogout(){
   // אם יש פירוט פתוח — חזור לרשימה
   const body = document.getElementById('adm-body');
