@@ -519,6 +519,37 @@ check('ST-M-03: getPhotoMetadata מחזיר sequenceInSession',
   });
 
 
+// ── Sprint 2: Camera First (June 2026) ───────────────────────────────────────
+
+check('ST-C2-01: takePhotoNow לא קורא ל-showPhotoPreview',
+  () => {
+    const idx = html.indexOf('function takePhotoNow()');
+    const nextFn = html.indexOf('\nfunction ', idx + 10);
+    const block = html.slice(idx, nextFn);
+    return !block.includes('showPhotoPreview(');
+  });
+
+check('ST-C2-02: showPhotoPreview עדיין מוגדרת — לא נמחקה',
+  () => html.includes('function showPhotoPreview('));
+
+check('ST-C2-03: takePhotoSilent לא קורא ל-toast per frame',
+  () => {
+    const idx = html.indexOf('function takePhotoSilent()');
+    const nextFn = html.indexOf('\nfunction ', idx + 10);
+    const block = html.slice(idx, nextFn);
+    return !block.includes("toast('📸 '");
+  });
+
+check('ST-C2-04: CSS מכיל shutterRipple keyframe',
+  () => html.includes('@keyframes shutterRipple'));
+
+check('ST-C2-05: welcome screen לא מכיל כרטיס מגבלות הצילום',
+  () => !html.includes('מגבלות הצילום שלך'));
+
+check('ST-C2-06: _storWarnedPct global מוגדר',
+  () => html.includes('let _storWarnedPct=0;'));
+
+
 console.log('\n' + '─'.repeat(44));
 console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');
 
