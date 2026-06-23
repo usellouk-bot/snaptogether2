@@ -429,6 +429,9 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 .cam-up-bar{text-align:center;padding:4px 8px 10px;font-size:10px;color:var(--text3);background:#000;flex-shrink:0;}
 #photo-preview{animation:fadeIn 0.2s ease;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+/* S2: burst ripple on shutter — replaces per-frame toast */
+@keyframes shutterRipple{0%{box-shadow:0 0 0 0 rgba(0,255,136,0.6),0 0 20px rgba(0,255,136,0.3);}100%{box-shadow:0 0 0 18px rgba(0,255,136,0),0 0 20px rgba(0,255,136,0.3);}}
+.shutter-ripple{animation:shutterRipple 0.32s ease-out!important;}
 .cam-settings{display:flex;gap:6px;overflow-x:auto;padding:6px 12px;background:rgba(0,0,0,0.9);scrollbar-width:none;flex-shrink:0;}
 .cam-setting-chip{flex-shrink:0;padding:6px 12px;border-radius:20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);font-size:11px;color:rgba(255,255,255,0.75);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px;font-weight:600;font-family:var(--fb);transition:all 0.15s;}
 .cam-setting-chip.active{border-color:var(--neon);color:var(--neon);background:rgba(0,255,136,0.12);}
@@ -1000,12 +1003,6 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <div style="font-size:11px;color:var(--text3);" id="wlc-date"></div>
     </div>
     <div class="card"><div style="font-size:13px;color:var(--text1);line-height:1.8;text-align:center;" id="wlc-msg"></div></div>
-    <div class="note note-neon"><div class="note-dot"></div><div><div>📸 צלמו ישירות מהאפליקציה</div><div style="margin-top:2px;font-size:10px;opacity:0.7;">התמונות עולות אוטומטית לענן</div></div></div>
-    <div class="card">
-      <div class="card-label">מגבלות הצילום שלך</div>
-      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="color:var(--text2);">תמונות</span><span style="color:var(--neon);font-weight:600;" id="wlc-photo-limit">—</span></div>
-      <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12px;"><span style="color:var(--text2);">אחסון</span><span style="color:var(--neon);font-weight:600;">500MB</span></div>
-    </div>
     <div id="wlc-role-section"></div>
 
     <!-- רישום אורח — שם וטלפון -->
@@ -4230,9 +4227,10 @@ function renderWlc(){
   document.getElementById('wlc-name').textContent=S.ev.name||'ברוכים הבאים';
   document.getElementById('wlc-date').textContent=(S.ev.date||'')+' · '+(S.ev.startTime||'');
   document.getElementById('wlc-msg').innerHTML=S.ev.welcomeText||'"שמחים שאתם איתנו!<br>צלמו, שתפו ותהנו 📸"';
+  // S2: wlc-photo-limit element removed from DOM — null guard already in place
   const limEl=document.getElementById('wlc-photo-limit');
   if(limEl){const lim=getPhotoLimit();limEl.textContent=lim>=9999?'ללא הגבלה':'עד '+lim+' תמונות';}
-  document.getElementById('wlc-role-section').innerHTML=`<div class="card" style="text-align:center;"><div class="card-label">תפקיד</div><span class="pill pill-upcoming">אורח מצלם</span></div>`;
+  // S2: role section cleared — wlc-role-section remains as empty placeholder
   // אם כבר יש שם — מלא אוטומטית
   const nameInp=document.getElementById('wlc-guest-name');
   if(nameInp&&S.guestName)nameInp.value=S.guestName;
@@ -4435,6 +4433,7 @@ let capturedDataURLs=[]; // local capture buffer
 let _sessionStart=null;      // timestamp when camera opened
 let _lastPhotoAt=null;       // timestamp of last capture
 let _sessionPhotoCount=0;    // photos taken in this session
+let _storWarnedPct=0;        // S2: highest storage % already warned this session
 
 function isEventActive(){
   // Production debug
@@ -4513,6 +4512,7 @@ async function startCam(){
   _sessionStart=new Date();
   _lastPhotoAt=null;
   _sessionPhotoCount=0;
+  _storWarnedPct=0; // S2: reset storage warning guard
   // FIX: Event name shown in camera bar
   document.getElementById('cam-nm').textContent=S.ev.name||'Momenpix';
 
@@ -4805,7 +4805,11 @@ function takePhotoNow(){
   const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
   const meta=getPhotoMetadata();
   capturedDataURLs.push(dataURL);
-  showPhotoPreview(dataURL,meta);
+  // S2: Camera First — upload immediately, no preview overlay
+  // showPhotoPreview() preserved for future optional use; not called by default
+  const _thumb=document.getElementById('last-thumb');
+  if(_thumb)_thumb.innerHTML=`<img src="${dataURL}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/>`;
+  uploadPhoto(dataURL,meta); // uploadPhoto() handles S.photos++ and updCamUI() internally
 }
 
 function showPhotoPreview(dataURL,meta){
@@ -5204,7 +5208,9 @@ function takePhotoSilent(){
   const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
   if(thumb)thumb.innerHTML=`<img src="${dataURL}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/>`;
   uploadPhoto(dataURL,meta);
-  toast('📸 '+S.photos);
+  // S2: ripple on shutter instead of per-frame toast
+  const _sh=document.getElementById('shutterEl');
+  if(_sh){_sh.classList.remove('shutter-ripple');void _sh.offsetWidth;_sh.classList.add('shutter-ripple');setTimeout(()=>_sh.classList.remove('shutter-ripple'),380);}
 }
 
 // ── WATERMARK ──
@@ -5445,6 +5451,7 @@ function updCamUI(){
   const storPct=Math.min(storUsedMB/storLimitMB*100,100);
 
   // אזהרות אחסון — Admin/Founder לא נחסמים
+  // S2: deduplicate — only warn once per threshold per session (_storWarnedPct)
   if(storPct>=100){
     if(isAdminSession()){
       toast('⚠ אחסון מלא — Admin ממשיך ללא הגבלה');
@@ -5453,9 +5460,11 @@ function updCamUI(){
       document.getElementById('shutterEl').style.opacity='0.3';
       document.getElementById('shutterEl').style.pointerEvents='none';
     }
-  } else if(storPct>=95){
+  } else if(storPct>=95&&_storWarnedPct<95){
+    _storWarnedPct=95;
     toast('⚠ נותר פחות מ-5% אחסון!');
-  } else if(storPct>=80){
+  } else if(storPct>=80&&_storWarnedPct<80){
+    _storWarnedPct=80;
     toast('⚠ 80% מהאחסון בשימוש');
   }
 
