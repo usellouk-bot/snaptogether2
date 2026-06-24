@@ -636,6 +636,85 @@ check('P0-04c: isAdminSession() שומר DB.currentUser.role check (legacy guard
     return html.slice(idx, idx + 1100).includes("role==='admin'");
   });
 
+// ── P1-IC: ImageCapture Quality Improvement (June 2026) ─────────────────────
+console.log('\n[P1-IC] ImageCapture Quality Improvement');
+
+check('P1-IC-01: _imageCaptureInstance מוגדר כ-null ב-global scope',
+  () => html.includes('let _imageCaptureInstance=null;'));
+
+check('P1-IC-02: IC_MAX_SIDE מוגדר כ-2560',
+  () => html.includes('const IC_MAX_SIDE=2560;'));
+
+check('P1-IC-03: takePhotoNow מכיל typeof ImageCapture check (iOS safety)',
+  () => {
+    const idx = html.indexOf('function takePhotoNow()');
+    return html.slice(idx, idx + 2000).includes('typeof ImageCapture');
+  });
+
+check('P1-IC-04: takePhotoNow מכיל _captureFromCanvas fallback',
+  () => {
+    const idx = html.indexOf('function takePhotoNow()');
+    return html.slice(idx, idx + 2000).includes('_captureFromCanvas');
+  });
+
+check('P1-IC-05: _captureFromCanvas function מוגדרת',
+  () => html.includes('function _captureFromCanvas('));
+
+check('P1-IC-06: _finishCapture function מוגדרת',
+  () => html.includes('function _finishCapture('));
+
+check('P1-IC-07: _scaleForCanvas function מוגדרת',
+  () => html.includes('function _scaleForCanvas('));
+
+check('P1-IC-08: _scaleForCanvas מכיל IC_MAX_SIDE',
+  () => {
+    const idx = html.indexOf('function _scaleForCanvas(');
+    return html.slice(idx, idx + 300).includes('IC_MAX_SIDE');
+  });
+
+check('P1-IC-09: takePhotoSilent אינה מכילה ImageCapture (burst לא נגע)',
+  () => {
+    const idx = html.indexOf('function takePhotoSilent()');
+    const nextFn = html.indexOf('\nfunction ', idx + 10);
+    const block = html.slice(idx, nextFn > idx ? nextFn : idx + 600);
+    return !block.includes('ImageCapture') && !block.includes('_imageCaptureInstance');
+  });
+
+check('P1-IC-10: _imageCaptureInstance=null קיים באזור stopCam (cleanup)',
+  () => {
+    // find stopCam region — look for torchTrack=null and _imageCaptureInstance=null nearby
+    const idx = html.indexOf('torchTrack=null;');
+    return html.slice(idx, idx + 80).includes('_imageCaptureInstance=null;');
+  });
+
+check('P1-IC-11: burnWatermark מכיל Math.max(14 — font scaling',
+  () => {
+    const idx = html.indexOf('function burnWatermark(');
+    return html.slice(idx, idx + 300).includes('Math.max(14');
+  });
+
+check('P1-IC-12: uploadPhoto signature לא השתנה — (dataURL,meta) בלבד',
+  () => html.includes('async function uploadPhoto(dataURL,meta){'));
+
+check('P1-IC-13: _finishCapture קורא uploadPhoto(dataURL,meta)',
+  () => {
+    const idx = html.indexOf('function _finishCapture(');
+    return html.slice(idx, idx + 300).includes('uploadPhoto(dataURL,meta)');
+  });
+
+check('P1-IC-14: כל Blob עובר canvas — _finishCapture לא מקבל Blob ישיר',
+  () => {
+    // _finishCapture must only be called with dataURL (result of toDataURL)
+    // Verify: in takePhotoNow ImageCapture path, toDataURL is called before _finishCapture
+    const idx = html.indexOf('function takePhotoNow()');
+    const block = html.slice(idx, idx + 2000);
+    const icIdx = block.indexOf('_imageCaptureInstance.takePhoto()');
+    const finIdx = block.indexOf('_finishCapture(dataURL');
+    const tdIdx = block.indexOf('toDataURL(');
+    // toDataURL must appear before _finishCapture in the ImageCapture block
+    return icIdx > -1 && tdIdx > -1 && finIdx > -1 && tdIdx < finIdx;
+  });
+
 console.log('\n' + '─'.repeat(44));
 console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');
 
