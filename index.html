@@ -611,7 +611,7 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
       <div class="stat-box"><div class="stat-n">AI</div><div class="stat-l">עריכה</div></div>
       <div class="stat-box"><div class="stat-n">QR</div><div class="stat-l">שיתוף</div></div>
     </div>
-    <button class="admin-link-btn" onclick="nav('admin')" data-testid="btn-admin-entry">⚙ כניסת מנהל מערכת</button>
+    <button class="admin-link-btn" onclick="nav('admin')" data-testid="btn-admin-entry" id="btn-admin-entry" style="display:none;">⚙ כניסת מנהל מערכת</button>
     <div class="footer">© 2026 Momenpix · כל הזכויות שמורות<br/>Powered by AI · Made with ♥ in Israel</div>
   </div>
 </div>
@@ -1596,17 +1596,9 @@ function doLogin(){
       saveDB();
       if(btn){btn.disabled=false;btn.textContent='כניסה ←';}
       toast('✓ ברוך הבא '+(dbUser.name||e)+'!');
-      // Admin: check session
-      if(isAdminSession()){
-        document.getElementById('s-'+S.cur).classList.remove('active');
-        S.hist=['admin'];S.cur='admin';
-        document.getElementById('s-admin').classList.add('active');
-        window.scrollTo(0,0);
-        const firstTab=document.querySelector('.admin-tab');
-        if(firstTab) admTab('events',firstTab);
-      } else {
-        home();
-      }
+      // P0-FIX: doLogin is Owner-only. Admin must use ?screen=admin path.
+      // isAdminSession() removed — stale localStorage must not redirect owner to admin.
+      home();
     })
     .catch(function(e2){
       if(btn){btn.disabled=false;btn.textContent='כניסה ←';}
@@ -1679,6 +1671,9 @@ function renderHome(){
   const ownerBtns=document.getElementById('owner-btns');
   const canCreateEvent=isRealUser&&!isManagerSession();
   if(ownerBtns) ownerBtns.style.display=canCreateEvent?'flex':'none';
+  // P0-FIX: Admin button hidden from all non-admin users. Admin accesses via ?screen=admin only.
+  const adminEntryBtn=document.getElementById('btn-admin-entry');
+  if(adminEntryBtn) adminEntryBtn.style.display='none';
   // keep btn-new-event in sync (legacy)
   const newEvBtn=document.getElementById('btn-new-event');
   if(newEvBtn) newEvBtn.style.display=canCreateEvent?'':'none';
@@ -5317,8 +5312,9 @@ function activateAdminSession(){
   DB.currentUser={name:'מנהל',email:_adminEmail,role:'admin'};
   sessionStorage.setItem('mp_admin_session','1');
   sessionStorage.setItem('mp_admin_email',_adminEmail);
-  localStorage.setItem('mp_admin_session','1');
-  localStorage.setItem('mp_admin_email',_adminEmail);
+  // P0-FIX: localStorage removed — admin session must not persist across browser sessions.
+  // localStorage.setItem('mp_admin_session','1') — removed
+  // localStorage.setItem('mp_admin_email',_adminEmail) — removed
   saveDB();
 }
 
