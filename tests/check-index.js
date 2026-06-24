@@ -549,6 +549,92 @@ check('ST-C2-05: welcome screen לא מכיל כרטיס מגבלות הצילו
 check('ST-C2-06: _storWarnedPct global מוגדר',
   () => html.includes('let _storWarnedPct=0;'));
 
+// ── P0: Admin/Owner Separation (June 2026) ───────────────────────────────────
+console.log('\n[P0] Admin/Owner Separation');
+
+function stripCommentLines(code) {
+  return code.split('\n').filter(function(l){ return !l.trim().startsWith('//'); }).join('\n');
+}
+
+// P0-01: doLogin() must never route to admin
+check('P0-01a: doLogin() לא קורא isAdminSession() (active code)',
+  () => {
+    const idx = html.indexOf('function doLogin()');
+    const slice = stripCommentLines(html.slice(idx, idx + 1800));
+    return !slice.includes('isAdminSession()');
+  });
+check("P0-01b: doLogin() לא מנווט ל-s-admin",
+  () => {
+    const idx = html.indexOf('function doLogin()');
+    const slice = html.slice(idx, idx + 1800);
+    return !slice.includes("'s-admin'") && !slice.includes('"s-admin"');
+  });
+check("P0-01c: doLogin() לא מגדיר S.hist=['admin']",
+  () => {
+    const idx = html.indexOf('function doLogin()');
+    const slice = html.slice(idx, idx + 1800);
+    return !slice.includes("S.hist=['admin']") && !slice.includes('S.hist=["admin"]');
+  });
+check('P0-01d: doLogin() קורא home() אחרי כניסה מוצלחת',
+  () => {
+    const idx = html.indexOf('function doLogin()');
+    const slice = stripCommentLines(html.slice(idx, idx + 1800));
+    return slice.includes('home();');
+  });
+
+// P0-02: activateAdminSession() must NOT write to localStorage
+check('P0-02a: activateAdminSession() לא כותב mp_admin_session ל-localStorage',
+  () => {
+    const idx = html.indexOf('function activateAdminSession()');
+    const slice = stripCommentLines(html.slice(idx, idx + 500));
+    return !slice.includes("localStorage.setItem('mp_admin_session'") &&
+           !slice.includes('localStorage.setItem("mp_admin_session"');
+  });
+check('P0-02b: activateAdminSession() לא כותב mp_admin_email ל-localStorage',
+  () => {
+    const idx = html.indexOf('function activateAdminSession()');
+    const slice = stripCommentLines(html.slice(idx, idx + 500));
+    return !slice.includes("localStorage.setItem('mp_admin_email'") &&
+           !slice.includes('localStorage.setItem("mp_admin_email"');
+  });
+check('P0-02c: activateAdminSession() כותב mp_admin_session ל-sessionStorage',
+  () => {
+    const idx = html.indexOf('function activateAdminSession()');
+    return html.slice(idx, idx + 500).includes("sessionStorage.setItem('mp_admin_session','1')");
+  });
+check('P0-02d: activateAdminSession() כותב mp_admin_email ל-sessionStorage',
+  () => {
+    const idx = html.indexOf('function activateAdminSession()');
+    return html.slice(idx, idx + 500).includes("sessionStorage.setItem('mp_admin_email'");
+  });
+
+// P0-03: Admin entry button hidden by default
+check('P0-03a: btn-admin-entry מוסתר ב-HTML (display:none)',
+  () => /id="btn-admin-entry"[^>]*style="[^"]*display:none/.test(html));
+check('P0-03b: btn-admin-entry מכיל id לשליטה מ-JS',
+  () => html.includes('id="btn-admin-entry"'));
+check("P0-03c: renderHome() מגדיר adminEntryBtn.style.display='none'",
+  () => html.includes("adminEntryBtn.style.display='none'") ||
+        html.includes('adminEntryBtn.style.display = "none"'));
+
+// P0-04: isAdminSession() multi-factor checks intact
+check('P0-04a: isAdminSession() בודק sessionStorage mp_admin_session',
+  () => {
+    const idx = html.indexOf('function isAdminSession()');
+    return html.slice(idx, idx + 1100).includes("sessionStorage.getItem('mp_admin_session')");
+  });
+check('P0-04b: isAdminSession() בודק email match מול mpCurrentUser.email',
+  () => {
+    const idx = html.indexOf('function isAdminSession()');
+    const slice = html.slice(idx, idx + 1100);
+    return slice.includes('mpCurrentUser.email===_adminEmail') ||
+           slice.includes('mpCurrentUser.email === _adminEmail');
+  });
+check('P0-04c: isAdminSession() שומר DB.currentUser.role check (legacy guard)',
+  () => {
+    const idx = html.indexOf('function isAdminSession()');
+    return html.slice(idx, idx + 1100).includes("role==='admin'");
+  });
 
 console.log('\n' + '─'.repeat(44));
 console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');
