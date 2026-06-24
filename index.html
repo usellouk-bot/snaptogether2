@@ -4422,6 +4422,11 @@ function enterEvent(){
 let camFacingMode='environment';
 let flashOn=false;
 let torchTrack=null; // FIX: Real torch support
+// ── ImageCapture — Android Chrome only ──────────────────────────────────────
+// Cap at 2560px: conservative until Cloudinary upload preset size limit confirmed.
+// To raise to 3840px: verify preset allows >5MB, then change IC_MAX_SIDE only.
+let _imageCaptureInstance=null;
+const IC_MAX_SIDE=2560;
 let previewCountdownInt=null;
 let capturedDataURLs=[]; // local capture buffer
 // ── Memory Signal tracking (M-01) ───────────────────────────────────────────
@@ -4632,6 +4637,12 @@ async function openCameraStream(){
         }catch(ce){}
       }
     }
+    // ImageCapture init — Android Chrome only. iOS/Safari: typeof ImageCapture === 'undefined'.
+    _imageCaptureInstance=null;
+    if(typeof ImageCapture!=='undefined'&&vtrack){
+      try{_imageCaptureInstance=new ImageCapture(vtrack);console.log('[MP] ImageCapture available');}
+      catch(ice){_imageCaptureInstance=null;}
+    }
 
     S.currentZoom=1;
     applyZoom(1);
@@ -4781,14 +4792,52 @@ function takePhotoNow(){
   } else if(flashOn){
     const f=document.getElementById('flash');f.style.opacity='1';setTimeout(()=>f.style.opacity='0',150);
   }
+  const meta=getPhotoMetadata();
+  // ── ImageCapture path — Android Chrome only ──────────────────────────────
+  // Captures at full sensor resolution (up to IC_MAX_SIDE) instead of stream frame.
+  // Every Blob goes through canvas+watermark+toDataURL before uploadPhoto — queue unchanged.
+  // Falls back silently to _captureFromCanvas on any failure or missing API.
+  if(_imageCaptureInstance){
+    _imageCaptureInstance.takePhoto()
+      .then(function(blob){
+        if(!blob||blob.size===0) throw new Error('empty blob');
+        return createImageBitmap(blob)
+          .then(function(img){
+            const scaled=_scaleForCanvas(img.width,img.height);
+            const canvas=document.getElementById('preview-canvas');
+            canvas.width=scaled.w; canvas.height=scaled.h;
+            const ctx=canvas.getContext('2d');
+            ctx.drawImage(img,0,0,scaled.w,scaled.h);
+            applyNightSafe(ctx,scaled.w,scaled.h);
+            burnWatermark(ctx,scaled.w,scaled.h);
+            const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
+            _finishCapture(dataURL,meta);
+          });
+      })
+      .catch(function(e){
+        console.warn('[MP] ImageCapture failed — fallback to canvas:',e.message);
+        _captureFromCanvas(meta);
+      });
+    return;
+  }
+  // ── Canvas fallback path (iOS/Safari + all non-ImageCapture browsers) ────
+  _captureFromCanvas(meta);
+}
+// ── ImageCapture helper: downscale to IC_MAX_SIDE on long side ──
+function _scaleForCanvas(naturalW,naturalH){
+  const maxSide=Math.max(naturalW,naturalH);
+  if(maxSide<=IC_MAX_SIDE) return {w:naturalW,h:naturalH};
+  const scale=IC_MAX_SIDE/maxSide;
+  return {w:Math.round(naturalW*scale),h:Math.round(naturalH*scale)};
+}
+// ── Canvas fallback: identical to original takePhotoNow canvas logic ──────
+function _captureFromCanvas(meta){
   const vid=document.getElementById('cam-vid');
   const canvas=document.getElementById('preview-canvas');
   const ctx=canvas.getContext('2d');
-  // השתמש ברזולוציה המקסימלית של הוידאו
-  canvas.width=vid.videoWidth||1920;canvas.height=vid.videoHeight||1080;
+  canvas.width=vid.videoWidth||1920; canvas.height=vid.videoHeight||1080;
   if(vid.videoWidth){
     ctx.drawImage(vid,0,0,canvas.width,canvas.height);
-    // עיבוד night-safe עדין
     applyNightSafe(ctx,canvas.width,canvas.height);
     burnWatermark(ctx,canvas.width,canvas.height);
   } else {
@@ -4796,9 +4845,11 @@ function takePhotoNow(){
     ctx.fillStyle='#00FF88';ctx.font='48px sans-serif';ctx.textAlign='center';ctx.fillText('📷',320,250);
     burnWatermark(ctx,640,480);
   }
-  // JPEG quality לפי בחירת המשתמש (mbIdx)
   const dataURL=canvas.toDataURL('image/jpeg',getJpegQuality());
-  const meta=getPhotoMetadata();
+  _finishCapture(dataURL,meta);
+}
+// ── Merge point: dataURL (never Blob) → uploadPhoto. Pipeline unchanged. ──
+function _finishCapture(dataURL,meta){
   capturedDataURLs.push(dataURL);
   // S2: Camera First — upload immediately, no preview overlay
   // showPhotoPreview() preserved for future optional use; not called by default
@@ -5211,7 +5262,9 @@ function takePhotoSilent(){
 // ── WATERMARK ──
 function burnWatermark(ctx,width,height){
   ctx.save();
-  ctx.font='bold 14px "Bebas Neue",Arial,sans-serif';
+  // Scale font with image width so watermark is visible at any resolution (1.2% of width, min 14px)
+  const wmSize=Math.max(14,Math.round(width*0.012));
+  ctx.font='bold '+wmSize+'px "Bebas Neue",Arial,sans-serif';
   ctx.fillStyle='rgba(255,255,255,0.35)';
   ctx.textAlign='right';ctx.textBaseline='bottom';
   ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=3;
@@ -5489,6 +5542,7 @@ function stopCamera(){
   stopRec();
   if(torchTrack&&flashOn){torchTrack.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});flashOn=false;}
   torchTrack=null;
+  _imageCaptureInstance=null;
   S.currentZoom=1;
   S.zoomBarVisible=false;
   // חזור לדף שיתוף — לא לגלריה
