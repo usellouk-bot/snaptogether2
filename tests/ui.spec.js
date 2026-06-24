@@ -73,12 +73,12 @@ test('4. Manager button is FOURTH and clickable — opens manager_entry screen',
   await expect(page.locator('#s-manager_entry')).toBeVisible({ timeout: 5000 });
 });
 
-test('5. Admin button visible AND click opens admin screen', async ({ page }) => {
+test('5. Admin button hidden by default — not visible to public (P0)', async ({ page }) => {
   await openApp(page);
   const btn = page.getByTestId('btn-admin-entry');
-  await expect(btn).toBeVisible();
-  await btn.click();
-  await expect(page.locator('#s-admin')).toBeVisible({ timeout: 5000 });
+  // P0-FIX: Admin button must be hidden from public home screen.
+  // Admin accesses via ?screen=admin path only.
+  await expect(btn).toBeHidden();
 });
 
 test('6. Create Event button NOT visible before login', async ({ page }) => {
@@ -86,9 +86,12 @@ test('6. Create Event button NOT visible before login', async ({ page }) => {
   await expect(page.getByTestId('btn-new-event')).toBeHidden();
 });
 
-test('7. Admin button opens Admin login with email and password fields', async ({ page }) => {
-  await openApp(page);
-  await page.getByTestId('btn-admin-entry').click();
+test('7. Admin login screen reachable via ?screen=admin — shows email and password fields (P0)', async ({ page }) => {
+  // P0-FIX: Admin button is hidden. Admin must use ?screen=admin path.
+  await page.goto(BASE_URL + '?screen=admin', { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForSelector('#app', { timeout: 10000 });
+  await page.waitForTimeout(400);
+  await expect(page.locator('#s-admin')).toBeVisible({ timeout: 5000 });
   await expect(page.getByTestId('adm-email')).toBeVisible({ timeout: 5000 });
   await expect(page.getByTestId('adm-pass')).toBeVisible();
 });
@@ -115,7 +118,8 @@ test('10. Home screen renders correctly', async ({ page }) => {
   await expect(page.locator('#s-home')).toBeVisible();
   await expect(page.getByTestId('btn-guest-entry')).toBeVisible();
   await expect(page.getByTestId('btn-manager-entry')).toBeVisible();
-  await expect(page.getByTestId('btn-admin-entry')).toBeVisible();
+  // P0-FIX: Admin button hidden from public home screen
+  await expect(page.getByTestId('btn-admin-entry')).toBeHidden();
 });
 
 // ══════════════════════════════════════════════════════════════
