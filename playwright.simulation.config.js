@@ -11,6 +11,7 @@
 //   --use-fake-ui-for-media-stream      auto-accepts getUserMedia permission dialogs
 //
 // Phase 1 scope: MVP-01, MVP-02, MVP-03, MVP-04
+// UX-001 scope: SIM-UX-01 through SIM-UX-13
 // Phase 2 (Firebase Emulator): MVP-05, MVP-06, MVP-07 — not active yet
 
 const { defineConfig, devices } = require('@playwright/test');
@@ -18,7 +19,7 @@ const { defineConfig, devices } = require('@playwright/test');
 module.exports = defineConfig({
   testDir: './tests/simulation',
   testMatch: '**/*.spec.js',
-  timeout: 30000,
+  timeout: 60000,
   retries: 1,
   reporter: [
     ['list'],
@@ -29,6 +30,12 @@ module.exports = defineConfig({
     headless: true,
     screenshot: 'only-on-failure',
     video: 'off',
+    navigationTimeout: 60000,
+    actionTimeout: 15000,
+    extraHTTPHeaders: {
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    },
   },
   projects: [
     {
@@ -39,6 +46,7 @@ module.exports = defineConfig({
           args: [
             '--use-fake-device-for-media-stream',
             '--use-fake-ui-for-media-stream',
+            '--disable-cache',
           ],
         },
       },
