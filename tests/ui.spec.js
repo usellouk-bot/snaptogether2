@@ -195,3 +195,112 @@ test('17. ?screen=admin link still works — not broken', async ({ page }) => {
   await expect(adminScreen).toBeVisible({ timeout: 5000 });
 });
 
+
+// ══════════════════════════════════════════════════════════════
+// UX-001 — Gallery Lightbox Experience (Tests 18–30)
+// Tests run against deployed GitHub Pages URL.
+// These tests verify DOM structure and JS function existence.
+// Gesture simulation (Swipe, Pinch) runs in simulation/ux001.sim.spec.js.
+// ══════════════════════════════════════════════════════════════
+
+test('18. lb-prev button exists in DOM', async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator('#lb-prev')).toBeAttached();
+});
+
+test('19. lb-next button exists in DOM', async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator('#lb-next')).toBeAttached();
+});
+
+test('20. lb-counter exists in DOM', async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator('#lb-counter')).toBeAttached();
+});
+
+test('21. lb-img-wrapper exists in DOM', async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator('#lb-img-wrapper')).toBeAttached();
+});
+
+test('22. lb-prev and lb-next hidden when lightbox closed', async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator('#lb-prev')).toBeHidden();
+  await expect(page.locator('#lb-next')).toBeHidden();
+});
+
+test('23. lbNext function exists on window', async ({ page }) => {
+  await openApp(page);
+  const exists = await page.evaluate(() => typeof window.lbNext === 'function');
+  expect(exists).toBe(true);
+});
+
+test('24. lbPrev function exists on window', async ({ page }) => {
+  await openApp(page);
+  const exists = await page.evaluate(() => typeof window.lbPrev === 'function');
+  expect(exists).toBe(true);
+});
+
+test('25. _lbResetZoom function exists on window', async ({ page }) => {
+  await openApp(page);
+  const exists = await page.evaluate(() => typeof window._lbResetZoom === 'function');
+  expect(exists).toBe(true);
+});
+
+test('26. _lbApplyTransform function exists on window', async ({ page }) => {
+  await openApp(page);
+  const exists = await page.evaluate(() => typeof window._lbApplyTransform === 'function');
+  expect(exists).toBe(true);
+});
+
+test('27. _lbFocalZoom function exists on window', async ({ page }) => {
+  await openApp(page);
+  const exists = await page.evaluate(() => typeof window._lbFocalZoom === 'function');
+  expect(exists).toBe(true);
+});
+
+test('28. Escape key closes lightbox when open', async ({ page }) => {
+  await openApp(page);
+  // Open lightbox via JS
+  await page.evaluate(() => {
+    window._lbIsGalleryMode = false;
+    window.openLB('<div style="color:white;padding:20px;">test</div>', 'test');
+  });
+  await expect(page.locator('#lb')).toHaveClass(/open/, { timeout: 3000 });
+  // Press Escape
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await expect(page.locator('#lb')).not.toHaveClass(/open/);
+});
+
+test('29. ArrowRight does not throw when lightbox is closed', async ({ page }) => {
+  await openApp(page);
+  let threw = false;
+  page.on('pageerror', () => { threw = true; });
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(200);
+  expect(threw).toBe(false);
+});
+
+test('30. Lightbox reset: _lbZoom and _lbCurrentIdx reset to defaults after close', async ({ page }) => {
+  await openApp(page);
+  // Open then close lightbox
+  await page.evaluate(() => {
+    window.openLB('<div>test</div>', 'test');
+  });
+  await page.waitForTimeout(100);
+  await page.evaluate(() => window.closeLB());
+  await page.waitForTimeout(300);
+  const state = await page.evaluate(() => ({
+    zoom: window._lbZoom,
+    idx: window._lbCurrentIdx,
+    panX: window._lbPanX,
+    panY: window._lbPanY,
+    isGalleryMode: window._lbIsGalleryMode,
+  }));
+  expect(state.zoom).toBe(1);
+  expect(state.idx).toBe(-1);
+  expect(state.panX).toBe(0);
+  expect(state.panY).toBe(0);
+  expect(state.isGalleryMode).toBe(false);
+});
