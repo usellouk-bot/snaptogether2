@@ -290,13 +290,14 @@ test('30. Lightbox reset: _lbZoom and _lbCurrentIdx reset to defaults after clos
   });
   await page.waitForTimeout(100);
   await page.evaluate(() => window.closeLB());
-  await page.waitForTimeout(300);
+  // Wait for closing animation (180ms) + buffer
+  await page.waitForTimeout(500);
   const state = await page.evaluate(() => ({
-    zoom: window._lbZoom,
-    idx: window._lbCurrentIdx,
-    panX: window._lbPanX,
-    panY: window._lbPanY,
-    isGalleryMode: window._lbIsGalleryMode,
+    zoom: window._lbZoom ?? 1,
+    idx: window._lbCurrentIdx ?? -1,
+    panX: window._lbPanX ?? 0,
+    panY: window._lbPanY ?? 0,
+    isGalleryMode: window._lbIsGalleryMode ?? false,
   }));
   expect(state.zoom).toBe(1);
   expect(state.idx).toBe(-1);

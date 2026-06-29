@@ -363,7 +363,24 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark4);border:1px solid var(--neon);color:var(--text1);padding:10px 20px;border-radius:var(--r4);font-size:13px;font-weight:500;z-index:9999;white-space:nowrap;opacity:0;transition:all 0.3s;pointer-events:none;box-shadow:var(--glow);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.97);z-index:9995;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
-.lightbox.open{display:flex;}
+.lightbox.open{display:flex;animation:lbFadeIn 0.22s ease;}
+.lightbox.closing{animation:lbFadeOut 0.18s ease forwards;}
+@keyframes lbFadeIn{from{opacity:0;transform:scale(0.97);}to{opacity:1;transform:scale(1);}}
+@keyframes lbFadeOut{from{opacity:1;transform:scale(1);}to{opacity:0;transform:scale(0.97);}}
+@keyframes lbSlideIn{from{opacity:0;transform:translateX(var(--lb-slide-from,30px));}to{opacity:1;transform:translateX(0);}}
+#lb-prev,#lb-next{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:rgba(255,255,255,0.85);font-size:52px;line-height:1;width:60px;height:60px;border-radius:50%;cursor:pointer;z-index:3;display:none;align-items:center;justify-content:center;transition:background 0.2s,opacity 0.2s;-webkit-tap-highlight-color:transparent;user-select:none;flex-shrink:0;}
+#lb-prev{left:8px;}
+#lb-next{right:8px;}
+#lb-prev:hover,#lb-next:hover{background:rgba(255,255,255,0.22);}
+#lb-prev:active,#lb-next:active{background:rgba(255,255,255,0.32);}
+#lb-counter{position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:13px;color:rgba(255,255,255,0.55);font-family:var(--fd);letter-spacing:1px;pointer-events:none;white-space:nowrap;display:none;z-index:3;}
+#lb-close{position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:4;line-height:1;-webkit-tap-highlight-color:transparent;user-select:none;}
+#lb-img-wrapper{position:relative;width:95vw;height:80vh;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
+#lb-img-wrapper.zoomed{cursor:grab;}
+#lb-img-wrapper.zoomed.panning{cursor:grabbing;}
+#lb-content{touch-action:none;user-select:none;-webkit-user-select:none;}
+#lb-content img{max-width:95vw;max-height:80vh;border-radius:10px;object-fit:contain;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-select:none;pointer-events:none;display:block;transition:transform 0.18s ease;}
+#lb-content img.lb-no-transition{transition:none !important;}
 #s-home .scroll{padding-bottom:80px;}
 .home-hero{padding:40px 22px 20px;position:relative;}
 .home-logo{font-family:var(--fd);font-size:52px;letter-spacing:3px;color:var(--text1);line-height:0.9;}
@@ -565,9 +582,14 @@ body{font-family:var(--fb);background:var(--black);color:var(--text1);-webkit-fo
 <div class="app" id="app">
 <div id="mp-build-ver" data-testid="build-version" style="position:fixed;bottom:4px;left:4px;font-size:9px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;font-family:monospace;letter-spacing:0.5px;">self-service-v4</div>
 <div class="toast" id="toast"></div>
-<div class="lightbox" id="lb" onclick="closeLB()">
-  <div style="position:absolute;top:20px;left:20px;color:white;font-size:28px;cursor:pointer;z-index:1;">✕</div>
-  <div id="lb-content" style="font-size:100px;"></div>
+<div class="lightbox" id="lb">
+  <div id="lb-close" onclick="closeLB()">✕</div>
+  <div id="lb-counter"></div>
+  <button id="lb-prev" onclick="event.stopPropagation();lbPrev()">&#8249;</button>
+  <div id="lb-img-wrapper">
+    <div id="lb-content" style="font-size:100px;"></div>
+  </div>
+  <button id="lb-next" onclick="event.stopPropagation();lbNext()">&#8250;</button>
   <div id="lb-caption" style="font-size:12px;color:rgba(255,255,255,0.5);"></div>
 </div>
 
@@ -2640,6 +2662,7 @@ function _renderGalleryPhotos(photos){
   const isAdmin=isAdminSession();
   const canHide=isAdmin||isManagerSession()||(DB.currentUser&&DB.currentUser.role==='owner');
 
+  _lbDisplayPhotos=displayPhotos;
   document.getElementById('gal-grid').innerHTML=displayPhotos.map((p,i)=>{
     const time=new Date(p.ts).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
     const displayUrl = p.cloudUrl || p.url;
@@ -2647,7 +2670,7 @@ function _renderGalleryPhotos(photos){
     const hideBtn=canHide&&p.id?'<button onclick="event.stopPropagation();hideFromProjection(\''+p.id+'\',\'\')" title="הסתר מהקרנה" style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,200,0,0.5);border-radius:50%;width:24px;height:24px;color:#ffcc00;font-size:13px;cursor:pointer;z-index:15;line-height:24px;text-align:center;">'+(p.hiddenFromProjection?'👁':'🙈')+'</button>':'';
 
     if(p.type==='video'){
-      return '<div class="g-cell" style="padding:0;overflow:hidden;position:relative;" onclick="openVideoLB(\''+displayUrl+'\')">'
+      return '<div class="g-cell" style="padding:0;overflow:hidden;position:relative;" onclick="openVideoLB(\''+displayUrl+'\','+i+')">'
         +'<video src="'+displayUrl+'" style="width:100%;height:100%;object-fit:cover;" muted playsinline></video>'
         +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);"><div style="font-size:28px;">▶</div></div>'
         +'<div class="g-time">🎬 '+time+'</div>'
@@ -2701,30 +2724,185 @@ function guestGoToCamera(){
   startCam(); // תמיד — stream נעצר בכניסה לגלריה
 }
 
-function openPhotoLB(idx){
-  const photos=getEventPhotos();const p=photos[idx];
-  if(!p)return;
-  const displayUrl=p.cloudUrl||p.url;
-  document.getElementById('lb-content').innerHTML=`<img src="${displayUrl}" style="max-width:95vw;max-height:80vh;border-radius:10px;object-fit:contain;"/>`;
-  document.getElementById('lb-caption').textContent=`תמונה ${idx+1} מתוך ${photos.length}`;
-  document.getElementById('lb').classList.add('open');
+// ── UX-001: Lightbox Experience ────────────────────────────
+// State
+let _lbCurrentIdx=-1;
+let _lbDisplayPhotos=[];
+let _lbIsGalleryMode=false;
+// Zoom
+let _lbZoom=1;
+let _lbPanX=0;
+let _lbPanY=0;
+// Gesture
+let _lbTouchStartX=0;
+let _lbTouchStartY=0;
+let _lbPinchStartDist=0;
+let _lbPinchStartZoom=1;
+let _lbPinchMidX=0;
+let _lbPinchMidY=0;
+let _lbIsPanning=false;
+let _lbPanStartX=0;
+let _lbPanStartY=0;
+let _lbLastTapTime=0;
+let _lbLastTapX=0;
+let _lbLastTapY=0;
+
+// ── Transform helpers ──────────────────────────────────────
+function _lbApplyTransform(){
+  const img=document.querySelector('#lb-content img');
+  if(!img)return;
+  img.style.transform=`scale(${_lbZoom}) translate(${_lbPanX/_lbZoom}px,${_lbPanY/_lbZoom}px)`;
 }
-function openVideoLB(url){
-  const _lbVid=document.createElement('video');
-  _lbVid.setAttribute('src',url||'');
-  _lbVid.controls=true; _lbVid.autoplay=true; _lbVid.setAttribute('playsinline','');
-  _lbVid.style.cssText='max-width:95vw;max-height:80vh;border-radius:10px;';
-  const _lbEl=document.getElementById('lb-content');
-  if(_lbEl){_lbEl.innerHTML=''; _lbEl.appendChild(_lbVid);}
-  document.getElementById('lb-caption').textContent='סרטון';
-  document.getElementById('lb').classList.add('open');
+function _lbResetZoom(){
+  _lbZoom=1;_lbPanX=0;_lbPanY=0;
+  const img=document.querySelector('#lb-content img');
+  if(img){img.classList.add('lb-no-transition');img.style.transform='';setTimeout(()=>img.classList.remove('lb-no-transition'),20);}
+  const w=document.getElementById('lb-img-wrapper');
+  if(w){w.classList.remove('zoomed','panning');}
 }
-function openLB(c,t=''){document.getElementById('lb-content').innerHTML=c;document.getElementById('lb-caption').textContent=t;document.getElementById('lb').classList.add('open');}
-function closeLB(){
-  document.getElementById('lb').classList.remove('open');
-  // Stop any playing video
+function _lbClampPan(){
+  const img=document.querySelector('#lb-content img');
+  if(!img||_lbZoom<=1){_lbPanX=0;_lbPanY=0;return;}
+  const maxX=Math.max(0,(img.naturalWidth*_lbZoom-window.innerWidth)/2);
+  const maxY=Math.max(0,(img.naturalHeight*_lbZoom-window.innerHeight)/2);
+  _lbPanX=Math.min(maxX,Math.max(-maxX,_lbPanX));
+  _lbPanY=Math.min(maxY,Math.max(-maxY,_lbPanY));
+}
+function _lbFocalZoom(clientX,clientY,newZoom){
+  const w=document.getElementById('lb-img-wrapper');
+  if(!w)return;
+  const r=w.getBoundingClientRect();
+  const focalX=clientX-(r.left+r.width/2);
+  const focalY=clientY-(r.top+r.height/2);
+  const ratio=newZoom/_lbZoom;
+  _lbPanX=(focalX+_lbPanX)*ratio-focalX;
+  _lbPanY=(focalY+_lbPanY)*ratio-focalY;
+  _lbZoom=newZoom;
+  _lbClampPan();
+  const img=document.querySelector('#lb-content img');
+  if(img){img.classList.add('lb-no-transition');}
+  _lbApplyTransform();
+  if(img){setTimeout(()=>img.classList.remove('lb-no-transition'),20);}
+  if(w){w.classList.toggle('zoomed',_lbZoom>1);}
+}
+function _lbUpdateNav(){
+  const total=_lbDisplayPhotos.length;
+  const counter=document.getElementById('lb-counter');
+  const prev=document.getElementById('lb-prev');
+  const next=document.getElementById('lb-next');
+  if(!_lbIsGalleryMode||total===0){
+    if(counter)counter.style.display='none';
+    if(prev)prev.style.display='none';
+    if(next)next.style.display='none';
+    return;
+  }
+  if(counter){counter.textContent=`${_lbCurrentIdx+1} / ${total}`;counter.style.display='block';}
+  if(prev)prev.style.display='flex';
+  if(next)next.style.display='flex';
+}
+async function _lbPreload(idx){
+  const photos=_lbDisplayPhotos;
+  [idx+1,idx-1].forEach(i=>{
+    if(i<0||i>=photos.length)return;
+    const p=photos[i];
+    if(!p||p.type==='video')return;
+    const url=p.cloudUrl||p.url;
+    if(!url)return;
+    const img=new Image();
+    img.src=url;
+    // decode in background — never blocks navigation
+    if(typeof img.decode==='function'){img.decode().catch(()=>{});}
+  });
+}
+function _lbPauseVideo(){
   const vid=document.querySelector('#lb-content video');
   if(vid)vid.pause();
+}
+
+// ── Navigation ─────────────────────────────────────────────
+function lbNext(){
+  if(!_lbIsGalleryMode)return;
+  const total=_lbDisplayPhotos.length;if(!total)return;
+  const newIdx=(_lbCurrentIdx+1)%total;
+  _lbPauseVideo();_lbResetZoom();
+  const p=_lbDisplayPhotos[newIdx];
+  if(p.type==='video')openVideoLB(p.cloudUrl||p.url,newIdx);
+  else openPhotoLB(newIdx);
+}
+function lbPrev(){
+  if(!_lbIsGalleryMode)return;
+  const total=_lbDisplayPhotos.length;if(!total)return;
+  const newIdx=(_lbCurrentIdx-1+total)%total;
+  _lbPauseVideo();_lbResetZoom();
+  const p=_lbDisplayPhotos[newIdx];
+  if(p.type==='video')openVideoLB(p.cloudUrl||p.url,newIdx);
+  else openPhotoLB(newIdx);
+}
+
+// ── Open / Close ───────────────────────────────────────────
+function openPhotoLB(idx,slideDir=0){
+  const photos=_lbDisplayPhotos.length>0?_lbDisplayPhotos:getEventPhotos();
+  const p=photos[idx];
+  if(!p)return;
+  const displayUrl=p.cloudUrl||p.url;
+  _lbCurrentIdx=idx;
+  _lbIsGalleryMode=true;
+  _lbResetZoom();
+  const img=document.createElement('img');
+  img.src=displayUrl;
+  img.style.cssText='max-width:95vw;max-height:80vh;border-radius:10px;object-fit:contain;';
+  // slide animation direction
+  if(slideDir!==0){
+    const from=slideDir>0?'30px':'-30px';
+    img.style.setProperty('--lb-slide-from',from);
+    img.style.animation='lbSlideIn 0.18s ease';
+  }
+  const lbContent=document.getElementById('lb-content');
+  lbContent.innerHTML='';
+  lbContent.appendChild(img);
+  document.getElementById('lb-caption').textContent='';
+  document.getElementById('lb').classList.add('open');
+  _lbUpdateNav();
+  _lbPreload(idx);
+}
+function openVideoLB(url,idx=-1){
+  const _lbVid=document.createElement('video');
+  _lbVid.setAttribute('src',url||'');
+  _lbVid.controls=true;_lbVid.autoplay=true;_lbVid.setAttribute('playsinline','');
+  _lbVid.style.cssText='max-width:95vw;max-height:80vh;border-radius:10px;';
+  const lbContent=document.getElementById('lb-content');
+  if(lbContent){lbContent.innerHTML='';lbContent.appendChild(_lbVid);}
+  document.getElementById('lb-caption').textContent='סרטון';
+  if(idx>=0){_lbCurrentIdx=idx;_lbIsGalleryMode=true;}
+  else{_lbCurrentIdx=-1;_lbIsGalleryMode=false;}
+  _lbUpdateNav();
+  document.getElementById('lb').classList.add('open');
+}
+function openLB(c,t=''){
+  _lbCurrentIdx=-1;_lbIsGalleryMode=false;
+  document.getElementById('lb-content').innerHTML=c;
+  document.getElementById('lb-caption').textContent=t;
+  _lbUpdateNav();
+  document.getElementById('lb').classList.add('open');
+}
+function closeLB(){
+  const lb=document.getElementById('lb');
+  _lbPauseVideo();
+  // animated close
+  lb.classList.add('closing');
+  setTimeout(()=>{
+    lb.classList.remove('open','closing');
+    _lbCurrentIdx=-1;_lbIsGalleryMode=false;
+    _lbResetZoom();
+    _lbTouchStartX=0;_lbTouchStartY=0;
+    _lbPinchStartDist=0;_lbIsPanning=false;
+    const prev=document.getElementById('lb-prev');
+    const next=document.getElementById('lb-next');
+    const counter=document.getElementById('lb-counter');
+    if(prev)prev.style.display='none';
+    if(next)next.style.display='none';
+    if(counter)counter.style.display='none';
+  },180);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2751,15 +2929,18 @@ function renderFilter(){
       const [s,e]=S.selHour.split('–').map(t=>parseInt(t));
       return hr>=s&&hr<(e===0?24:e);
     });
+    _lbDisplayPhotos=filtered;
     h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:0 18px;margin-bottom:8px;">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;">${S.selHour}</div>
       <div style="font-size:11px;color:var(--text3);">${filtered.length} פריטים</div>
     </div><div class="gallery-grid">${makeGrid(filtered)}</div>`;
   } else if(t==='guest'){
     h=`<div class="card"><div style="text-align:center;padding:20px;color:var(--text3);">סינון לפי מצלם זמין לאחר הוספת מצלמים לאירוע</div></div>`;
+    _lbDisplayPhotos=photos;
     h+=`<div style="display:flex;justify-content:space-between;padding:0 18px;margin-bottom:8px;"><div style="font-size:10px;color:var(--text3);">כל התמונות</div></div>
     <div class="gallery-grid">${makeGrid(photos)}</div>`;
   } else {
+    _lbDisplayPhotos=photos;
     h=`<div style="display:flex;justify-content:space-between;padding:0 18px;margin-bottom:8px;">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">כל הפריטים</div>
       <div style="font-size:11px;color:var(--text3);">${photos.length} פריטים</div>
@@ -6012,6 +6193,106 @@ function handleOrientation(){
 // ═══════════════════════════════════════════════════════════
 // זום — חסימה מוחלטת של זום דפדפן + native zoom למצלמה
 // ═══════════════════════════════════════════════════════════
+
+// ── UX-001: Lightbox keyboard + touch listeners ─────────────
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('lb').classList.contains('open'))return;
+  if(e.key==='Escape'){closeLB();return;}
+  if(!_lbIsGalleryMode)return;
+  if(e.key==='ArrowRight'){e.preventDefault();lbNext();}
+  if(e.key==='ArrowLeft'){e.preventDefault();lbPrev();}
+});
+
+(function(){
+  const wrapper=document.getElementById('lb-img-wrapper');
+  if(!wrapper)return;
+
+  wrapper.addEventListener('touchstart',e=>{
+    const touches=e.touches;
+    if(touches.length===2){
+      // Pinch start
+      _lbPinchStartDist=Math.hypot(
+        touches[0].clientX-touches[1].clientX,
+        touches[0].clientY-touches[1].clientY
+      );
+      _lbPinchStartZoom=_lbZoom;
+      _lbPinchMidX=(touches[0].clientX+touches[1].clientX)/2;
+      _lbPinchMidY=(touches[0].clientY+touches[1].clientY)/2;
+      _lbIsPanning=false;
+      return;
+    }
+    if(touches.length===1){
+      const t=touches[0];
+      const now=Date.now();
+      // Double tap detection
+      const dx=t.clientX-_lbLastTapX;
+      const dy=t.clientY-_lbLastTapY;
+      if(now-_lbLastTapTime<300&&Math.abs(dx)<20&&Math.abs(dy)<20){
+        // Double tap — zoom focal
+        if(_lbZoom>1){_lbResetZoom();}
+        else{_lbFocalZoom(t.clientX,t.clientY,2.5);}
+        _lbLastTapTime=0;
+        return;
+      }
+      _lbLastTapTime=now;
+      _lbLastTapX=t.clientX;
+      _lbLastTapY=t.clientY;
+      _lbTouchStartX=t.clientX;
+      _lbTouchStartY=t.clientY;
+      if(_lbZoom>1){
+        _lbIsPanning=true;
+        _lbPanStartX=t.clientX-_lbPanX;
+        _lbPanStartY=t.clientY-_lbPanY;
+        wrapper.classList.add('panning');
+      }
+    }
+  },{passive:true});
+
+  wrapper.addEventListener('touchmove',e=>{
+    const touches=e.touches;
+    if(touches.length===2){
+      // Pinch zoom
+      if(_lbPinchStartDist===0)return;
+      const dist=Math.hypot(
+        touches[0].clientX-touches[1].clientX,
+        touches[0].clientY-touches[1].clientY
+      );
+      const midX=(touches[0].clientX+touches[1].clientX)/2;
+      const midY=(touches[0].clientY+touches[1].clientY)/2;
+      const ratio=dist/_lbPinchStartDist;
+      const newZoom=Math.min(4,Math.max(1,_lbPinchStartZoom*ratio));
+      _lbFocalZoom(midX,midY,newZoom);
+      return;
+    }
+    if(touches.length===1&&_lbIsPanning){
+      const t=touches[0];
+      _lbPanX=t.clientX-_lbPanStartX;
+      _lbPanY=t.clientY-_lbPanStartY;
+      _lbClampPan();
+      _lbApplyTransform();
+    }
+  },{passive:true});
+
+  wrapper.addEventListener('touchend',e=>{
+    wrapper.classList.remove('panning');
+    if(e.touches.length>0)return;
+    // Pinch end
+    if(_lbPinchStartDist>0){_lbPinchStartDist=0;_lbIsPanning=false;return;}
+    const wasPanning=_lbIsPanning;
+    _lbIsPanning=false;
+    if(_lbZoom>1){return;} // zoomed — no swipe
+    const deltaX=e.changedTouches[0].clientX-_lbTouchStartX;
+    const deltaY=e.changedTouches[0].clientY-_lbTouchStartY;
+    const absDX=Math.abs(deltaX);
+    const absDY=Math.abs(deltaY);
+    // Swipe down to close
+    if(deltaY>80&&absDY>absDX*1.5){closeLB();return;}
+    // Swipe left/right to navigate
+    if(absDX>50&&absDX>absDY&&_lbIsGalleryMode){
+      deltaX<0?lbNext():lbPrev();
+    }
+  },{passive:true});
+})();
 
 // חסימה מוחלטת של gesturestart (Safari)
 document.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
