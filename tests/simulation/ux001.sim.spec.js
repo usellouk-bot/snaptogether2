@@ -45,18 +45,20 @@ async function openApp(page) {
  */
 async function injectFakeGallery(page, count = 5, openIdx = 0) {
   await page.evaluate(({ count, openIdx }) => {
-    // Build fake photos with tiny data URLs
     const dataURL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-    window._lbDisplayPhotos = Array.from({ length: count }, (_, i) => ({
+    const fakePhotos = Array.from({ length: count }, (_, i) => ({
       url: dataURL,
       cloudUrl: dataURL,
       type: 'image',
       ts: new Date().toISOString(),
-      uploaderName: `Test ${i}`,
+      uploaderName: 'Test ' + i,
     }));
+    // _lbDisplayPhotos is a let in global scope — mutate the existing array
+    window._lbDisplayPhotos.length = 0;
+    fakePhotos.forEach(function(p) { window._lbDisplayPhotos.push(p); });
     window.openPhotoLB(openIdx);
   }, { count, openIdx });
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(300);
 }
 
 /**
