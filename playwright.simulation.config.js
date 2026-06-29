@@ -1,18 +1,16 @@
-// playwright.simulation.config.js — MomenPix Simulation Lab (Phase 1)
+// playwright.simulation.config.js — MomenPix Simulation Lab
 //
-// Runs ONLY tests/simulation/**/*.spec.js
+// Runs ALL tests/simulation/**/*.spec.js (core + experimental)
 // Does NOT affect playwright.config.js or existing ui.spec.js tests.
 //
-// Run:
+// Run all:
 //   npx playwright test -c playwright.simulation.config.js
 //
-// Flags:
-//   --use-fake-device-for-media-stream  fake camera/mic (no real hardware needed)
-//   --use-fake-ui-for-media-stream      auto-accepts getUserMedia permission dialogs
+// Run core only:
+//   npx playwright test tests/simulation/core/ -c playwright.simulation.config.js
 //
-// Phase 1 scope: MVP-01, MVP-02, MVP-03, MVP-04
-// UX-001 scope: SIM-UX-01 through SIM-UX-13
-// Phase 2 (Firebase Emulator): MVP-05, MVP-06, MVP-07 — not active yet
+// Run experimental only:
+//   npx playwright test tests/simulation/experimental/ -c playwright.simulation.config.js
 
 const { defineConfig, devices } = require('@playwright/test');
 
