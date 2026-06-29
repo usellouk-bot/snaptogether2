@@ -715,6 +715,106 @@ check('P1-IC-14: כל Blob עובר canvas — _finishCapture לא מקבל Blob
     return icIdx > -1 && tdIdx > -1 && finIdx > -1 && tdIdx < finIdx;
   });
 
+console.log('\n[UX-001] Gallery Lightbox Experience');
+
+check('UX001-01: _lbCurrentIdx מוגדר כ--1',
+  () => html.includes('let _lbCurrentIdx=-1;'));
+check('UX001-02: _lbDisplayPhotos מוגדר כ-[]',
+  () => html.includes('let _lbDisplayPhotos=[];'));
+check('UX001-03: _lbIsGalleryMode מוגדר כ-false',
+  () => html.includes('let _lbIsGalleryMode=false;'));
+check('UX001-04: _lbZoom מוגדר כ-1',
+  () => html.includes('let _lbZoom=1;'));
+check('UX001-05: _lbPanX מוגדר כ-0',
+  () => html.includes('let _lbPanX=0;'));
+check('UX001-06: _lbPanY מוגדר כ-0',
+  () => html.includes('let _lbPanY=0;'));
+check('UX001-07: _lbPinchStartDist מוגדר כ-0',
+  () => html.includes('let _lbPinchStartDist=0;'));
+check('UX001-08: _lbIsPanning מוגדר כ-false',
+  () => html.includes('let _lbIsPanning=false;'));
+check('UX001-09: _lbLastTapTime מוגדר כ-0',
+  () => html.includes('let _lbLastTapTime=0;'));
+check('UX001-10: function lbNext מוגדרת',
+  () => html.includes('function lbNext()'));
+check('UX001-11: function lbPrev מוגדרת',
+  () => html.includes('function lbPrev()'));
+check('UX001-12: function _lbPreload מוגדרת',
+  () => html.includes('async function _lbPreload('));
+check('UX001-13: function _lbUpdateNav מוגדרת',
+  () => html.includes('function _lbUpdateNav()'));
+check('UX001-14: function _lbResetZoom מוגדרת',
+  () => html.includes('function _lbResetZoom()'));
+check('UX001-15: function _lbApplyTransform מוגדרת',
+  () => html.includes('function _lbApplyTransform()'));
+check('UX001-16: function _lbClampPan מוגדרת',
+  () => html.includes('function _lbClampPan()'));
+check('UX001-17: function _lbFocalZoom מוגדרת',
+  () => html.includes('function _lbFocalZoom('));
+check('UX001-18: #lb-prev קיים ב-HTML',
+  () => html.includes('id="lb-prev"'));
+check('UX001-19: #lb-next קיים ב-HTML',
+  () => html.includes('id="lb-next"'));
+check('UX001-20: #lb-counter קיים ב-HTML',
+  () => html.includes('id="lb-counter"'));
+check('UX001-21: #lb-img-wrapper קיים ב-HTML',
+  () => html.includes('id="lb-img-wrapper"'));
+check('UX001-22: openPhotoLB מכיל _lbCurrentIdx',
+  () => {
+    const idx=html.indexOf('function openPhotoLB(');
+    return html.slice(idx,idx+600).includes('_lbCurrentIdx');
+  });
+check('UX001-23: openPhotoLB מכיל _lbResetZoom',
+  () => {
+    const idx=html.indexOf('function openPhotoLB(');
+    return html.slice(idx,idx+600).includes('_lbResetZoom');
+  });
+check('UX001-24: closeLB מכיל _lbCurrentIdx=-1',
+  () => {
+    const idx=html.indexOf('function closeLB()');
+    return html.slice(idx,idx+600).includes('_lbCurrentIdx=-1');
+  });
+check('UX001-25: closeLB מכיל _lbResetZoom',
+  () => {
+    const idx=html.indexOf('function closeLB()');
+    return html.slice(idx,idx+600).includes('_lbResetZoom');
+  });
+check('UX001-26: lbNext מכיל _lbResetZoom',
+  () => {
+    const idx=html.indexOf('function lbNext()');
+    return html.slice(idx,idx+300).includes('_lbResetZoom');
+  });
+check('UX001-27: lbPrev מכיל _lbResetZoom',
+  () => {
+    const idx=html.indexOf('function lbPrev()');
+    return html.slice(idx,idx+300).includes('_lbResetZoom');
+  });
+check('UX001-28: _lbDisplayPhotos מוכנס ב-_renderGalleryPhotos',
+  () => {
+    const idx=html.indexOf('function _renderGalleryPhotos(');
+    return html.slice(idx,idx+2000).includes('_lbDisplayPhotos=displayPhotos');
+  });
+check('UX001-29: openVideoLB מכיל פרמטר idx',
+  () => {
+    const idx=html.indexOf('function openVideoLB(');
+    return html.slice(idx,idx+100).includes('idx');
+  });
+check('UX001-30: _lbFocalZoom מכיל getBoundingClientRect',
+  () => {
+    const idx=html.indexOf('function _lbFocalZoom(');
+    return html.slice(idx,idx+400).includes('getBoundingClientRect');
+  });
+check('UX001-31: lbNext מחזורי — מכיל % total',
+  () => {
+    const idx=html.indexOf('function lbNext()');
+    return html.slice(idx,idx+300).includes('%total');
+  });
+check('UX001-32: lbPrev מחזורי — מכיל % total',
+  () => {
+    const idx=html.indexOf('function lbPrev()');
+    return html.slice(idx,idx+300).includes('%total');
+  });
+
 console.log('\n' + '─'.repeat(44));
 console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');
 
