@@ -53,12 +53,19 @@ async function injectFakeGallery(page, count = 5, openIdx = 0) {
       ts: new Date().toISOString(),
       uploaderName: 'Test ' + i,
     }));
-    // _lbDisplayPhotos is a let in global scope — mutate the existing array
-    window._lbDisplayPhotos.length = 0;
-    fakePhotos.forEach(function(p) { window._lbDisplayPhotos.push(p); });
-    window.openPhotoLB(openIdx);
+    // Inject via eval to access the let variable in the page script scope
+    // This is safe because we control the page and the data
+    const script = document.createElement('script');
+    script.textContent = [
+      '_lbDisplayPhotos.length = 0;',
+      'var _fp = ' + JSON.stringify(fakePhotos) + ';',
+      '_fp.forEach(function(p){_lbDisplayPhotos.push(p);});',
+      'openPhotoLB(' + openIdx + ');'
+    ].join('\n');
+    document.head.appendChild(script);
+    document.head.removeChild(script);
   }, { count, openIdx });
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400);
 }
 
 /**
