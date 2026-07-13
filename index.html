@@ -131,6 +131,16 @@ async function fbGetPhotos(eventCode){
     return photos;
   }catch(e){return [];}
 }
+async function fbGetAllPhotos(eventCode){
+  const snap=await db.collection('events').doc(eventCode).collection('photos').get();
+  const photos=snap.docs.map(d=>d.data());
+  photos.sort((a,b)=>{
+    const ta=a.uploadedAt||new Date(a.capturedAt||0).getTime()||0;
+    const tb=b.uploadedAt||new Date(b.capturedAt||0).getTime()||0;
+    return tb-ta;
+  });
+  return photos;
+}
 
 // ═══════════════════════════════════════════════════════════
 // CURATOR PHASE 0 — Silent data collection for pilot learning
@@ -4295,7 +4305,7 @@ async function doDL(){
   try{
     // טען תמונות מFirebase
     if(progressTxt)progressTxt.textContent='טוען רשימת קבצים...';
-    const photos=await fbGetPhotos(code);
+    const photos=await fbGetAllPhotos(code);
     if(!photos||photos.length===0){
       toast('⚠ אין קבצים להורדה');
       if(btn){btn.disabled=false;btn.textContent='📥 הורד '+S.dlWhat+' →';}
