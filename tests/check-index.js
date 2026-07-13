@@ -815,6 +815,44 @@ check('UX001-32: lbPrev מחזורי — מכיל % total',
     return html.slice(idx,idx+300).includes('%total');
   });
 
+console.log('\n[DL] fbGetAllPhotos — Download Fix');
+
+check('DL-01: async function fbGetAllPhotos מוגדרת',
+  html.includes('async function fbGetAllPhotos('));
+
+check('DL-02: fbGetAllPhotos אינה מכילה .limit(',
+  (() => {
+    const idx = html.indexOf('async function fbGetAllPhotos(');
+    if (idx === -1) return false;
+    const nextAsync = html.indexOf('\nasync function ', idx + 1);
+    const nextSync  = html.indexOf('\nfunction ', idx + 1);
+    const end = Math.min(
+      nextAsync > idx ? nextAsync : Infinity,
+      nextSync  > idx ? nextSync  : Infinity
+    );
+    const block = html.slice(idx, end === Infinity ? idx + 500 : end);
+    return !block.includes('.limit(');
+  })());
+
+check('DL-03: doDL קוראת ל-fbGetAllPhotos ולא ל-fbGetPhotos',
+  (() => {
+    const idx = html.indexOf('async function doDL()');
+    if (idx === -1) return false;
+    const nextFn = html.indexOf('\nasync function ', idx + 1);
+    const block = html.slice(idx, nextFn > idx ? nextFn : idx + 3000);
+    return block.includes('fbGetAllPhotos(') && !block.includes('fbGetPhotos(');
+  })());
+
+check('DL-04: fbGetPhotos עדיין מכילה .limit(200) — לא שונתה',
+  (() => {
+    const idx = html.indexOf('async function fbGetPhotos(');
+    if (idx === -1) return false;
+    const nextFn = html.indexOf('\nasync function ', idx + 1);
+    const block = html.slice(idx, nextFn > idx ? nextFn : idx + 500);
+    return block.includes('.limit(200)');
+  })());
+
+
 console.log('\n' + '─'.repeat(44));
 console.log('תוצאה: ' + passed + '/' + total + ' בדיקות עברו');
 
